@@ -13,7 +13,9 @@ primitives. Phase 4 of the approved execution plan. See ADR-004 (Scope).
 """
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -157,8 +159,22 @@ def gen_iterate(
             "reason": "all jobs in scope have delta = 0",
         }
 
+    # Determine result_path for F_P actor output (written before bind_fp)
+    from gtl.core import F_P as _F_P, F_H as _F_H
+    fp_failing = [ev for ev in selected_pre.failing_evaluators if ev.category is _F_P]
+    fh_failing = [ev for ev in selected_pre.failing_evaluators if ev.category is _F_H]
+
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+    edge_slug = selected_job.edge.name.replace("→", "_").replace("↔", "_")
+
+    result_path = ""
+    if fp_failing:
+        fp_results_dir = scope.workspace_root / ".ai-workspace" / "fp_results"
+        fp_results_dir.mkdir(parents=True, exist_ok=True)
+        result_path = str(fp_results_dir / f"{edge_slug}_{ts}.json")
+
     # Bind + iterate
-    bound = bind_fp(selected_pre, selected_job)
+    bound = bind_fp(selected_pre, selected_job, result_path=result_path)
     stream.append("edge_started", {
         "edge": selected_job.edge.name,
         "build": scope.build,
@@ -170,7 +186,7 @@ def gen_iterate(
     for event in surface.events:
         stream.append(event["event_type"], event["data"])
 
-    return {
+    result: dict = {
         "status": "iterated",
         "edge": selected_job.edge.name,
         "delta_before": selected_pre.delta,
@@ -178,6 +194,34 @@ def gen_iterate(
         "events_emitted": len(surface.events) + 1,  # +1 for edge_started
         "prompt_words": len(bound.prompt.split()),
     }
+
+    # Write F_P manifest to disk when F_P dispatch is needed.
+    # gen-start.md reads fp_manifest_path to get the prompt for MCP dispatch.
+    if fp_failing:
+        manifests_dir = scope.workspace_root / ".ai-workspace" / "fp_manifests"
+        manifests_dir.mkdir(parents=True, exist_ok=True)
+        manifest_file = manifests_dir / f"{edge_slug}_{ts}.json"
+        manifest = {
+            "edge": selected_job.edge.name,
+            "failing_evaluators": [
+                {"name": ev.name, "description": ev.description}
+                for ev in fp_failing
+            ],
+            "prompt": bound.prompt,
+            "result_path": result_path,
+        }
+        manifest_file.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        result["fp_manifest_path"] = str(manifest_file)
+
+    # Include F_H gate criteria so skill can evaluate without extra reads.
+    if fh_failing:
+        result["fh_gate"] = {
+            "edge": selected_job.edge.name,
+            "evaluators": [ev.name for ev in fh_failing],
+            "criteria": [ev.description for ev in fh_failing],
+        }
+
+    return result
 
 
 # ── gen_start — state machine ──────────────────────────────────────────────────

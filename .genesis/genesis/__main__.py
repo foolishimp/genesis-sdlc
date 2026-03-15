@@ -5,12 +5,19 @@
 __main__ — CLI entry point for the genesis engine.
 
 Usage:
-  python -m genesis start  [--auto] [--feature F] [--edge E] [--workspace W]
+  python -m genesis start  [--auto] [--human-proxy] [--feature F] [--edge E] [--workspace W]
   python -m genesis iterate [--feature F] [--edge E] [--workspace W]
   python -m genesis gaps    [--feature F] [--workspace W]
+  python -m genesis emit-event --type TYPE [--data JSON] [--workspace W]
   python -m genesis check-tags --type implements|validates --path PATH
 
   gen start ...   (via project.scripts entry point)
+
+Exit codes for start/iterate:
+  0 — converged or nothing_to_do
+  1 — error
+  2 — fp_dispatched (F_P actor required; fp_manifest_path in output)
+  3 — fh_gate_pending (F_H evaluation required; gate criteria in output)
 """
 from __future__ import annotations
 
@@ -31,6 +38,8 @@ def _build_parser() -> argparse.ArgumentParser:
     p_start = sub.add_parser("start", help="Derive state → bind → iterate")
     p_start.add_argument("--auto", action="store_true",
                          help="Loop until converged or blocked by F_H gate")
+    p_start.add_argument("--human-proxy", action="store_true",
+                         help="Allow F_H gates to be evaluated by proxy (requires --auto)")
     p_start.add_argument("--feature", metavar="F",
                          help="Scope to a specific feature vector ID")
     p_start.add_argument("--edge", metavar="E",
@@ -58,6 +67,16 @@ def _build_parser() -> argparse.ArgumentParser:
                        help="Package to load (overrides .genesis/genesis.yml)")
         p.add_argument("--worker", metavar="MODULE:VAR",
                        help="Worker to load (overrides .genesis/genesis.yml)")
+
+    # ── emit-event ────────────────────────────────────────────────────────────
+    p_emit = sub.add_parser("emit-event",
+                            help="Append one event to .ai-workspace/events/events.jsonl")
+    p_emit.add_argument("--type", required=True, metavar="TYPE",
+                        help="Event type (e.g. review_approved, fp_assessment)")
+    p_emit.add_argument("--data", default="{}", metavar="JSON",
+                        help="Event data as a JSON object (default: {})")
+    p_emit.add_argument("--workspace", metavar="W", default=".",
+                        help="Workspace root (default: cwd)")
 
     # ── check-tags ────────────────────────────────────────────────────────────
     p_tags = sub.add_parser("check-tags",
@@ -187,6 +206,37 @@ def _check_req_coverage(spec_path: str, features_dir: str,
     return 0 if result["passes"] else 1
 
 
+def _emit_event_cmd(event_type: str, data_json: str, workspace: Path) -> int:
+    """
+    Append one event to .ai-workspace/events/events.jsonl.
+
+    Used by gen-start.md to emit review_approved and fp_assessment events
+    from the skill layer (F_H proxy, MCP actor fold-back).
+    """
+    import json as _json
+    from datetime import datetime, timezone
+
+    try:
+        data = _json.loads(data_json)
+    except _json.JSONDecodeError as exc:
+        print(f"ERROR: --data is not valid JSON: {exc}", file=sys.stderr)
+        return 1
+
+    events_dir = workspace / ".ai-workspace" / "events"
+    events_dir.mkdir(parents=True, exist_ok=True)
+    event = {
+        "event_type": event_type,
+        "event_time": datetime.now(timezone.utc).isoformat(),
+        "data": data,
+    }
+    events_file = events_dir / "events.jsonl"
+    with events_file.open("a", encoding="utf-8") as f:
+        f.write(_json.dumps(event) + "\n")
+
+    print(_json.dumps({"status": "ok", "event_type": event_type}))
+    return 0
+
+
 def _load_project_config(workspace: Path) -> dict:
     """
     Read .genesis/genesis.yml — key: value pairs and YAML lists.
@@ -313,6 +363,17 @@ def main() -> None:
             package_ref=getattr(args, "package", None),
         ))
 
+    # emit-event: appends one event to events.jsonl — no engine stack needed
+    if args.command == "emit-event":
+        workspace = Path(args.workspace).resolve()
+        sys.exit(_emit_event_cmd(args.type, args.data, workspace))
+
+    # --human-proxy requires --auto
+    if getattr(args, "human_proxy", False) and not getattr(args, "auto", False):
+        print(json.dumps({"status": "error",
+                          "reason": "--human-proxy requires --auto"}))
+        sys.exit(1)
+
     # All other commands need the engine
     workspace = Path(getattr(args, "workspace", ".")).resolve()
 
@@ -353,6 +414,17 @@ def main() -> None:
         sys.exit(1)
 
     print(json.dumps(result, indent=2))
+
+    # Exit codes for skill routing:
+    #   0 — converged / nothing_to_do
+    #   1 — error (already exited above)
+    #   2 — fp_dispatched (F_P actor required; fp_manifest_path in output)
+    #   3 — fh_gate_pending (F_H evaluation required)
+    stopped_by = result.get("stopped_by", "")
+    if stopped_by == "fp_dispatch":
+        sys.exit(2)
+    if stopped_by == "fh_gate":
+        sys.exit(3)
 
 
 if __name__ == "__main__":
