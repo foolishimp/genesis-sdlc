@@ -91,6 +91,20 @@ PYTHONPATH=.genesis python -m genesis start --auto --workspace .
 PYTHONPATH=.genesis python -m genesis gaps  --workspace .
 ```
 
+## Operating protocol
+
+**Always route user intent through commands — never do work directly.**
+When the user asks to build, fix, or iterate anything, that is `/gen-start` or
+`/gen-iterate`. Direct edits bypass the F_D evaluation chain and nothing is traced.
+
+| Intent | Command |
+|--------|---------|
+| "go" / "next" / "build X" / "fix Y" | `/gen-start --auto --human-proxy` |
+| "one step" / "iterate edge E" | `/gen-iterate --feature F --edge E` |
+| "what's broken" / "gaps" / "coverage" | `/gen-gaps` |
+| "status" / "where am I" | `/gen-status` |
+| "review" / "approve" | `/gen-review --feature F` |
+
 ## Slash commands
 
 | Command | What it does |
