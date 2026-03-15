@@ -1,6 +1,6 @@
 id: REQ-F-CMD
 title: Engine Commands
-status: active
+status: completed
 satisfies:
   - REQ-F-CMD-001
   - REQ-F-CMD-002

@@ -1,6 +1,6 @@
 id: REQ-F-TAG
 title: Code and Test Traceability Tags
-status: active
+status: completed
 satisfies:
   - REQ-F-TAG-001
   - REQ-F-TAG-002

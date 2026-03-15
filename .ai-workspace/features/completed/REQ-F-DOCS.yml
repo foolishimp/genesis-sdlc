@@ -1,6 +1,6 @@
 id: REQ-F-DOCS
 title: User Documentation
-status: active
+status: completed
 satisfies:
   - REQ-F-DOCS-001
 description: |

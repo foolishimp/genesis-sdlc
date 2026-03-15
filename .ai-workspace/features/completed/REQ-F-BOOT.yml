@@ -1,6 +1,6 @@
 id: REQ-F-BOOT
 title: Project Bootstrap
-status: active
+status: completed
 satisfies:
   - REQ-F-BOOT-001
   - REQ-F-BOOT-002

@@ -1,6 +1,6 @@
 id: REQ-F-COV
 title: REQ Key Coverage Enforcement
-status: active
+status: completed
 satisfies:
   - REQ-F-COV-001
 description: |

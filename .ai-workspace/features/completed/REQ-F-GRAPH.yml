@@ -1,6 +1,6 @@
 id: REQ-F-GRAPH
 title: SDLC Graph Definition
-status: active
+status: completed
 satisfies:
   - REQ-F-GRAPH-001
   - REQ-F-GRAPH-002

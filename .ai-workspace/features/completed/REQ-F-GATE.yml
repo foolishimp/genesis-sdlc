@@ -1,6 +1,6 @@
 id: REQ-F-GATE
 title: Human Approval Gates
-status: active
+status: completed
 satisfies:
   - REQ-F-GATE-001
 description: |
