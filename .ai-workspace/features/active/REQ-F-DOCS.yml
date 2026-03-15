@@ -1,0 +1,18 @@
+id: REQ-F-DOCS
+title: User Documentation
+status: active
+satisfies:
+  - REQ-F-DOCS-001
+description: |
+  A user guide covers installation (bootstrap and pip install paths), the first session
+  (gen gaps on a fresh workspace), the three commands, the working loop, and how to
+  write a GTL spec.
+acceptance_criteria:
+  - README.md at project root covers getting started in under 10 minutes
+  - USER_GUIDE.md covers all three commands with output field reference
+  - GTL Primer shows a minimal working spec example
+  - Key concepts (F_D, F_P, F_H, delta, convergence) are defined before use
+  - Current limitations are documented honestly
+dependencies:
+  - REQ-F-CMD
+  - REQ-F-GRAPH

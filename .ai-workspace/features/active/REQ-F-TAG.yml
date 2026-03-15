@@ -1,0 +1,17 @@
+id: REQ-F-TAG
+title: Code and Test Traceability Tags
+status: active
+satisfies:
+  - REQ-F-TAG-001
+  - REQ-F-TAG-002
+description: |
+  Every source file carries at least one # Implements: REQ-* tag.
+  Every test file carries at least one # Validates: REQ-* tag.
+  Enforced as F_D evaluators in the design→code and code↔unit_tests edges.
+acceptance_criteria:
+  - gen check-tags --type implements --path src/ exits 0 iff all .py files are tagged
+  - gen check-tags --type validates --path tests/ exits 0 iff all test .py files are tagged
+  - __init__.py files are excluded from tag checks
+  - Output is JSON: {passes, untagged_count, untagged: [...]}
+dependencies:
+  - REQ-F-CMD

@@ -1,0 +1,17 @@
+id: REQ-F-BOOT
+title: Project Bootstrap
+status: active
+satisfies:
+  - REQ-F-BOOT-001
+  - REQ-F-BOOT-002
+description: |
+  gen-install.py copies the genesis engine (.genesis/genesis/, .genesis/gtl/,
+  .genesis/genesis.yml) and a starter spec into the target project.
+  On completion the project can run: PYTHONPATH=.genesis python -m genesis gaps --workspace .
+acceptance_criteria:
+  - gen-install --target DIR creates .genesis/genesis/, .genesis/gtl/, .genesis/genesis.yml
+  - genesis.yml resolves Package/Worker from spec.packages.<slug>:package/worker
+  - --project-slug customises the starter spec module name
+  - Reinstall is idempotent: engine files replaced, starter spec never overwritten
+  - genesis_installed event emitted to .ai-workspace/events/events.jsonl
+dependencies: []

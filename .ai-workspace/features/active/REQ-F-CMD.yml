@@ -1,0 +1,18 @@
+id: REQ-F-CMD
+title: Engine Commands
+status: active
+satisfies:
+  - REQ-F-CMD-001
+  - REQ-F-CMD-002
+  - REQ-F-CMD-003
+description: |
+  Three workflow commands drive construction through the SDLC graph.
+  All read Package/Worker from .genesis/genesis.yml or --package/--worker flags.
+acceptance_criteria:
+  - gen gaps --workspace . reports total_delta, converged, and per-edge failing/passing evaluators
+  - gen iterate --workspace . selects the first unconverged job and runs one bind-and-iterate pass
+  - gen start --workspace . is a state-machine wrapper over gen iterate
+  - gen start --auto loops until converged or stopped by fh_gate, fp_dispatch, fd_gap
+  - All commands exit 0 on success, 1 on error, with JSON output
+dependencies:
+  - REQ-F-BOOT

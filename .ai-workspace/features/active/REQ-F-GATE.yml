@@ -1,0 +1,17 @@
+id: REQ-F-GATE
+title: Human Approval Gates
+status: active
+satisfies:
+  - REQ-F-GATE-001
+description: |
+  F_H evaluators gate stage transitions at spec/design boundaries.
+  An edge with an F_H evaluator does not converge until a review_approved
+  event exists for that edge in the event log.
+acceptance_criteria:
+  - intent→requirements requires review_approved before progressing
+  - requirements→feature_decomp requires review_approved before progressing
+  - feature_decomp→design requires review_approved before progressing
+  - gen start --auto stops with stopped_by: fh_gate when an F_H gate is pending
+  - review_approved event carries: edge, actor, optional ref
+dependencies:
+  - REQ-F-CMD

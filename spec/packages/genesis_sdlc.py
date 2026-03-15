@@ -252,10 +252,24 @@ package = Package(
     rules=[standard_gate],
     contexts=[bootloader, this_spec, intent_doc, design_adrs],
     requirements=[
-        # Populated as requirements are written.
-        # gen check-req-coverage --package spec.packages.genesis_sdlc:package
-        #     --features .ai-workspace/features/
-        # will verify every key here appears in a feature vector.
+        # Bootstrap
+        "REQ-F-BOOT-001",   # gen-install bootstraps .genesis/ into target project
+        "REQ-F-BOOT-002",   # .genesis/genesis.yml config resolves Package/Worker
+        # SDLC graph
+        "REQ-F-GRAPH-001",  # GTL Package defines 6-asset SDLC graph
+        "REQ-F-GRAPH-002",  # Asset.markov conditions are acceptance criteria
+        # Commands
+        "REQ-F-CMD-001",    # gen gaps reports delta per edge
+        "REQ-F-CMD-002",    # gen iterate runs one bind-and-iterate pass
+        "REQ-F-CMD-003",    # gen start --auto loops until blocked
+        # Human gates
+        "REQ-F-GATE-001",   # F_H evaluators gate spec/design boundaries
+        # Traceability
+        "REQ-F-TAG-001",    # Implements: tags enforced on all source files
+        "REQ-F-TAG-002",    # Validates: tags enforced on all test files
+        "REQ-F-COV-001",    # REQ key coverage enforced by check-req-coverage
+        # Documentation
+        "REQ-F-DOCS-001",   # User guide covers install, first session, operating loop
     ],
 )
 

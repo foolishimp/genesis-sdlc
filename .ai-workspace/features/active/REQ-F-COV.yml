@@ -1,0 +1,14 @@
+id: REQ-F-COV
+title: REQ Key Coverage Enforcement
+status: active
+satisfies:
+  - REQ-F-COV-001
+description: |
+  Every REQ key in Package.requirements must appear in at least one feature vector's
+  satisfies: field. Enforced as an F_D evaluator in requirements→feature_decomp.
+acceptance_criteria:
+  - gen check-req-coverage --package spec.packages.genesis_sdlc:package --features .ai-workspace/features/ exits 0 iff all REQ keys are covered
+  - Output is JSON: {spec_keys, covered_count, total_count, uncovered: [...], passes}
+  - Uncovered keys are listed explicitly so gaps are actionable
+dependencies:
+  - REQ-F-GRAPH

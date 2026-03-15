@@ -1,0 +1,17 @@
+id: REQ-F-GRAPH
+title: SDLC Graph Definition
+status: active
+satisfies:
+  - REQ-F-GRAPH-001
+  - REQ-F-GRAPH-002
+description: |
+  The GTL Package defines the project's SDLC graph as typed assets, directed edges,
+  and evaluators. Asset.markov conditions are the acceptance criteria — the type system
+  is the spec. No separate requirements document needed.
+acceptance_criteria:
+  - Package defines 6 asset types: intent, requirements, feature_decomp, design, code, unit_tests
+  - Asset.markov lists acceptance criteria for each asset type
+  - 5 edges form the bootstrap SDLC path: intent→req→feat→design→code↔tests
+  - Package.requirements is the authoritative REQ key registry
+  - Package is importable and loadable by the genesis engine
+dependencies: []
