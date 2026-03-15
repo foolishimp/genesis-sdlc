@@ -191,8 +191,17 @@ class TestEvaluatorCommands:
         from genesis_sdlc import sdlc_graph as sg
         job_uat = next(j for j in sg.worker.can_execute if j.edge.name == "unit_tests→uat_tests")
         categories = {ev.category for ev in job_uat.evaluators}
+        assert F_D in categories, "UAT job must have F_D evaluator (sandbox report check)"
         assert F_P in categories, "UAT job must have F_P evaluator (sandbox runner)"
         assert F_H in categories, "UAT job must have F_H gate (human confirmation)"
+
+    def test_uat_report_evaluator_has_command(self):
+        from genesis_sdlc import sdlc_graph as sg
+        job_uat = next(j for j in sg.worker.can_execute if j.edge.name == "unit_tests→uat_tests")
+        fd_evs = [ev for ev in job_uat.evaluators if ev.category == F_D]
+        assert fd_evs, "UAT job must have at least one F_D evaluator"
+        assert fd_evs[0].command, "UAT F_D evaluator must have a command"
+        assert "sandbox_report.json" in fd_evs[0].command
 
 
 # ── Worker ─────────────────────────────────────────────────────────────────────

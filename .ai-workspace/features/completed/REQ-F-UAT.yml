@@ -1,0 +1,21 @@
+id: REQ-F-UAT
+title: UAT Edge — Sandbox E2E Proof Required to Ship
+status: completed
+satisfies:
+  - REQ-F-UAT-001
+description: |
+  The unit_tests→uat_tests edge makes shipping conditional on sandbox e2e proof.
+  Unit tests are necessary but not sufficient. The F_P actor installs the project
+  into a fresh sandbox, runs e2e tests there, and writes a structured report.
+  The F_D verifier checks the report. The F_H gate confirms the evidence.
+  No feature converges on this edge without all three passing.
+acceptance_criteria:
+  - uat_tests asset exists in the Package with markov: [sandbox_install_passes, e2e_scenarios_pass, accepted_by_human]
+  - unit_tests→uat_tests edge exists with F_D (report check), F_P (sandbox runner), and F_H (human gate)
+  - F_P actor writes .ai-workspace/uat/sandbox_report.json with install_success, test_count, pass_count, all_pass fields
+  - F_D evaluator (uat_sandbox_report) fails if report absent or all_pass != true
+  - F_H gate (uat_accepted) cannot be approved without valid sandbox report
+  - At least one @pytest.mark.e2e test exists so pytest -m e2e cannot succeed vacuously
+dependencies:
+  - REQ-F-GRAPH
+  - REQ-F-GATE

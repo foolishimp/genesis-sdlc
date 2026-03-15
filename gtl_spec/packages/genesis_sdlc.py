@@ -248,20 +248,34 @@ eval_coverage_fp = Evaluator(
 )
 
 # unit_tests→uat_tests
-# F_D evaluators for UAT must NOT invoke genesis commands (acyclicity constraint).
-# Sandbox install and e2e execution are F_P and F_H responsibilities.
+# F_D verifier: checks that the F_P actor wrote a structured sandbox report.
+# The report is created by the F_P actor during sandbox installation and e2e run.
+# No genesis subcommands — reads a JSON file. Acyclicity preserved.
+eval_uat_report = Evaluator(
+    "uat_sandbox_report", F_D,
+    "Sandbox e2e report exists at .ai-workspace/uat/sandbox_report.json with all_pass: true",
+    command=(
+        "python -c \""
+        "import json,sys,pathlib; "
+        "r=pathlib.Path('.ai-workspace/uat/sandbox_report.json'); "
+        "d=json.loads(r.read_text()) if r.exists() else {}; "
+        "sys.exit(0 if d.get('all_pass') and d.get('install_success') else 1)"
+        "\""
+    ),
+)
 eval_uat_fp = Evaluator(
     "uat_e2e_passed", F_P,
     "Install into a fresh sandbox: "
     "python builds/python/src/genesis_sdlc/install.py --target /tmp/uat_sandbox_{timestamp} --project-slug {slug}. "
     "Then run e2e tests in that sandbox: "
     "PYTHONPATH=.genesis python -m pytest builds/python/tests/ -m e2e -q. "
-    "Report sandbox path, test count, and pass/fail. "
+    "Write a structured report to .ai-workspace/uat/sandbox_report.json: "
+    "{install_success: bool, sandbox_path: str, test_count: int, pass_count: int, fail_count: int, all_pass: bool, timestamp: ISO}. "
     "Unit tests alone do not satisfy this edge — sandbox e2e is the acceptance proof.",
 )
 eval_uat_fh = Evaluator(
     "uat_accepted", F_H,
-    "Human confirms: (1) sandbox install succeeded and produced a clean workspace, "
+    "Human confirms: (1) .ai-workspace/uat/sandbox_report.json shows all_pass: true, "
     "(2) all e2e scenarios pass end-to-end in the sandbox, "
     "(3) every feature acceptance criterion is demonstrated by at least one scenario. "
     "No feature is shipped without sandbox proof.",
@@ -275,7 +289,7 @@ job_req_feat    = Job(e_req_feat,    [eval_req_coverage, eval_decomp_fp, eval_de
 job_feat_design = Job(e_feat_design, [eval_design_fp, eval_design_fh])
 job_design_code = Job(e_design_code, [eval_impl_tags, eval_code_fp])
 job_tdd         = Job(e_tdd,         [eval_tests_pass, eval_test_tags, eval_coverage_fp])
-job_uat         = Job(e_unit_uat,    [eval_uat_fp, eval_uat_fh])
+job_uat         = Job(e_unit_uat,    [eval_uat_report, eval_uat_fp, eval_uat_fh])
 
 
 # ── Worker ────────────────────────────────────────────────────────────────────
@@ -302,7 +316,7 @@ package = Package(
         "REQ-F-BOOT-001",   # gen-install bootstraps .genesis/ into target project
         "REQ-F-BOOT-002",   # .genesis/genesis.yml config resolves Package/Worker
         # SDLC graph
-        "REQ-F-GRAPH-001",  # GTL Package defines 6-asset SDLC graph
+        "REQ-F-GRAPH-001",  # GTL Package defines 7-asset SDLC graph
         "REQ-F-GRAPH-002",  # Asset.markov conditions are acceptance criteria
         # Commands
         "REQ-F-CMD-001",    # gen gaps reports delta per edge
@@ -316,6 +330,8 @@ package = Package(
         "REQ-F-COV-001",    # REQ key coverage enforced by check-req-coverage
         # Documentation
         "REQ-F-DOCS-001",   # User guide covers install, first session, operating loop
+        # UAT
+        "REQ-F-UAT-001",    # unit_tests→uat_tests edge: sandbox install + e2e proof required to ship
     ],
 )
 

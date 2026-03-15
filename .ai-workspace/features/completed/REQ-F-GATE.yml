@@ -11,6 +11,7 @@ acceptance_criteria:
   - intent→requirements requires review_approved before progressing
   - requirements→feature_decomp requires review_approved before progressing
   - feature_decomp→design requires review_approved before progressing
+  - unit_tests→uat_tests requires review_approved before progressing (uat_accepted gate)
   - gen start --auto stops with stopped_by: fh_gate when an F_H gate is pending
   - review_approved event carries: edge, actor, optional ref
 dependencies:

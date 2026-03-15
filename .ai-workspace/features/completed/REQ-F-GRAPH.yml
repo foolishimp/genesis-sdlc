@@ -9,9 +9,9 @@ description: |
   and evaluators. Asset.markov conditions are the acceptance criteria — the type system
   is the spec. No separate requirements document needed.
 acceptance_criteria:
-  - Package defines 6 asset types: intent, requirements, feature_decomp, design, code, unit_tests
+  - Package defines 7 asset types: intent, requirements, feature_decomp, design, code, unit_tests, uat_tests
   - Asset.markov lists acceptance criteria for each asset type
-  - 5 edges form the bootstrap SDLC path: intent→req→feat→design→code↔tests
+  - 6 edges form the bootstrap SDLC path: intent→req→feat→design→code↔tests→uat_tests
   - Package.requirements is the authoritative REQ key registry
   - Package is importable and loadable by the genesis engine
 dependencies: []

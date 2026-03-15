@@ -241,20 +241,32 @@ eval_coverage_fp = Evaluator(
 )
 
 # unit_tests→uat_tests: sandbox e2e is the acceptance proof.
-# F_P installs into a fresh sandbox and runs e2e tests there.
-# F_H confirms sandbox evidence before approving.
+# F_D checks the structured report written by F_P. F_H confirms the evidence.
+eval_uat_report = Evaluator(
+    "uat_sandbox_report", F_D,
+    "Sandbox e2e report exists at .ai-workspace/uat/sandbox_report.json with all_pass: true",
+    command=(
+        "python -c \""
+        "import json,sys,pathlib; "
+        "r=pathlib.Path('.ai-workspace/uat/sandbox_report.json'); "
+        "d=json.loads(r.read_text()) if r.exists() else {}; "
+        "sys.exit(0 if d.get('all_pass') and d.get('install_success') else 1)"
+        "\""
+    ),
+)
 eval_uat_fp = Evaluator(
     "uat_e2e_passed", F_P,
     "Install into a fresh sandbox: "
     "python builds/python/src/genesis_sdlc/install.py --target /tmp/uat_sandbox_{timestamp} --project-slug {slug}. "
     "Then run e2e tests in that sandbox: "
     "PYTHONPATH=.genesis python -m pytest builds/python/tests/ -m e2e -q. "
-    "Report sandbox path, test count, and pass/fail. "
+    "Write a structured report to .ai-workspace/uat/sandbox_report.json: "
+    "{install_success: bool, sandbox_path: str, test_count: int, pass_count: int, fail_count: int, all_pass: bool, timestamp: ISO}. "
     "Unit tests alone do not satisfy this edge — sandbox e2e is the acceptance proof.",
 )
 eval_uat_fh = Evaluator(
     "uat_accepted", F_H,
-    "Human confirms: (1) sandbox install succeeded and produced a clean workspace, "
+    "Human confirms: (1) .ai-workspace/uat/sandbox_report.json shows all_pass: true, "
     "(2) all e2e scenarios pass end-to-end in the sandbox, "
     "(3) every feature acceptance criterion is demonstrated by at least one scenario. "
     "No feature is shipped without sandbox proof.",
@@ -268,7 +280,7 @@ job_req_feat    = Job(e_req_feat,    [eval_req_coverage, eval_decomp_fp, eval_de
 job_feat_design = Job(e_feat_design, [eval_design_fp, eval_design_fh])
 job_design_code = Job(e_design_code, [eval_impl_tags, eval_code_fp])
 job_tdd         = Job(e_tdd,         [eval_tests_pass, eval_test_tags, eval_coverage_fp])
-job_uat         = Job(e_unit_uat,    [eval_uat_fp, eval_uat_fh])
+job_uat         = Job(e_unit_uat,    [eval_uat_report, eval_uat_fp, eval_uat_fh])
 
 
 # ── Worker + Package ──────────────────────────────────────────────────────────
@@ -293,5 +305,6 @@ package = Package(
         "REQ-F-TAG-001", "REQ-F-TAG-002",
         "REQ-F-COV-001",
         "REQ-F-DOCS-001",
+        "REQ-F-UAT-001",
     ],
 )

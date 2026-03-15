@@ -13,6 +13,6 @@ acceptance_criteria:
   - gen iterate --workspace . selects the first unconverged job and runs one bind-and-iterate pass
   - gen start --workspace . is a state-machine wrapper over gen iterate
   - gen start --auto loops until converged or stopped by fh_gate, fp_dispatch, fd_gap
-  - All commands exit 0 on success, 1 on error, with JSON output
+  - Engine commands use structured exit codes: 0=converged, 1=error, 2=fp_dispatched, 3=fh_gate_pending, 4=fd_gap, 5=max_iterations
 dependencies:
   - REQ-F-BOOT
