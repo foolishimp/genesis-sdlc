@@ -18,10 +18,8 @@
   ],
   "homepage": "https://github.com/foolishimp/genesis_sdlc",
   "commands": [
-    "./plugins/genesis/commands/gen-start.md",
     "./plugins/genesis/commands/gen-iterate.md",
-    "./plugins/genesis/commands/gen-gaps.md",
-    "./plugins/genesis/commands/gen-review.md",
-    "./plugins/genesis/commands/gen-status.md"
-  ]
+    "./plugins/genesis/commands/gen-review.md"
+  ],
+  "inherits": "abiogenesis"
 }

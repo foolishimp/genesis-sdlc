@@ -37,14 +37,19 @@ from pathlib import Path
 
 VERSION = "0.1.0"
 
-# Commands to install into .claude/commands/
-# Source: builds/claude_code/.claude-plugin/plugins/genesis/commands/
-COMMANDS = [
+# Commands inherited from the abiogenesis engine plugin.
+# Source: <abiogenesis>/builds/claude_code/.claude-plugin/plugins/genesis/commands/
+ABIOGENESIS_COMMANDS = [
     "gen-start",
-    "gen-iterate",
     "gen-gaps",
-    "gen-review",
     "gen-status",
+]
+
+# Commands owned by genesis_sdlc — SDLC additions on top of the engine.
+# Source: builds/claude_code/.claude-plugin/plugins/genesis/commands/
+GENESIS_SDLC_COMMANDS = [
+    "gen-iterate",
+    "gen-review",
 ]
 
 # CLAUDE.md markers for idempotent bootloader injection
@@ -176,24 +181,41 @@ def _run_abiogenesis_installer(source: Path, target: Path, slug: str, platform: 
 
 def install_commands(source: Path, target: Path) -> list[str]:
     """Copy gen-*.md commands into target/.claude/commands/.
-    Commands are resolved from genesis_sdlc's own claude_code build.
+
+    Composes from two sources:
+      1. abiogenesis engine commands  — inherited, single source of truth in abiogenesis
+      2. genesis_sdlc own commands    — SDLC additions, owned here
     """
-    commands_src = (
+    abiogenesis_src = (
+        source.parent / "abiogenesis" / "builds" / "claude_code"
+        / ".claude-plugin" / "plugins" / "genesis" / "commands"
+    ).resolve()
+    genesis_sdlc_src = (
         source / "builds" / "claude_code" / ".claude-plugin" / "plugins" / "genesis" / "commands"
     ).resolve()
 
-    if not commands_src.exists():
+    if not abiogenesis_src.exists():
         raise FileNotFoundError(
-            f"Commands directory not found at {commands_src}. "
-            "Expected genesis_sdlc/builds/claude_code/.claude-plugin/plugins/genesis/commands/"
+            f"abiogenesis commands not found at {abiogenesis_src}. "
+            "Ensure abiogenesis is a sibling directory of genesis_sdlc."
+        )
+    if not genesis_sdlc_src.exists():
+        raise FileNotFoundError(
+            f"genesis_sdlc commands not found at {genesis_sdlc_src}."
         )
 
     commands_dir = target / ".claude" / "commands"
     commands_dir.mkdir(parents=True, exist_ok=True)
 
     installed = []
-    for cmd in COMMANDS:
-        src = commands_src / f"{cmd}.md"
+    for cmd in ABIOGENESIS_COMMANDS:
+        src = abiogenesis_src / f"{cmd}.md"
+        if src.exists():
+            shutil.copy2(src, commands_dir / f"{cmd}.md")
+            installed.append(cmd)
+
+    for cmd in GENESIS_SDLC_COMMANDS:
+        src = genesis_sdlc_src / f"{cmd}.md"
         if src.exists():
             shutil.copy2(src, commands_dir / f"{cmd}.md")
             installed.append(cmd)
