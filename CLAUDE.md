@@ -45,6 +45,21 @@ PYTHONPATH=.genesis python -m genesis gaps  --workspace .
 ---
 
 <!-- GENESIS_BOOTLOADER_START -->
+## Operating protocol
+
+**Always route user intent through commands — never do work directly.**
+When the user asks to build, fix, or iterate anything, that is `/gen-start` or
+`/gen-iterate`. Direct edits bypass the F_D evaluation chain and nothing is traced.
+
+| Intent | Command |
+|--------|---------|
+| "go" / "next" / "build X" / "fix Y" | `/gen-start --auto --human-proxy` |
+| "one step" / "iterate edge E" | `/gen-iterate --feature F --edge E` |
+| "what's broken" / "gaps" / "coverage" | `/gen-gaps` |
+| "status" / "where am I" | `/gen-status` |
+| "review" / "approve" | `/gen-review --feature F` |
+
+
 # Genesis Bootloader: LLM Constraint Context for the AI SDLC
 
 **Version**: 3.0.2

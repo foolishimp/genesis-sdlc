@@ -56,6 +56,23 @@ GENESIS_SDLC_COMMANDS = [
 _BOOTLOADER_START = "<!-- GENESIS_BOOTLOADER_START -->"
 _BOOTLOADER_END = "<!-- GENESIS_BOOTLOADER_END -->"
 
+_OPERATING_PROTOCOL = """\
+## Operating protocol
+
+**Always route user intent through commands — never do work directly.**
+When the user asks to build, fix, or iterate anything, that is `/gen-start` or
+`/gen-iterate`. Direct edits bypass the F_D evaluation chain and nothing is traced.
+
+| Intent | Command |
+|--------|---------|
+| "go" / "next" / "build X" / "fix Y" | `/gen-start --auto --human-proxy` |
+| "one step" / "iterate edge E" | `/gen-iterate --feature F --edge E` |
+| "what's broken" / "gaps" / "coverage" | `/gen-gaps` |
+| "status" / "where am I" | `/gen-status` |
+| "review" / "approve" | `/gen-review --feature F` |
+
+"""
+
 _CLAUDE_MD_HEADER = """\
 # CLAUDE.md — {project_name}
 
@@ -90,20 +107,6 @@ PYTHONPATH=.genesis python -m genesis gaps --workspace .
 PYTHONPATH=.genesis python -m genesis start --auto --workspace .
 PYTHONPATH=.genesis python -m genesis gaps  --workspace .
 ```
-
-## Operating protocol
-
-**Always route user intent through commands — never do work directly.**
-When the user asks to build, fix, or iterate anything, that is `/gen-start` or
-`/gen-iterate`. Direct edits bypass the F_D evaluation chain and nothing is traced.
-
-| Intent | Command |
-|--------|---------|
-| "go" / "next" / "build X" / "fix Y" | `/gen-start --auto --human-proxy` |
-| "one step" / "iterate edge E" | `/gen-iterate --feature F --edge E` |
-| "what's broken" / "gaps" / "coverage" | `/gen-gaps` |
-| "status" / "where am I" | `/gen-status` |
-| "review" / "approve" | `/gen-review --feature F` |
 
 ## Slash commands
 
@@ -262,7 +265,8 @@ def install_claude_md(source: Path, target: Path, slug: str, platform: str,
         raise FileNotFoundError(f"GENESIS_BOOTLOADER.md not found at {bootloader_path}")
 
     bootloader = bootloader_path.read_text(encoding="utf-8")
-    bootloader_section = f"{_BOOTLOADER_START}\n{bootloader}\n{_BOOTLOADER_END}\n"
+    operating_protocol = _OPERATING_PROTOCOL.format(slug=slug, platform=platform)
+    bootloader_section = f"{_BOOTLOADER_START}\n{operating_protocol}\n{bootloader}\n{_BOOTLOADER_END}\n"
 
     header = _CLAUDE_MD_HEADER.format(
         project_name=project_name, slug=slug, platform=platform
