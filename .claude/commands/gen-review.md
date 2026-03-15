@@ -1,82 +1,62 @@
-# /gen-review - Human Evaluator Review Point
+# /gen-review — Human Evaluator Gate
 
-Present the current asset candidate for human review and approval.
-
-<!-- Implements: REQ-EVAL-001 (Human Evaluator), REQ-LIFE-009 (Spec Review as Gradient Check), REQ-UX-006 (Human Gate Awareness) -->
+Explicitly surface a pending F_H gate for human review. Use when you want to
+review a candidate without running the full gen-start loop.
 
 ## Usage
 
 ```
-/gen-review --feature "REQ-F-*" [--edge "{source}→{target}"]
+/gen-review --feature REQ-F-* [--edge "source→target"]
 ```
-
-| Option | Description |
-|--------|-------------|
-| `--feature` | The feature vector to review |
-| `--edge` | Specific edge to review (defaults to current active edge) |
 
 ## Instructions
 
-### Step 1: Load Feature State
+**Step 1 — Load the gate**
 
-Read the feature vector file from `.ai-workspace/features/active/{feature}.yml`.
-Identify the current edge and asset candidate.
+Read the feature vector: `.ai-workspace/features/active/{feature}.yml`
 
-### Step 2: Present for Review
+Identify the current edge (or use `--edge` override).
 
-Display the current asset candidate with context:
+Run the engine to get the current candidate and gate criteria:
+
+```bash
+PYTHONPATH=.genesis python -m genesis gaps \
+  --feature {F} --edge {E}
+```
+
+**Step 2 — Present candidate**
 
 ```
 REVIEW REQUEST
 ==============
-Feature:    {REQ-F-*} — "{title}"
-Edge:       {source} → {target}
-Iteration:  {n}
+Feature:  {F}
+Edge:     {source}→{target}
 
-CURRENT CANDIDATE:
-{Display the asset — code, design doc, requirements, etc.}
+CANDIDATE:
+{the current asset — read from workspace}
 
-EVALUATOR RESULTS SO FAR:
-  Agent:          {results}
-  Deterministic:  {results}
-  Human:          PENDING (this review)
+F_H CRITERIA:
+{list evaluator descriptions for F_H evaluators on this edge}
 
-CONTEXT:
-  Requirements addressed: {list REQ-* keys}
-  Context hash: {hash}
+F_D STATUS:
+  {passing evaluator names} — pass
+  {failing evaluator names} — fail
 ```
 
-### Step 3: Collect Human Decision
+**Step 3 — Collect decision**
 
-Ask the user:
-- **Approve**: Asset is acceptable, proceed to promotion
-- **Reject**: Asset needs rework, provide feedback
-- **Refine**: Specific changes needed (capture as iteration guidance)
+Ask the user: approve or reject?
 
-### Step 4: Record Decision
-
-Update the feature vector file with the human evaluator result:
-- Decision (approved/rejected/refined)
-- Feedback text
-- Timestamp
-
-If approved and all other evaluators pass: mark as converged.
-If rejected: provide feedback for next iteration.
-
-### Step 5: Emit Event
-
-Emit via the F_D event logger (never write directly to events.jsonl):
-
+On **approve**: emit `review_approved` via the engine and go to Step 1:
 ```bash
 PYTHONPATH=.genesis python -m genesis emit-event \
-  --type review_completed \
-  --data '{"feature": "REQ-F-*", "edge": "{source}→{target}", "iteration": {n}, "decision": "approved|rejected|refined", "feedback": "{feedback text or empty}", "all_evaluators_pass": true|false}'
+  --type review_approved \
+  --data '{"feature": "{F}", "edge": "{E}", "actor": "human"}'
 ```
 
-If the decision is `approved` and all evaluators pass (triggering convergence), also emit `edge_converged`:
-
+On **reject**: emit `review_rejected`, stop. Report to user.
 ```bash
 PYTHONPATH=.genesis python -m genesis emit-event \
-  --type edge_converged \
-  --data '{"feature": "REQ-F-*", "edge": "{source}→{target}", "iteration": {n}}'
+  --type review_rejected \
+  --data '{"feature": "{F}", "edge": "{E}", "actor": "human", "reason": "{reason}"}'
 ```
