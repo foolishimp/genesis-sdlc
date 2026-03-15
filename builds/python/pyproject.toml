@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "genesis_sdlc"
+version = "0.1.0"
+description = "Standard SDLC bootstrap graph as a GTL Package — built on abiogenesis."
+requires-python = ">=3.11"
+readme = "README.md"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "../../.genesis", "../.."]
+addopts = "-q"

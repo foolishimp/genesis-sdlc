@@ -1,4 +1,6 @@
 # Genesis project config — written by gen-install.py
 # Override per-invocation with: --package MODULE:VAR --worker MODULE:VAR
-package: spec.packages.genesis_sdlc:package
-worker:  spec.packages.genesis_sdlc:worker
+package: gtl_spec.packages.genesis_sdlc:package
+worker:  gtl_spec.packages.genesis_sdlc:worker
+pythonpath:
+  - builds/python/src

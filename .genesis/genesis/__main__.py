@@ -74,7 +74,7 @@ def _build_parser() -> argparse.ArgumentParser:
     src.add_argument("--spec",
                      help="Path to spec file to grep for REQ-* keys (legacy)")
     src.add_argument("--package", metavar="MODULE:VAR",
-                     help="Import path to a Package object, e.g. spec.packages.genesis_core:genesis_v1")
+                     help="Import path to a Package object, e.g. gtl_spec.packages.genesis_core:genesis_v1")
     p_cov.add_argument("--features", required=True,
                        help="Directory containing feature vector YAML files")
 
@@ -189,22 +189,37 @@ def _check_req_coverage(spec_path: str, features_dir: str,
 
 def _load_project_config(workspace: Path) -> dict:
     """
-    Read .genesis/genesis.yml — simple key: value pairs.
+    Read .genesis/genesis.yml — key: value pairs and YAML lists.
 
-    Returns a dict with 'package' and/or 'worker' keys.
+    Returns a dict with 'package', 'worker', and/or 'pythonpath' keys.
+    'pythonpath' is returned as a list[str].
     Returns empty dict if the file does not exist.
     """
     config_path = workspace / ".genesis" / "genesis.yml"
     if not config_path.exists():
         return {}
     config: dict = {}
+    current_list_key: str | None = None
     for line in config_path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            current_list_key = None
             continue
-        if ":" in line:
-            key, _, val = line.partition(":")
-            config[key.strip()] = val.strip()
+        # YAML list item under a current list key
+        if current_list_key is not None and stripped.startswith("- "):
+            config[current_list_key].append(stripped[2:].strip())
+            continue
+        current_list_key = None
+        if ":" in stripped:
+            key, _, val = stripped.partition(":")
+            key = key.strip()
+            val = val.strip()
+            if val == "":
+                # Key with no inline value — start a list
+                config[key] = []
+                current_list_key = key
+            else:
+                config[key] = val
     return config
 
 
@@ -304,6 +319,13 @@ def main() -> None:
     # Ensure spec is importable from workspace root
     if str(workspace) not in sys.path:
         sys.path.insert(0, str(workspace))
+
+    # Insert pythonpath entries from genesis.yml (resolved relative to workspace)
+    _config = _load_project_config(workspace)
+    for _extra in reversed(_config.get("pythonpath", [])):
+        _extra_path = str((workspace / _extra).resolve())
+        if _extra_path not in sys.path:
+            sys.path.insert(0, _extra_path)
 
     from .core import workspace_bootstrap
     stream = workspace_bootstrap(workspace)
