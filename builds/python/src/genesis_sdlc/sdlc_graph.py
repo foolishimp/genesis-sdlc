@@ -13,7 +13,10 @@ sdlc_graph — standard SDLC bootstrap graph as a GTL Package.
 Exports `package` and `worker` — the pre-built, standard SDLC graph
 covering the bootstrap path:
 
-    intent → requirements → feature_decomp → design → code ↔ unit_tests
+    intent → requirements → feature_decomp → design → code ↔ unit_tests → uat_tests
+
+UAT is constitutional: shipping requires sandbox e2e proof, not unit tests alone.
+F_D evaluators must be acyclic — never invoke genesis subcommands from pytest.
 
 Import as a starting point:
 
@@ -64,7 +67,7 @@ design_adrs = Context(
 
 claude_agent  = Operator("claude_agent",  F_P, "agent://claude/genesis")
 human_gate    = Operator("human_gate",    F_H, "fh://single")
-pytest_op     = Operator("pytest",        F_D, "exec://python -m pytest builds/python/tests/ -q")
+pytest_op     = Operator("pytest",        F_D, "exec://python -m pytest builds/python/tests/ -q -m 'not e2e'")
 check_impl_op = Operator("check_impl",    F_D, "exec://python -m genesis check-tags --type implements --path builds/python/src/")
 check_test_op = Operator("check_test",    F_D, "exec://python -m genesis check-tags --type validates --path builds/python/tests/")
 
@@ -120,6 +123,13 @@ unit_tests = Asset(
     markov=["all_pass", "validates_tags_present"],
 )
 
+uat_tests = Asset(
+    name="uat_tests",
+    id_format="UAT-{SEQ}",
+    lineage=[unit_tests],
+    markov=["sandbox_install_passes", "e2e_scenarios_pass", "accepted_by_human"],
+)
+
 
 # ── Edges ─────────────────────────────────────────────────────────────────────
 
@@ -162,6 +172,14 @@ e_tdd = Edge(
     context=[bootloader, this_spec, design_adrs],
 )
 
+e_unit_uat = Edge(
+    name="unit_tests→uat_tests",
+    source=unit_tests, target=uat_tests,
+    using=[claude_agent, human_gate],
+    rule=standard_gate,
+    context=[bootloader, this_spec, design_adrs],
+)
+
 
 # ── Evaluators ────────────────────────────────────────────────────────────────
 
@@ -174,6 +192,12 @@ eval_req_coverage = Evaluator(
     "req_coverage", F_D,
     "Every REQ key in Package.requirements appears in ≥1 feature vector",
     command="python -m genesis check-req-coverage --package gtl_spec.packages.genesis_sdlc:package --features .ai-workspace/features/",
+)
+eval_decomp_fp = Evaluator(
+    "decomp_complete", F_P,
+    "Construct feature vectors for all uncovered REQ keys — write one .yml per feature to "
+    ".ai-workspace/features/active/ with a satisfies: list covering the assigned REQ-F-* keys. "
+    "Group related keys into cohesive features. Each vector must cover at least one uncovered key.",
 )
 eval_decomp_fh = Evaluator(
     "decomp_approved", F_H,
@@ -199,10 +223,12 @@ eval_code_fp = Evaluator(
     "Agent: code implements all features per design ADRs, importable, no V2 features",
 )
 
+# F_D evaluators must NOT invoke genesis commands (acyclicity constraint).
+# Use -m 'not e2e' to exclude tests that may invoke genesis subcommands.
 eval_tests_pass = Evaluator(
     "tests_pass", F_D,
-    "pytest: zero failures, zero errors",
-    command="python -m pytest builds/python/tests/ -q --tb=short",
+    "pytest: zero failures, zero errors (excluding e2e tests — F_D evaluators must be acyclic)",
+    command="python -m pytest builds/python/tests/ -q --tb=short -m 'not e2e'",
 )
 eval_test_tags = Evaluator(
     "validates_tags", F_D,
@@ -214,27 +240,48 @@ eval_coverage_fp = Evaluator(
     "Agent: tests cover all features, no REQ key without a test",
 )
 
+# unit_tests→uat_tests: sandbox e2e is the acceptance proof.
+# F_P installs into a fresh sandbox and runs e2e tests there.
+# F_H confirms sandbox evidence before approving.
+eval_uat_fp = Evaluator(
+    "uat_e2e_passed", F_P,
+    "Install into a fresh sandbox: "
+    "python builds/python/src/genesis_sdlc/install.py --target /tmp/uat_sandbox_{timestamp} --project-slug {slug}. "
+    "Then run e2e tests in that sandbox: "
+    "PYTHONPATH=.genesis python -m pytest builds/python/tests/ -m e2e -q. "
+    "Report sandbox path, test count, and pass/fail. "
+    "Unit tests alone do not satisfy this edge — sandbox e2e is the acceptance proof.",
+)
+eval_uat_fh = Evaluator(
+    "uat_accepted", F_H,
+    "Human confirms: (1) sandbox install succeeded and produced a clean workspace, "
+    "(2) all e2e scenarios pass end-to-end in the sandbox, "
+    "(3) every feature acceptance criterion is demonstrated by at least one scenario. "
+    "No feature is shipped without sandbox proof.",
+)
+
 
 # ── Jobs ──────────────────────────────────────────────────────────────────────
 
 job_intent_req  = Job(e_intent_req,  [eval_intent_fh])
-job_req_feat    = Job(e_req_feat,    [eval_req_coverage, eval_decomp_fh])
+job_req_feat    = Job(e_req_feat,    [eval_req_coverage, eval_decomp_fp, eval_decomp_fh])
 job_feat_design = Job(e_feat_design, [eval_design_fp, eval_design_fh])
 job_design_code = Job(e_design_code, [eval_impl_tags, eval_code_fp])
 job_tdd         = Job(e_tdd,         [eval_tests_pass, eval_test_tags, eval_coverage_fp])
+job_uat         = Job(e_unit_uat,    [eval_uat_fp, eval_uat_fh])
 
 
 # ── Worker + Package ──────────────────────────────────────────────────────────
 
 worker = Worker(
     id="claude_code",
-    can_execute=[job_intent_req, job_req_feat, job_feat_design, job_design_code, job_tdd],
+    can_execute=[job_intent_req, job_req_feat, job_feat_design, job_design_code, job_tdd, job_uat],
 )
 
 package = Package(
     name="genesis_sdlc",
-    assets=[intent, requirements, feature_decomp, design, code, unit_tests],
-    edges=[e_intent_req, e_req_feat, e_feat_design, e_design_code, e_tdd],
+    assets=[intent, requirements, feature_decomp, design, code, unit_tests, uat_tests],
+    edges=[e_intent_req, e_req_feat, e_feat_design, e_design_code, e_tdd, e_unit_uat],
     operators=[claude_agent, human_gate, pytest_op, check_impl_op, check_test_op],
     rules=[standard_gate],
     contexts=[bootloader, this_spec, intent_doc, design_adrs],

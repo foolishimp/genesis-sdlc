@@ -111,3 +111,29 @@ Surface the gate output to the user verbatim.
    ```
 6. On rejection: emit `review_rejected` with `actor: "human-proxy"`. Stop. Do not retry
    this edge in the same session.
+
+## Edge-Specific Constraints
+
+### F_D evaluator acyclicity (all edges)
+
+F_D evaluator `command:` fields MUST NOT invoke `genesis` subcommands or run tests that do.
+Violation causes unbounded subprocess recursion. When authoring evaluators:
+- `pytest -m 'not e2e'` — correct (excludes e2e tests that call genesis)
+- `pytest` with no marker — incorrect if any e2e test invokes genesis commands
+- Any `genesis gaps|start|iterate` call — incorrect (cyclic)
+
+### `unit_tests→uat_tests` edge
+
+The F_H gate for this edge requires **sandbox e2e evidence** before approval is granted.
+The F_P evaluator (`uat_e2e_passed`) is responsible for:
+1. Installing the project into a fresh sandbox directory via the installer
+2. Running e2e tests in that sandbox (`pytest -m e2e`)
+3. Reporting sandbox path, test count, and pass/fail
+
+The F_H gate (`uat_accepted`) cannot be approved without that evidence.
+`--human-proxy` may proxy this gate only if the F_P actor's sandbox report is available and
+all e2e scenarios pass. A proxy approval on this edge without a sandbox report is a log-integrity
+violation (event emitted without the work having occurred).
+
+Unit tests alone (`code↔unit_tests`) are necessary but not sufficient.
+**Shipping requires sandbox proof.**

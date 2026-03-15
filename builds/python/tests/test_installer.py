@@ -147,7 +147,7 @@ class TestCommandsInstall:
         stamp = tmp_path / ".claude" / "commands" / ".genesis-installed"
         assert stamp.exists()
         data = json.loads(stamp.read_text())
-        assert data["version"] == "0.1.1"
+        assert data["version"] == "0.1.3"
 
 
 # ── CLAUDE.md ─────────────────────────────────────────────────────────────────
@@ -219,4 +219,4 @@ class TestEngineBootsAfterInstall:
         assert result.returncode == 0, f"gaps failed:\n{result.stderr}"
         data = json.loads(result.stdout)
         assert data["scope"]["package"] == "my_domain"
-        assert data["jobs_considered"] == 5  # full SDLC graph, not the stub
+        assert data["jobs_considered"] == 6  # full SDLC graph with UAT, not the stub

@@ -35,7 +35,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-VERSION = "0.1.2"
+VERSION = "0.1.3"
 
 # Commands inherited from the abiogenesis engine plugin.
 # Source: <abiogenesis>/builds/claude_code/.claude-plugin/plugins/genesis/commands/
