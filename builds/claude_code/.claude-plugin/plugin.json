@@ -1,6 +1,6 @@
 {
   "name": "genesis",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "genesis_sdlc — GTL-based SDLC methodology installer. 5 commands: gen-start (state machine), gen-iterate (single edge), gen-gaps (convergence state), gen-review (F_H gate), gen-status (workspace read). V1: bootstrap SDLC graph (intent→req→feat→design→code↔tests), F_D/F_P/F_H evaluators, human proxy mode.",
   "author": {
     "name": "foolishimp"
