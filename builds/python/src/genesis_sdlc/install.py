@@ -224,6 +224,12 @@ def install_commands(source: Path, target: Path) -> list[str]:
     commands_dir = target / ".claude" / "commands"
     commands_dir.mkdir(parents=True, exist_ok=True)
 
+    # Remove any stale gen-*.md files not in the current command set
+    current = {f"{cmd}.md" for cmd in ABIOGENESIS_COMMANDS + GENESIS_SDLC_COMMANDS}
+    for stale in commands_dir.glob("gen-*.md"):
+        if stale.name not in current:
+            stale.unlink()
+
     installed = []
     for cmd in ABIOGENESIS_COMMANDS:
         src = abiogenesis_src / f"{cmd}.md"

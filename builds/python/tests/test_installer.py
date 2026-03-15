@@ -136,14 +136,18 @@ class TestCommandsInstall:
 
     def test_all_commands_installed(self, tmp_path):
         result = _install(tmp_path, ["--project-slug", "test_proj"])
-        assert len(result["commands"]) == 19
+        # 3 from abiogenesis + 2 from genesis_sdlc
+        assert len(result["commands"]) == 5
+        assert set(result["commands"]) == {
+            "gen-start", "gen-gaps", "gen-status", "gen-iterate", "gen-review"
+        }
 
     def test_stamp_file_written(self, tmp_path):
         _install(tmp_path, ["--project-slug", "test_proj"])
         stamp = tmp_path / ".claude" / "commands" / ".genesis-installed"
         assert stamp.exists()
         data = json.loads(stamp.read_text())
-        assert data["version"] == "0.1.0"
+        assert data["version"] == "0.1.1"
 
 
 # ── CLAUDE.md ─────────────────────────────────────────────────────────────────
