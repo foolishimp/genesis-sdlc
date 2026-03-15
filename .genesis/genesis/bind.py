@@ -212,27 +212,29 @@ def _assemble_prompt(pre: PrecomputedManifest, job: Job, result_path: str = "") 
         sections.append("\n".join(ctx_lines))
 
     # [OUTPUT CONTRACT]
+    # Constitutional constraint: F_P does NOT call the event logger.
+    # The actor writes its assessment to result_path. The skill (F_D layer)
+    # reads it and emits fp_assessment via emit-event CLI. See GENESIS_BOOTLOADER §V.
     target = job.edge.target
     fp_failing = [ev for ev in pre.failing_evaluators if ev.category is F_P]
-    emit_lines = []
-    for ev in fp_failing:
-        emit_lines.append(
-            f'  PYTHONPATH=.genesis python -m genesis emit-event \\\n'
-            f'    --type fp_assessment \\\n'
-            f'    --data \'{{"edge": "{job.edge.name}", "evaluator": "{ev.name}", "result": "pass"}}\''
+    assessment_contract = ""
+    if fp_failing and result_path:
+        ev_assessments = [
+            f'{{"evaluator": "{ev.name}", "result": "pass|fail", "evidence": "..."}}'
+            for ev in fp_failing
+        ]
+        assessment_contract = (
+            f"\n\nWrite assessment JSON to: {result_path}\n"
+            f"Format: {{{{'edge': '{job.edge.name}', 'assessments': [{', '.join(ev_assessments)}]}}}}\n"
+            "The skill reads this file and emits fp_assessment events — do NOT call emit-event yourself."
         )
-    emit_section = (
-        "\n\nAfter completing your work, emit one fp_assessment per passing F_P evaluator:\n"
-        + "\n".join(emit_lines)
-    ) if emit_lines else ""
 
     sections.append(
         f"[OUTPUT CONTRACT]\n"
         f"Produce: {target.name} asset\n"
         f"Satisfying markov conditions: {target.markov}\n"
         f"Evaluators to pass: {[ev.name for ev in pre.failing_evaluators]}"
-        + (f"\nWrite output to: {result_path}" if result_path else "")
-        + emit_section
+        + assessment_contract
     )
 
     return "\n\n".join(sections)

@@ -210,8 +210,14 @@ def _emit_event_cmd(event_type: str, data_json: str, workspace: Path) -> int:
     """
     Append one event to .ai-workspace/events/events.jsonl.
 
-    Used by gen-start.md to emit review_approved and fp_assessment events
-    from the skill layer (F_H proxy, MCP actor fold-back).
+    This is an F_D-controlled write path called by the skill layer (gen-start.md),
+    never by F_P actors directly. F_P actors write to result_path; the skill reads
+    the result and calls emit-event. See GENESIS_BOOTLOADER §V (event-time invariant).
+
+    Governance: required fields validated per event type.
+      review_approved — requires: edge, actor (human | human-proxy)
+        human-proxy actor additionally requires: proxy_log
+      fp_assessment   — requires: edge, evaluator, result (pass | fail)
     """
     import json as _json
     from datetime import datetime, timezone
@@ -220,6 +226,27 @@ def _emit_event_cmd(event_type: str, data_json: str, workspace: Path) -> int:
         data = _json.loads(data_json)
     except _json.JSONDecodeError as exc:
         print(f"ERROR: --data is not valid JSON: {exc}", file=sys.stderr)
+        return 1
+
+    # Governance validation — required fields per known event types
+    errors: list[str] = []
+    if event_type == "review_approved":
+        if "edge" not in data:
+            errors.append("review_approved requires 'edge' field")
+        if "actor" not in data:
+            errors.append("review_approved requires 'actor' field (human | human-proxy)")
+        elif data["actor"] == "human-proxy" and "proxy_log" not in data:
+            errors.append("human-proxy actor requires 'proxy_log' path field")
+    elif event_type == "fp_assessment":
+        for field in ("edge", "evaluator", "result"):
+            if field not in data:
+                errors.append(f"fp_assessment requires '{field}' field")
+        if data.get("result") not in (None, "pass", "fail"):
+            errors.append("fp_assessment 'result' must be 'pass' or 'fail'")
+
+    if errors:
+        for msg in errors:
+            print(f"ERROR: {msg}", file=sys.stderr)
         return 1
 
     events_dir = workspace / ".ai-workspace" / "events"
@@ -404,7 +431,11 @@ def main() -> None:
     )
 
     if args.command == "start":
+        human_proxy = getattr(args, "human_proxy", False)
         result = gen_start(scope, stream, auto=getattr(args, "auto", False))
+        # Surface proxy mode so the skill can confirm its operating context
+        if human_proxy:
+            result["human_proxy"] = True
     elif args.command == "iterate":
         result = gen_iterate(scope, stream)
     elif args.command == "gaps":
@@ -416,15 +447,23 @@ def main() -> None:
     print(json.dumps(result, indent=2))
 
     # Exit codes for skill routing:
-    #   0 — converged / nothing_to_do
+    #   0 — converged / nothing_to_do  (loop complete)
     #   1 — error (already exited above)
     #   2 — fp_dispatched (F_P actor required; fp_manifest_path in output)
-    #   3 — fh_gate_pending (F_H evaluation required)
+    #   3 — fh_gate_pending (F_H evaluation required; fh_gate.criteria in output)
+    #   4 — fd_gap (deterministic checks still failing after F_P resolved)
+    #   5 — max_iterations (auto-loop limit hit without convergence)
+    #
+    # IMPORTANT: exit 0 means ONLY converged/nothing_to_do — never a blocked run.
     stopped_by = result.get("stopped_by", "")
     if stopped_by == "fp_dispatch":
         sys.exit(2)
     if stopped_by == "fh_gate":
         sys.exit(3)
+    if stopped_by == "fd_gap":
+        sys.exit(4)
+    if stopped_by == "max_iterations":
+        sys.exit(5)
 
 
 if __name__ == "__main__":
