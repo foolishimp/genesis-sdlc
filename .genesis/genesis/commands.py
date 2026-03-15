@@ -1,6 +1,10 @@
 # Implements: REQ-F-CMD-001
 # Implements: REQ-F-CMD-002
 # Implements: REQ-F-CMD-003
+# Implements: REQ-F-GRAPH-001
+# Implements: REQ-F-GRAPH-002
+# Implements: REQ-F-EVAL-002
+# Implements: REQ-F-VIS-001
 """
 commands — gen_start, gen_iterate, gen_gaps, Scope.
 
@@ -21,7 +25,7 @@ from typing import Callable, Optional
 
 from gtl.core import Job, Package, Worker
 
-from .bind import bind_fd, bind_fp
+from .bind import bind_fd, bind_fp, req_hash
 from .core import ContextResolver, EventStream, project
 from .manifest import BoundJob
 from .schedule import delta, iterate, schedule
@@ -84,9 +88,11 @@ def gen_gaps(scope: Scope, stream: EventStream) -> dict:
         and e.get("data", {}).get("target")
     }
 
+    spec_hash = req_hash(scope.package.requirements)
+
     results = []
     for job in jobs:
-        pre = bind_fd(job, stream, resolver, scope.workspace_root)
+        pre = bind_fd(job, stream, resolver, scope.workspace_root, spec_hash=spec_hash)
         results.append({
             "edge": job.edge.name,
             "delta": pre.delta,
@@ -143,11 +149,13 @@ def gen_iterate(
     if not jobs:
         return {"status": "nothing_to_do", "reason": "no jobs in scope"}
 
+    spec_hash = req_hash(scope.package.requirements)
+
     # Select the first unconverged job in topological order
     selected_job = None
     selected_pre = None
     for job in jobs:
-        pre = bind_fd(job, stream, resolver, scope.workspace_root)
+        pre = bind_fd(job, stream, resolver, scope.workspace_root, spec_hash=spec_hash)
         if pre.has_gap:
             selected_job = job
             selected_pre = pre
@@ -209,6 +217,7 @@ def gen_iterate(
             ],
             "prompt": bound.prompt,
             "result_path": result_path,
+            "spec_hash": spec_hash,
         }
         manifest_file.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         result["fp_manifest_path"] = str(manifest_file)
@@ -241,6 +250,7 @@ def gen_start(
     state = _derive_state(scope, stream)
 
     if state["status"] == "converged":
+        _close_completed_features(scope)
         return {
             "status": "converged",
             "message": "All jobs in scope have delta = 0. Run /gen-gaps for full report.",
@@ -298,9 +308,11 @@ def _derive_state(scope: Scope, stream: EventStream) -> dict:
     if not jobs:
         return {"status": "nothing_to_do", "reason": "no jobs in scope"}
 
+    spec_hash = req_hash(scope.package.requirements)
+
     total_delta = 0
     for job in jobs:
-        pre = bind_fd(job, stream, resolver, scope.workspace_root)
+        pre = bind_fd(job, stream, resolver, scope.workspace_root, spec_hash=spec_hash)
         total_delta += pre.delta
 
     if total_delta == 0:
@@ -350,6 +362,31 @@ def _scoped_jobs(scope: Scope, worker: Worker) -> list[Job]:
         jobs = [j for j in jobs if j.edge.name == scope.edge]
 
     return jobs
+
+
+def _close_completed_features(scope: Scope) -> None:
+    """
+    Move all active feature YAMLs to features/completed/ and update status field.
+
+    Called by gen_start when it arrives and finds all edges have delta=0 — the
+    worker came back, found the work done, closes the ticket.
+    """
+    active_dir = scope.workspace_root / ".ai-workspace" / "features" / "active"
+    completed_dir = scope.workspace_root / ".ai-workspace" / "features" / "completed"
+    completed_dir.mkdir(parents=True, exist_ok=True)
+
+    if not active_dir.exists():
+        return
+
+    for yml in sorted(active_dir.glob("*.yml")):
+        text = yml.read_text(encoding="utf-8")
+        # Update status field regardless of current value
+        for old_status in ("status: not_started", "status: active", "status: iterating"):
+            if old_status in text:
+                text = text.replace(old_status, "status: completed", 1)
+                break
+        (completed_dir / yml.name).write_text(text, encoding="utf-8")
+        yml.unlink()
 
 
 def _known_feature_ids(workspace_root: Path) -> set[str]:

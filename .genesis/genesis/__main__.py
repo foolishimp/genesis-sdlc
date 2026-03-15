@@ -1,6 +1,12 @@
 # Implements: REQ-F-CMD-001
 # Implements: REQ-F-CMD-002
 # Implements: REQ-F-CMD-003
+# Implements: REQ-F-TAG-001
+# Implements: REQ-F-TAG-002
+# Implements: REQ-F-COV-001
+# Implements: REQ-F-EVAL-001
+# Implements: REQ-F-EVAL-003
+# Implements: REQ-F-DOCS-001
 """
 __main__ — CLI entry point for the genesis engine.
 
@@ -96,6 +102,22 @@ def _build_parser() -> argparse.ArgumentParser:
                      help="Import path to a Package object, e.g. gtl_spec.packages.genesis_core:genesis_v1")
     p_cov.add_argument("--features", required=True,
                        help="Directory containing feature vector YAML files")
+
+    # ── check-impl-coverage ───────────────────────────────────────────────────
+    p_impl = sub.add_parser("check-impl-coverage",
+                            help="Verify every REQ-* key appears in a # Implements: tag")
+    p_impl.add_argument("--package", required=True, metavar="MODULE:VAR",
+                        help="Package to load requirements from")
+    p_impl.add_argument("--path", required=True,
+                        help="Directory to scan for # Implements: tags")
+
+    # ── check-validates-coverage ──────────────────────────────────────────────
+    p_val = sub.add_parser("check-validates-coverage",
+                           help="Verify every REQ-* key appears in a # Validates: tag")
+    p_val.add_argument("--package", required=True, metavar="MODULE:VAR",
+                       help="Package to load requirements from")
+    p_val.add_argument("--path", required=True,
+                       help="Directory to scan for # Validates: tags")
 
     return parser
 
@@ -201,6 +223,67 @@ def _check_req_coverage(spec_path: str, features_dir: str,
         "total_count": len(spec_keys),
         "uncovered": uncovered,
         "passes": len(uncovered) == 0,
+    }
+    print(json.dumps(result, indent=2))
+    return 0 if result["passes"] else 1
+
+
+def _check_tag_coverage(tag_type: str, package_ref: str, scan_path: str) -> int:
+    """
+    Verify every REQ-* key in Package.requirements appears in at least one file
+    with the appropriate tag (# Implements: or # Validates:).
+
+    This is the per-key complement to check-tags (which checks file-level presence).
+    A new REQ key with no Implements/Validates tag causes this check to fail,
+    making spec evolution deterministically detectable by F_D.
+    """
+    import importlib
+    import re
+
+    if ":" not in package_ref:
+        print(json.dumps({"error": f"--package must be MODULE:VAR, got {package_ref!r}"}),
+              file=sys.stderr)
+        return 1
+
+    module_name, var_name = package_ref.rsplit(":", 1)
+    try:
+        mod = importlib.import_module(module_name)
+    except ImportError as exc:
+        print(json.dumps({"error": f"cannot import {module_name}: {exc}"}), file=sys.stderr)
+        return 1
+
+    pkg = getattr(mod, var_name, None)
+    if pkg is None:
+        print(json.dumps({"error": f"{var_name!r} not found in {module_name}"}),
+              file=sys.stderr)
+        return 1
+
+    req_keys = list(getattr(pkg, "requirements", []))
+    path = Path(scan_path)
+    if not path.exists():
+        print(json.dumps({"error": f"path not found: {scan_path}"}), file=sys.stderr)
+        return 1
+
+    tag_prefix = "# Implements:" if tag_type == "implements" else "# Validates:"
+
+    # Collect all REQ-* keys found in matching tag lines across all .py files
+    tagged_keys: set[str] = set()
+    for f in path.rglob("*.py"):
+        if f.name == "__init__.py":
+            continue
+        for line in f.read_text(encoding="utf-8").splitlines():
+            if tag_prefix in line:
+                tagged_keys.update(re.findall(r"REQ-[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*", line))
+
+    missing = sorted(set(req_keys) - tagged_keys)
+    result = {
+        "tag_type": tag_type,
+        "path": str(path),
+        "spec_keys": sorted(req_keys),
+        "tagged_count": len(req_keys) - len(missing),
+        "total_count": len(req_keys),
+        "missing": missing,
+        "passes": len(missing) == 0,
     }
     print(json.dumps(result, indent=2))
     return 0 if result["passes"] else 1
@@ -389,6 +472,10 @@ def main() -> None:
             features_dir=args.features,
             package_ref=getattr(args, "package", None),
         ))
+    if args.command == "check-impl-coverage":
+        sys.exit(_check_tag_coverage("implements", args.package, args.path))
+    if args.command == "check-validates-coverage":
+        sys.exit(_check_tag_coverage("validates", args.package, args.path))
 
     # emit-event: appends one event to events.jsonl — no engine stack needed
     if args.command == "emit-event":

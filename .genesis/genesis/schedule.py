@@ -2,6 +2,8 @@
 # Implements: REQ-F-CORE-005
 # Implements: REQ-F-CORE-006
 # Implements: REQ-F-WKSP-001
+# Implements: REQ-F-GATE-001
+# Implements: REQ-F-EVAL-002
 """
 schedule — delta, iterate, schedule.
 
@@ -25,7 +27,7 @@ from typing import Callable, Optional
 
 from gtl.core import Evaluator, F_D, F_H, F_P, Job, Worker, WorkingSurface
 
-from .bind import bind_fd, run_fd_evaluator
+from .bind import bind_fd, req_hash, run_fd_evaluator
 from .core import EventStream, project
 from .manifest import BoundJob
 
@@ -36,6 +38,7 @@ def delta(
     job: Job,
     stream: EventStream,
     workspace_root: Path,
+    spec_hash: str | None = None,
 ) -> float:
     """
     0.0 = converged. > 0.0 = work needed.
@@ -73,12 +76,17 @@ def delta(
                 failing += 1
 
         elif ev.category is F_P:
-            # Resolved if fp_assessment with result=pass recorded
+            # Resolved if fp_assessment with result=pass recorded against current spec.
+            # spec_hash=None means caller opted out of snapshot check (tests, legacy).
             resolved = any(
                 e.get("event_type") == "fp_assessment"
                 and e.get("data", {}).get("edge") == job.edge.name
                 and e.get("data", {}).get("evaluator") == ev.name
                 and e.get("data", {}).get("result") == "pass"
+                and (
+                    spec_hash is None
+                    or e.get("data", {}).get("spec_hash") == spec_hash
+                )
                 for e in events
             )
             if not resolved:
