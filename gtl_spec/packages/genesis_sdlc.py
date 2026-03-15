@@ -32,13 +32,13 @@ from gtl.core import (
 
 bootloader = Context(
     name="bootloader",
-    locator="workspace://spec/GENESIS_BOOTLOADER.md",
+    locator="workspace://gtl_spec/GENESIS_BOOTLOADER.md",
     digest="sha256:" + "0" * 64,   # PENDING
 )
 
 this_spec = Context(
     name="genesis_sdlc_spec",
-    locator="workspace://spec/packages/genesis_sdlc.py",
+    locator="workspace://gtl_spec/packages/genesis_sdlc.py",
     digest="sha256:" + "0" * 64,   # PENDING — self-referential
 )
 
@@ -50,7 +50,7 @@ intent_doc = Context(
 
 design_adrs = Context(
     name="design_adrs",
-    locator="workspace://design/adrs/",
+    locator="workspace://builds/python/design/adrs/",
     digest="sha256:" + "0" * 64,   # PENDING — written at design edge
 )
 
@@ -59,9 +59,9 @@ design_adrs = Context(
 
 claude_agent  = Operator("claude_agent",  F_P, "agent://claude/genesis")
 human_gate    = Operator("human_gate",    F_H, "fh://single")
-pytest_op     = Operator("pytest",        F_D, "exec://python -m pytest tests/ -q")
-check_impl_op = Operator("check_impl",    F_D, "exec://python -m genesis check-tags --type implements --path src/")
-check_test_op = Operator("check_test",    F_D, "exec://python -m genesis check-tags --type validates --path tests/")
+pytest_op     = Operator("pytest",        F_D, "exec://python -m pytest builds/python/tests/ -q")
+check_impl_op = Operator("check_impl",    F_D, "exec://python -m genesis check-tags --type implements --path builds/python/src/")
+check_test_op = Operator("check_test",    F_D, "exec://python -m genesis check-tags --type validates --path builds/python/tests/")
 
 
 # ── Rules ─────────────────────────────────────────────────────────────────────
@@ -178,7 +178,7 @@ eval_intent_fh = Evaluator(
 eval_req_coverage = Evaluator(
     "req_coverage", F_D,
     "Every REQ key in Package.requirements appears in ≥1 feature vector satisfies: field",
-    command="python -m genesis check-req-coverage --package spec.packages.genesis_sdlc:package --features .ai-workspace/features/",
+    command="python -m genesis check-req-coverage --package gtl_spec.packages.genesis_sdlc:package --features .ai-workspace/features/",
 )
 eval_decomp_fh = Evaluator(
     "decomp_approved", F_H,
@@ -199,7 +199,7 @@ eval_design_fh = Evaluator(
 eval_impl_tags = Evaluator(
     "impl_tags", F_D,
     "All source files carry at least one # Implements: REQ-* tag, zero untagged",
-    command="python -m genesis check-tags --type implements --path src/",
+    command="python -m genesis check-tags --type implements --path builds/python/src/",
 )
 eval_code_fp = Evaluator(
     "code_complete", F_P,
@@ -210,12 +210,12 @@ eval_code_fp = Evaluator(
 eval_tests_pass = Evaluator(
     "tests_pass", F_D,
     "pytest: zero failures, zero errors",
-    command="python -m pytest tests/ -q --tb=short",
+    command="python -m pytest builds/python/tests/ -q --tb=short",
 )
 eval_test_tags = Evaluator(
     "validates_tags", F_D,
     "All test files carry at least one # Validates: REQ-* tag, zero untagged",
-    command="python -m genesis check-tags --type validates --path tests/",
+    command="python -m genesis check-tags --type validates --path builds/python/tests/",
 )
 eval_coverage_fp = Evaluator(
     "coverage_complete", F_P,
