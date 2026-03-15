@@ -118,9 +118,14 @@ def _source_root_from_package() -> Path | None:
     """Locate genesis_sdlc source root from the installed package location."""
     try:
         import genesis_sdlc
-        pkg_path = Path(genesis_sdlc.__file__).resolve().parent  # .../src/genesis_sdlc/
-        # Walk up to find the project root (contains builds/, gtl_spec/, .genesis/)
-        for parent in [pkg_path.parent.parent, pkg_path.parent.parent.parent]:
+        # install.py lives at .../genesis_sdlc/builds/python/src/genesis_sdlc/
+        # So the project root is 4 levels up from the package directory.
+        pkg_path = Path(genesis_sdlc.__file__).resolve().parent
+        for parent in [
+            pkg_path.parent.parent,           # builds/python/
+            pkg_path.parent.parent.parent,    # builds/
+            pkg_path.parent.parent.parent.parent,  # genesis_sdlc/ ← correct root
+        ]:
             if (parent / "gtl_spec").exists() and (parent / ".genesis").exists():
                 return parent
     except ImportError:
@@ -129,8 +134,16 @@ def _source_root_from_package() -> Path | None:
 
 
 def _source_root_from_script() -> Path:
-    """Source root relative to this script: src/genesis_sdlc/install.py → project root."""
-    return Path(__file__).resolve().parents[3]  # install.py → genesis_sdlc/ → src/ → builds/python/ → project root
+    """Source root relative to this script: src/genesis_sdlc/install.py → project root.
+
+    install.py is at: <root>/builds/python/src/genesis_sdlc/install.py
+      parents[0] = .../genesis_sdlc/          (package dir)
+      parents[1] = .../src/
+      parents[2] = .../builds/python/
+      parents[3] = .../builds/
+      parents[4] = <root>/                    ← genesis_sdlc project root
+    """
+    return Path(__file__).resolve().parents[4]
 
 
 def resolve_source(explicit: str | None) -> Path:
@@ -148,15 +161,11 @@ def resolve_source(explicit: str | None) -> Path:
 def _run_abiogenesis_installer(source: Path, target: Path, slug: str, platform: str) -> dict:
     """
     Delegate engine installation to abiogenesis gen-install.py.
+    Resolves gen-install.py from the sibling abiogenesis directory.
     Returns the parsed result dict.
     """
-    gen_install = source / "builds" / "python" / "src" / "genesis_sdlc" / "_vendor" / "gen-install.py"
-
-    # Fallback: find gen-install.py relative to source root conventions
     candidates = [
-        gen_install,
         source.parent / "abiogenesis" / "builds" / "claude_code" / "code" / "gen-install.py",
-        source / ".." / "abiogenesis" / "builds" / "claude_code" / "code" / "gen-install.py",
     ]
     installer = next((c.resolve() for c in candidates if c.resolve().exists()), None)
 
@@ -179,19 +188,15 @@ def _run_abiogenesis_installer(source: Path, target: Path, slug: str, platform: 
 
 
 def install_commands(source: Path, target: Path) -> list[str]:
-    """Copy gen-*.md commands into target/.claude/commands/."""
-    commands_src = source / "builds" / "python" / "src" / "genesis_sdlc" / "commands"
-
-    # Fallback: abiogenesis commands
-    if not commands_src.exists():
-        commands_src = (
-            source.parent / "abiogenesis" / ".claude" / "commands"
-        ).resolve()
+    """Copy gen-*.md commands into target/.claude/commands/.
+    Commands are resolved from the sibling abiogenesis directory.
+    """
+    commands_src = (source.parent / "abiogenesis" / ".claude" / "commands").resolve()
 
     if not commands_src.exists():
         raise FileNotFoundError(
             f"Commands directory not found at {commands_src}. "
-            "Ensure abiogenesis is a sibling directory."
+            "Ensure abiogenesis is a sibling directory of genesis_sdlc."
         )
 
     commands_dir = target / ".claude" / "commands"
@@ -262,13 +267,19 @@ def install_claude_md(source: Path, target: Path, slug: str, platform: str,
         return "created"
 
 
-def install_sdlc_starter_spec(source: Path, target: Path, slug: str) -> str | None:
+def install_sdlc_starter_spec(source: Path, target: Path, slug: str,
+                              platform: str = "python") -> str | None:
     """
     Replace the minimal abiogenesis starter spec with the full SDLC bootstrap graph.
 
-    The SDLC starter is genesis_sdlc's own gtl_spec/packages/genesis_sdlc.py
-    adapted with the user's slug. Only written if the file still contains the
-    abiogenesis stub marker (safe to re-run after user has edited their spec).
+    Substitutions applied to the genesis_sdlc template:
+      - Package name: "genesis_sdlc" → slug
+      - req_coverage package ref: gtl_spec.packages.genesis_sdlc → gtl_spec.packages.<slug>
+      - builds/python/src/  → builds/<platform>/src/
+      - builds/python/tests/ → builds/<platform>/tests/
+      - builds/python/design/adrs/ → builds/<platform>/design/adrs/
+
+    Only written if the file still contains the abiogenesis stub (safe to re-run).
     """
     starter_path = target / "gtl_spec" / "packages" / f"{slug}.py"
     if not starter_path.exists():
@@ -279,18 +290,24 @@ def install_sdlc_starter_spec(source: Path, target: Path, slug: str) -> str | No
     if "spec→output" not in existing:
         return "already_customised"
 
-    # Use genesis_sdlc's own spec as the SDLC template, substituting the slug
     sdlc_spec_src = source / "gtl_spec" / "packages" / "genesis_sdlc.py"
     if not sdlc_spec_src.exists():
         return None
 
     template = sdlc_spec_src.read_text(encoding="utf-8")
-    # Replace genesis_sdlc references with the project slug
-    adapted = template.replace(
-        'name="genesis_sdlc"', f'name="{slug}"'
-    ).replace(
-        "genesis_sdlc — standard SDLC bootstrap graph",
-        f"{slug} — standard SDLC bootstrap graph",
+    adapted = (
+        template
+        # Package identity
+        .replace('name="genesis_sdlc"', f'name="{slug}"')
+        .replace("genesis_sdlc — standard SDLC bootstrap graph",
+                 f"{slug} — standard SDLC bootstrap graph")
+        # Self-referential spec path in req_coverage evaluator
+        .replace("gtl_spec.packages.genesis_sdlc:package",
+                 f"gtl_spec.packages.{slug}:package")
+        # Platform-specific build paths
+        .replace("builds/python/src/", f"builds/{platform}/src/")
+        .replace("builds/python/tests/", f"builds/{platform}/tests/")
+        .replace("builds/python/design/adrs/", f"builds/{platform}/design/adrs/")
     )
     starter_path.write_text(adapted, encoding="utf-8")
     return "installed"
@@ -334,7 +351,7 @@ def install(
 
     # 2. Replace abiogenesis stub with full SDLC bootstrap graph
     try:
-        result["sdlc_starter_spec"] = install_sdlc_starter_spec(src, target, slug)
+        result["sdlc_starter_spec"] = install_sdlc_starter_spec(src, target, slug, platform)
     except Exception as exc:
         result["errors"].append(f"sdlc_starter_spec: {exc}")
 
