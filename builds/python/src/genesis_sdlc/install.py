@@ -38,26 +38,13 @@ from pathlib import Path
 VERSION = "0.1.0"
 
 # Commands to install into .claude/commands/
+# Source: builds/claude_code/.claude-plugin/plugins/genesis/commands/
 COMMANDS = [
     "gen-start",
     "gen-iterate",
     "gen-gaps",
     "gen-review",
     "gen-status",
-    "gen-trace",
-    "gen-init",
-    "gen-spawn",
-    "gen-zoom",
-    "gen-spec-review",
-    "gen-release",
-    "gen-checkpoint",
-    "gen-escalate",
-    "gen-review-proposal",
-    "gen-consensus-open",
-    "gen-consensus-recover",
-    "gen-vote",
-    "gen-comment",
-    "gen-dispose",
 ]
 
 # CLAUDE.md markers for idempotent bootloader injection
@@ -103,11 +90,11 @@ PYTHONPATH=.genesis python -m genesis gaps  --workspace .
 
 | Command | What it does |
 |---------|-------------|
-| `/gen-start [--auto]` | State-driven routing — finds next work unit and iterates |
-| `/gen-iterate` | One F_D→F_P→F_H cycle on a specific feature+edge |
-| `/gen-gaps` | Full traceability report — delta across all edges |
-| `/gen-review` | Human evaluator gate — approve or reject a candidate |
-| `/gen-status` | Feature vector progress summary |
+| `/gen-start [--auto] [--human-proxy]` | State machine — select next edge, iterate, loop |
+| `/gen-iterate [--feature F] [--edge E]` | One F_D→F_P→F_H cycle on a specific edge |
+| `/gen-gaps [--feature F]` | Convergence state — delta per edge |
+| `/gen-review --feature F` | Explicit F_H gate — present candidate for human approval |
+| `/gen-status [--feature F]` | Workspace status — events, features, edge state |
 
 ---
 
@@ -189,14 +176,16 @@ def _run_abiogenesis_installer(source: Path, target: Path, slug: str, platform: 
 
 def install_commands(source: Path, target: Path) -> list[str]:
     """Copy gen-*.md commands into target/.claude/commands/.
-    Commands are resolved from the sibling abiogenesis directory.
+    Commands are resolved from genesis_sdlc's own claude_code build.
     """
-    commands_src = (source.parent / "abiogenesis" / ".claude" / "commands").resolve()
+    commands_src = (
+        source / "builds" / "claude_code" / ".claude-plugin" / "plugins" / "genesis" / "commands"
+    ).resolve()
 
     if not commands_src.exists():
         raise FileNotFoundError(
             f"Commands directory not found at {commands_src}. "
-            "Ensure abiogenesis is a sibling directory of genesis_sdlc."
+            "Expected genesis_sdlc/builds/claude_code/.claude-plugin/plugins/genesis/commands/"
         )
 
     commands_dir = target / ".claude" / "commands"

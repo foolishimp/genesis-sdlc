@@ -505,7 +505,7 @@ No feature vector. No iterate() cycle. No human gate. No REQ key traceability. O
 | `.ai-workspace/features/` | Claude Code | Feature vectors |
 | `.ai-workspace/reviews/` | All agents | Proposals; human gate resolves |
 
-**Spec is read-only**: `spec/` is the constitutional source of truth. `genesis_core.py` IS the spec. Claude Code reads spec but never writes to it — writes go to `builds/claude_code/` only.
+**Spec is read-only**: `gtl_spec/` is the constitutional source of truth. `genesis_core.py` IS the spec. Claude Code reads `gtl_spec/` but never writes to it — writes go to `builds/claude_code/` only.
 
 **V1 single-tenant constraint**: Only the `claude_code` build exists in V1. Do not create `comments/codex/`, `comments/gemini/`, or `comments/bedrock/` directories — they are V2+ concerns. See `V1_DOCTRINE.md` for the complete non-goals list.
 

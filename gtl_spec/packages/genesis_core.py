@@ -27,13 +27,13 @@ from gtl.core import (
 
 bootloader = Context(
     name="bootloader",
-    locator="workspace://spec/GENESIS_BOOTLOADER.md",
+    locator="workspace://gtl_spec/GENESIS_BOOTLOADER.md",
     digest="sha256:" + "0" * 64,   # PENDING
 )
 
 genesis_core_spec = Context(
     name="genesis_core_spec",
-    locator="workspace://spec/packages/genesis_core.py",
+    locator="workspace://gtl_spec/packages/genesis_core.py",
     digest="sha256:" + "0" * 64,   # PENDING — self-referential, computed at activation
 )
 
@@ -196,7 +196,7 @@ eval_intent_fh     = Evaluator("intent_approved",    F_H, "Human confirms intent
 
 # requirements→feature_decomp
 eval_feat_fd       = Evaluator("req_coverage",       F_D, "Every REQ key appears in ≥1 feature vector satisfies: field",
-                               command="python -m genesis check-req-coverage --package spec.packages.genesis_core:genesis_v1 --features .ai-workspace/features/")
+                               command="python -m genesis check-req-coverage --package gtl_spec.packages.genesis_core:genesis_v1 --features .ai-workspace/features/")
 eval_feat_fh       = Evaluator("feat_approved",      F_H, "Human approves decomposition, DAG order, and MVP boundary")
 
 # feature_decomp→design
