@@ -30,7 +30,7 @@ Parse stdout as JSON.
 | 1 | error | Report error. Stop. |
 | 2 | fp_dispatched | MCP dispatch (Step 3) |
 | 3 | fh_gate_pending | F_H evaluation — proxy or wait (Step 5) |
-| 4 | fd_gap | F_D still failing after F_P resolved — Step 4 |
+| 4 | fd_gap | F_D still failing after F_P resolved — surface failures, stop (Step 4) |
 | 5 | max_iterations | Loop limit hit — report to user, stop |
 
 **Step 3 — MCP dispatch (exit code 2 only)**
@@ -61,17 +61,14 @@ for assessment in result["assessments"]:
 
 Go to Step 1.
 
-**Step 4 — fd_gap recovery (exit code 4 only)**
+**Step 4 — fd_gap (exit code 4 only)**
 
-F_D checks are still failing after F_P was previously resolved. Re-dispatch the F_P actor
-with updated context (engine rebuilds the manifest with current F_D failure output):
+F_D checks are still failing after F_P construction was resolved. The F_P actor already
+wrote its assessment (fp_assessment pass event exists in the stream) but the deterministic
+checks still fail. This is a construction quality problem — do NOT re-dispatch F_P.
 
-```
-Run Step 1 with --edge {output["edge"]}
-```
-
-If exit is again 4 on the same edge after a second dispatch, stop and surface F_D
-failures to the user.
+Surface the F_D failures verbatim from `output["failing_evaluators"]` and the delta summary.
+Stop. The operator must inspect and fix the underlying deterministic failure before iterating again.
 
 ## F_H Gate (exit code 3)
 

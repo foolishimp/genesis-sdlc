@@ -1,5 +1,5 @@
 {
-  "version": "0.1.1",
+  "version": "0.1.2",
   "installed": [
     "gen-start",
     "gen-gaps",
@@ -7,5 +7,5 @@
     "gen-iterate",
     "gen-review"
   ],
-  "timestamp": "2026-03-15T13:15:38.093469+00:00"
+  "timestamp": "2026-03-15T13:42:49.798849+00:00"
 }
