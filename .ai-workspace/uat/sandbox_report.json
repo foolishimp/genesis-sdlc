@@ -1,0 +1,9 @@
+{
+  "install_success": true,
+  "sandbox_path": "/tmp/uat_sandbox_pytest",
+  "test_count": 6,
+  "pass_count": 6,
+  "fail_count": 0,
+  "all_pass": true,
+  "timestamp": "2026-03-15T23:27:46.324120+00:00"
+}

@@ -35,7 +35,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-VERSION = "0.1.3"
+VERSION = "0.1.4"
 
 # Commands inherited from the abiogenesis engine plugin.
 # Source: <abiogenesis>/builds/claude_code/.claude-plugin/plugins/genesis/commands/
@@ -302,6 +302,29 @@ def install_claude_md(source: Path, target: Path, slug: str, platform: str,
         return "created"
 
 
+def install_operating_standards(source: Path, target: Path) -> str:
+    """
+    Copy standards/ from genesis_sdlc source → .ai-workspace/operating-standards/.
+
+    operating-standards/ is the authoritative fallback for any agent action not
+    covered by a more specific convention. Agents load the relevant standard
+    before writing comments, backlog items, user guides, etc.
+    """
+    src_standards = source / "standards"
+    if not src_standards.exists():
+        return "source_missing"
+
+    dest = target / ".ai-workspace" / "operating-standards"
+    dest.mkdir(parents=True, exist_ok=True)
+
+    installed = []
+    for src_file in sorted(src_standards.glob("*.md")):
+        shutil.copy2(src_file, dest / src_file.name)
+        installed.append(src_file.name)
+
+    return f"installed:{','.join(installed)}" if installed else "empty"
+
+
 def install_sdlc_starter_spec(source: Path, target: Path, slug: str,
                               platform: str = "python") -> str | None:
     """
@@ -401,6 +424,12 @@ def install(
         result["claude_md"] = install_claude_md(src, target, slug, platform, project_name)
     except FileNotFoundError as exc:
         result["errors"].append(f"claude_md: {exc}")
+
+    # 4b. Operating standards
+    try:
+        result["operating_standards"] = install_operating_standards(src, target)
+    except Exception as exc:
+        result["errors"].append(f"operating_standards: {exc}")
 
     # 5. Emit install event
     _emit_install_event(target, result)

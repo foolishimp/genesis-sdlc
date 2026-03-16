@@ -332,6 +332,11 @@ package = Package(
         "REQ-F-DOCS-001",   # User guide covers install, first session, operating loop
         # UAT
         "REQ-F-UAT-001",    # unit_tests→uat_tests edge: sandbox install + e2e proof required to ship
+        # Backlog
+        "REQ-F-BACKLOG-001",  # .ai-workspace/backlog/BL-*.yml schema and directory convention
+        "REQ-F-BACKLOG-002",  # sensory system surfaces ready items in gen gaps/status output
+        "REQ-F-BACKLOG-003",  # gen backlog list — show all items with status
+        "REQ-F-BACKLOG-004",  # gen backlog promote BL-xxx — emit intent_raised, mark promoted
     ],
 )
 

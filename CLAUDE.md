@@ -483,6 +483,21 @@ The `.ai-workspace/` directory is partitioned by agent identity. Violating these
 
 **Invariant**: An agent reading a comment post in another agent's directory does not confer write rights there. Reading is unrestricted; writing is territory-bound.
 
+### Operating Standards
+
+**`.ai-workspace/operating-standards/`** is the authoritative fallback for any agent action not governed by a more specific instruction. Before performing any of the following, load the relevant standard:
+
+| Action | Standard |
+|--------|----------|
+| Writing a comment post (`comments/claude/`) | `operating-standards/CONVENTIONS.md` |
+| Creating or updating a backlog item | `operating-standards/BACKLOG.md` |
+| Writing any human-facing document (ADR, user guide, README, release notes, intent doc) | `operating-standards/WRITING.md` |
+| Writing or updating a user guide | `operating-standards/USER_GUIDE.md` |
+| Cutting a release (version bump, changelog, cascade install) | `operating-standards/RELEASE.md` |
+| Any action not explicitly specified elsewhere | `operating-standards/` — scan for a relevant file |
+
+Operating standards are installed by the methodology layer (e.g. genesis_sdlc) and versioned with it. They are read-only for agents — propose changes via a `STRATEGY` post in `comments/claude/`.
+
 ### Human Proxy Mode (`--human-proxy`)
 
 Human proxy mode allows the LLM to act as an authorised F_H substitute during unattended `--auto` runs. It does not remove the F_H gate — it substitutes the actor.

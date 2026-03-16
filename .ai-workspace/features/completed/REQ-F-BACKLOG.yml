@@ -1,0 +1,41 @@
+id: REQ-F-BACKLOG
+title: Backlog — pre-intent holding area for ideas in gestation
+status: completed
+edge: requirements→feature_decomposition
+satisfies:
+  - REQ-F-BACKLOG-001
+  - REQ-F-BACKLOG-002
+  - REQ-F-BACKLOG-003
+  - REQ-F-BACKLOG-004
+
+description: |
+  Add a managed sidecar backlog to genesis_sdlc. The backlog is a pre-intent
+  holding area — items that are interesting but not ready to become intent vectors.
+  It is NOT part of the SDLC graph; it has no evaluators or gates of its own.
+  Items are promoted to the intent layer explicitly by a human or sensory signal.
+
+  Schema: .ai-workspace/backlog/BL-*.yml
+    id: BL-xxx
+    title: ...
+    status: idea | incubating | ready | promoted | abandoned
+    created: ISO date
+    updated: ISO date
+    notes: free-form prose
+    promoted_to: REQ-F-* (set on promotion)
+    promotion_reason: (set on promotion)
+
+  Sensory surface: gen gaps / gen-status surfaces items with status=ready
+  as attention signals — they are not gaps, they are opportunities.
+
+  Commands:
+    gen backlog list [--status <status>]   — show items, grouped by status
+    gen backlog promote BL-xxx             — emit intent_raised, set status=promoted
+
+acceptance:
+  - BL-*.yml schema is documented and enforced by gen backlog commands
+  - gen gaps / gen-status output includes ready-items count when >0
+  - gen backlog list renders all items with status grouping
+  - gen backlog promote BL-xxx emits intent_raised event and marks item promoted
+
+markov:
+  - satisfies: [REQ-F-BACKLOG-001, REQ-F-BACKLOG-002, REQ-F-BACKLOG-003, REQ-F-BACKLOG-004]
