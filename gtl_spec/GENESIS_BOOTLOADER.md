@@ -524,4 +524,4 @@ No feature vector. No iterate() cycle. No human gate. No REQ key traceability. O
 
 **V1 single-tenant constraint**: Only the `claude_code` build exists in V1. Do not create `comments/codex/`, `comments/gemini/`, or `comments/bedrock/` directories — they are V2+ concerns. See `V1_DOCTRINE.md` for the complete non-goals list.
 
-**Bootstrap compiler**: The `.genesis/` directory contains the installed bootstrap compiler (ai_sdlc_method genesis engine v3.1.0). It is not committed — it is installed. Do not modify files under `.genesis/`.
+**Bootstrap compiler**: The `.genesis/` directory contains the installed bootstrap compiler (genesis_sdlc). It is not committed — it is installed. Do not modify files under `.genesis/`.
