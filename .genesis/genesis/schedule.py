@@ -3,6 +3,7 @@
 # Implements: REQ-F-CORE-006
 # Implements: REQ-F-WKSP-001
 # Implements: REQ-F-GATE-001
+# Implements: REQ-F-GATE-002
 # Implements: REQ-F-EVAL-002
 """
 schedule — delta, iterate, schedule.
@@ -117,9 +118,14 @@ def iterate(
     # Record what contexts were consumed
     surface.context_consumed = list(job.edge.context)
 
-    # Dispatch F_P evaluators
+    # REQ-F-GATE-002: F_D must pass before F_P is dispatched; F_D + F_P must
+    # pass before F_H gate is emitted. Dispatching agent work against a broken
+    # deterministic state wastes budget and can produce false convergence.
+    fd_failing = [ev for ev in pre.failing_evaluators if ev.category is F_D]
+
+    # Dispatch F_P evaluators — only when all F_D pass
     fp_failing = [ev for ev in pre.failing_evaluators if ev.category is F_P]
-    if fp_failing:
+    if fp_failing and not fd_failing:
         surface.events.append({
             "event_type": "fp_dispatched",
             "data": {
@@ -131,9 +137,9 @@ def iterate(
         if on_fp_dispatch is not None:
             on_fp_dispatch(bound_job)
 
-    # Record F_H gates
+    # Record F_H gates — only when all F_D and all F_P pass
     fh_failing = [ev for ev in pre.failing_evaluators if ev.category is F_H]
-    if fh_failing:
+    if fh_failing and not fd_failing and not fp_failing:
         surface.events.append({
             "event_type": "fh_gate_pending",
             "data": {

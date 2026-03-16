@@ -1,5 +1,6 @@
 # Implements: REQ-F-CORE-004
 # Implements: REQ-F-EVAL-002
+# Implements: REQ-F-BIND-001
 """
 bind — F_D pre-computation: bind_fd, bind_fp, select_relevant_contexts,
        render_delta.
@@ -168,8 +169,12 @@ def bind_fd(
     for ctx in relevant_ctxs:
         try:
             resolved[ctx.name] = resolver.load(ctx)
-        except (NotImplementedError, Exception) as exc:
+        except NotImplementedError as exc:
+            # Unimplemented V1 scheme (git://, event://, registry://) — degrade gracefully
             resolved[ctx.name] = f"[context unavailable: {exc}]"
+        # REQ-F-BIND-001: ValueError (digest mismatch, unknown scheme) propagates as fatal.
+        # A digest mismatch is a replay-integrity violation — the constraint surface has
+        # changed and the engine must not continue dispatching F_P against a corrupted context.
 
     # 5. Build structured delta summary
     summary = render_delta(fd_results, failing)

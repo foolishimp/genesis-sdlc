@@ -2,6 +2,7 @@
 # Implements: REQ-F-CORE-002
 # Implements: REQ-F-CORE-003
 # Implements: REQ-F-CORE-005
+# Implements: REQ-F-EVAL-005
 """
 core — substrate functions: emit, project, EventStream, ContextResolver,
        workspace_bootstrap.
@@ -110,12 +111,22 @@ def emit(event_type: str, data: dict) -> None:
     event_time is assigned from the system clock — no caller can pass it.
     F_P constructs content; the F_D engine calls emit(). Never the reverse.
 
+    REQ-F-EVAL-005: fp_assessment events must carry spec_hash. The contract is
+    enforced at the write primitive — not only at the CLI layer — so in-process
+    callers cannot write stale assessments that bypass bind_fd() snapshot validation.
+
     Raises RuntimeError if workspace_bootstrap() has not been called.
+    Raises ValueError if an fp_assessment payload lacks spec_hash.
     """
     if _stream is None:
         raise RuntimeError(
             "emit() called before workspace_bootstrap(). "
             "Call workspace_bootstrap(path) first to initialise the stream."
+        )
+    if event_type == "fp_assessment" and "spec_hash" not in data:
+        raise ValueError(
+            "fp_assessment events must include 'spec_hash'. "
+            "Use bind.req_hash(package.requirements) to compute it."
         )
     _stream.append(event_type, data)
 
@@ -150,7 +161,10 @@ def project(
         data = event.get("data", {})
         etype = event.get("event_type", "")
 
-        # Match events relevant to this instance
+        # Match events relevant to this instance.
+        # REQ-F-CORE-001: edge_started events must be observed by the "current" projection
+        # so that active iteration is visible; edge_started carries only edge+build, not
+        # target/asset_type, so it needs an explicit relevance rule.
         relevant = (
             data.get("instance_id") == instance_id
             or data.get("feature") == instance_id
@@ -158,6 +172,8 @@ def project(
                 data.get("target", ""),
                 data.get("asset_type", ""),
             ))
+            or (instance_id == "current" and etype == "edge_started"
+                and data.get("target") == asset_type)
         )
 
         if not relevant:

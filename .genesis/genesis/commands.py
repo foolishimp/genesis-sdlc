@@ -1,6 +1,7 @@
 # Implements: REQ-F-CMD-001
 # Implements: REQ-F-CMD-002
 # Implements: REQ-F-CMD-003
+# Implements: REQ-F-CMD-004
 # Implements: REQ-F-GRAPH-001
 # Implements: REQ-F-GRAPH-002
 # Implements: REQ-F-EVAL-002
@@ -77,12 +78,13 @@ def gen_gaps(scope: Scope, stream: EventStream) -> dict:
             "reason": "no jobs in scope — check --feature and --edge flags",
         }
 
-    # Pre-compute which edges already have a well-formed edge_converged certificate
-    # (one that includes 'target' — the canonical schema). Events without 'target'
-    # (e.g. hand-emitted Phase C entries) do not count: they cannot serve feature-
-    # scoped projection and should be superseded by a properly-formed entry.
-    certified_edges: set[str] = {
-        e["data"]["edge"]
+    # Pre-compute which (edge, feature) pairs already have a well-formed certificate.
+    # REQ-F-CMD-004: deduplication must be keyed on (edge, feature) — not edge alone.
+    # Edge-only deduplication means only the first feature gets a certificate per edge;
+    # subsequent features on the same converged edge never emit their own certificate
+    # and project(stream, target, feature_id) stays not_started.
+    certified_edge_features: set[tuple] = {
+        (e["data"]["edge"], e["data"].get("feature"))
         for e in stream.all_events()
         if e.get("event_type") == "edge_converged"
         and e.get("data", {}).get("target")
@@ -104,15 +106,16 @@ def gen_gaps(scope: Scope, stream: EventStream) -> dict:
         # Idempotent: once a well-formed certificate exists in the log (edge + target),
         # repeated gen_gaps calls over a converged workspace do not append duplicates.
         # feature is included so feature-scoped project() calls can match this event.
-        if pre.delta == 0 and job.edge.name not in certified_edges:
+        if pre.delta == 0 and (job.edge.name, scope.feature) not in certified_edge_features:
             cert: dict = {
                 "edge": job.edge.name,
                 "target": job.edge.target.name,
+                "feature": scope.feature,
                 "delta": 0,
                 "certified_by": "gen_gaps",
             }
             stream.append("edge_converged", cert)
-            certified_edges.add(job.edge.name)  # prevent duplicate within same run
+            certified_edge_features.add((job.edge.name, scope.feature))
 
     total_delta = sum(r["delta"] for r in results)
     return {
@@ -168,9 +171,31 @@ def gen_iterate(
         }
 
     # Determine result_path for F_P actor output (written before bind_fp)
-    from gtl.core import F_P as _F_P, F_H as _F_H
+    from gtl.core import F_D as _F_D, F_P as _F_P, F_H as _F_H
+    fd_failing = [ev for ev in selected_pre.failing_evaluators if ev.category is _F_D]
     fp_failing = [ev for ev in selected_pre.failing_evaluators if ev.category is _F_P]
     fh_failing = [ev for ev in selected_pre.failing_evaluators if ev.category is _F_H]
+
+    # REQ-F-GATE-002: do not produce an F_P manifest while F_D is red.
+    # The gate is enforced in schedule.iterate() — this layer must not create
+    # orphaned manifest files that imply a dispatch will happen when it won't.
+    # Emit fd_gap_found so gen_start(auto=True) event-based detection at
+    # commands.py#L314 fires correctly — without this event, the auto-loop
+    # cannot distinguish "fd_gap" from "no progress" and loops to max_iterations.
+    if fd_failing and fp_failing:
+        stream.append("fd_gap_found", {
+            "edge": selected_job.edge.name,
+            "failing": [ev.name for ev in fd_failing],
+            "delta_summary": selected_pre.delta_summary,
+        })
+        return {
+            "status": "iterated",
+            "edge": selected_job.edge.name,
+            "delta_before": selected_pre.delta,
+            "failing_evaluators": [ev.name for ev in selected_pre.failing_evaluators],
+            "events_emitted": 1,
+            "stopped_by": "fd_gap",
+        }
 
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
     edge_slug = selected_job.edge.name.replace("→", "_").replace("↔", "_")
@@ -183,9 +208,12 @@ def gen_iterate(
 
     # Bind + iterate
     bound = bind_fp(selected_pre, selected_job, result_path=result_path)
+    # REQ-F-CORE-001: include target so project() "current" projection can filter
+    # edge_started to only the asset type being produced by this edge.
     stream.append("edge_started", {
         "edge": selected_job.edge.name,
         "build": scope.build,
+        "target": selected_job.edge.target.name,
     })
 
     surface = iterate(bound, on_fp_dispatch=on_fp_dispatch)

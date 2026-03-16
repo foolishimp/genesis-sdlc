@@ -6,6 +6,7 @@
 # Implements: REQ-F-COV-001
 # Implements: REQ-F-EVAL-001
 # Implements: REQ-F-EVAL-003
+# Implements: REQ-F-EVAL-004
 # Implements: REQ-F-DOCS-001
 """
 __main__ — CLI entry point for the genesis engine.
@@ -321,7 +322,10 @@ def _emit_event_cmd(event_type: str, data_json: str, workspace: Path) -> int:
         elif data["actor"] == "human-proxy" and "proxy_log" not in data:
             errors.append("human-proxy actor requires 'proxy_log' path field")
     elif event_type == "fp_assessment":
-        for field in ("edge", "evaluator", "result"):
+        # REQ-F-EVAL-004: spec_hash is required so that bind_fd() can validate snapshot
+        # binding. Assessments without a matching hash are stale and will not converge;
+        # requiring it at the emit boundary surfaces the error early rather than silently.
+        for field in ("edge", "evaluator", "result", "spec_hash"):
             if field not in data:
                 errors.append(f"fp_assessment requires '{field}' field")
         if data.get("result") not in (None, "pass", "fail"):
