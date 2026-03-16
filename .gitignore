@@ -3,3 +3,4 @@ __pycache__/
 .venv/
 .ai-workspace/fp_manifests/
 .ai-workspace/fp_results/
+uat_sandbox/

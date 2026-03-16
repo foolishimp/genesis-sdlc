@@ -431,6 +431,17 @@ def install(
     except Exception as exc:
         result["errors"].append(f"operating_standards: {exc}")
 
+    # 4c. SDLC workspace structure — directories the engine and agents write to
+    for ws_dir in [
+        ".ai-workspace/features/active",
+        ".ai-workspace/features/completed",
+        ".ai-workspace/reviews/pending",
+        ".ai-workspace/reviews/proxy-log",
+        ".ai-workspace/comments/claude",
+        ".ai-workspace/backlog",
+    ]:
+        (target / ws_dir).mkdir(parents=True, exist_ok=True)
+
     # 5. Emit install event
     _emit_install_event(target, result)
 
