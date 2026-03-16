@@ -13,7 +13,9 @@ genesis_sdlc follows the standard SDLC bootstrap graph:
     intent → requirements → feature_decomp → design → code ↔ unit_tests → uat_tests
 
 UAT is constitutional: shipping requires sandbox e2e proof, not unit tests alone.
-F_D evaluators must be acyclic — never invoke genesis subcommands from pytest.
+Integration and E2E tests are the primary test surface. Unit tests exist only for
+write-primitive invariants (emit, project, EventStream). F_D evaluators must be
+acyclic — never invoke genesis subcommands from pytest.
 
 genesis_sdlc depends on abiogenesis (the GTL engine) and is built using it.
 The engine lives at .genesis/genesis/; run as:
@@ -242,9 +244,24 @@ eval_test_tags = Evaluator(
     "All test files carry at least one # Validates: REQ-* tag, zero untagged",
     command="python -m genesis check-tags --type validates --path builds/python/tests/",
 )
+eval_e2e_exists = Evaluator(
+    "e2e_tests_exist", F_D,
+    "At least one @pytest.mark.e2e test exists — e2e/integration scenarios are the primary "
+    "test surface; pure unit tests are supplementary",
+    command=(
+        "python -c \""
+        "import pathlib,sys; "
+        "tests=list(pathlib.Path('builds/python/tests/').rglob('*.py')); "
+        "has_e2e=any('@pytest.mark.e2e' in f.read_text() for f in tests); "
+        "sys.exit(0 if has_e2e else 1)"
+        "\""
+    ),
+)
 eval_coverage_fp = Evaluator(
     "coverage_complete", F_P,
-    "Agent: test suite covers all features; no REQ key without a corresponding test",
+    "Agent: test suite covers all REQ keys with integration or E2E scenarios as primary evidence. "
+    "Unit tests acceptable only for write-primitive invariants (emit, project, EventStream). "
+    "Pure unit tests mocking internals do not satisfy coverage for workflow features.",
 )
 
 # unit_tests→uat_tests
@@ -288,7 +305,7 @@ job_intent_req  = Job(e_intent_req,  [eval_intent_fh])
 job_req_feat    = Job(e_req_feat,    [eval_req_coverage, eval_decomp_fp, eval_decomp_fh])
 job_feat_design = Job(e_feat_design, [eval_design_fp, eval_design_fh])
 job_design_code = Job(e_design_code, [eval_impl_tags, eval_code_fp])
-job_tdd         = Job(e_tdd,         [eval_tests_pass, eval_test_tags, eval_coverage_fp])
+job_tdd         = Job(e_tdd,         [eval_tests_pass, eval_test_tags, eval_e2e_exists, eval_coverage_fp])
 job_uat         = Job(e_unit_uat,    [eval_uat_report, eval_uat_fp, eval_uat_fh])
 
 
@@ -330,6 +347,9 @@ package = Package(
         "REQ-F-COV-001",    # REQ key coverage enforced by check-req-coverage
         # Documentation
         "REQ-F-DOCS-001",   # User guide covers install, first session, operating loop
+        # Testing philosophy
+        "REQ-F-TEST-001",   # Integration and E2E tests are the primary test surface; e2e_tests_exist F_D enforces minimum
+        "REQ-F-TEST-002",   # coverage_complete F_P evaluates integration coverage, not unit test count
         # UAT
         "REQ-F-UAT-001",    # unit_tests→uat_tests edge: sandbox install + e2e proof required to ship
         # Backlog

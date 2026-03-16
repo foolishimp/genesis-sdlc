@@ -1,0 +1,28 @@
+id: BL-004
+title: Named composition library and macro registry
+status: idea
+created: 2026-03-16
+notes: |
+  Currently F_P output is free-form LLM text. ADR-S-026 defines composition_dispatched
+  as a typed expression {macro, version, bindings} but the macro registry does not exist.
+
+  The goal: F_P gap evaluators dispatch named compositions instead of generating ad-hoc
+  content. A dispatch table maps gap_type → macro. Macros are versioned, auditable,
+  and deterministically re-runnable.
+
+  Example macros: add_endpoint, add_telemetry, refactor_module, add_test_coverage,
+  add_f_d_evaluator, scaffold_feature.
+
+  What's uncertain:
+  - Macro definition format — GTL Package? Python callable? YAML template?
+  - Binding resolution — how does the macro receive project-specific context
+    (paths, REQ keys, tech stack)?
+  - Registry location — part of genesis_sdlc package or a separate installable?
+  - Zero-interpretation claim from ADR-S-026 requires macro registry to exist before
+    composition_dispatched semantics are valid
+
+  What would need to be true before promotion:
+  - At least 3 concrete macro use cases fully specified
+  - Binding schema defined
+  - Registry lookup interface agreed (how does F_D engine resolve macro → implementation?)
+  - ADR-S-026 updated with registry contract

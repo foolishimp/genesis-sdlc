@@ -1,0 +1,31 @@
+id: BL-007
+title: Headless Playwright visual evaluator
+status: idea
+created: 2026-03-16
+notes: |
+  UX testing currently has no visual layer. The engine can run unit and UAT tests
+  but cannot see the UI. A headless Playwright tool would capture screenshots at
+  defined interaction points, allowing F_P to evaluate visual gaps against a spec
+  or against a prior screenshot baseline.
+
+  What it provides:
+  - F_D: page loads without error, defined elements present (deterministic)
+  - F_P: screenshot compared against visual spec or prior baseline — LLM evaluates
+    layout correctness, missing components, accessibility gaps
+  - F_H: visual approval gate before UAT converges
+
+  Delivery model: Docker container exposing a simple API (URL + interaction script →
+  screenshots). Registered in tool registry (BL-006) with interface spec.
+
+  What's uncertain:
+  - Screenshot baseline storage — committed to repo? Stored in .ai-workspace?
+  - F_P visual evaluation quality — needs empirical testing with current vision models
+  - Interaction script format — Playwright script? Declarative YAML steps?
+  - How does this integrate with the UAT edge? New evaluator type or extension of
+    existing uat_tests Markov condition?
+
+  What would need to be true before promotion:
+  - F_P visual evaluation tested on at least one real UI (even outside genesis_sdlc)
+  - Docker packaging approach confirmed
+  - Interface spec (input/output schema) defined
+  - BL-006 (tool registry) at least incubating

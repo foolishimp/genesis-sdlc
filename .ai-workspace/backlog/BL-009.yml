@@ -1,0 +1,32 @@
+id: BL-009
+title: Tech stack F_D packs — Java, Go, Rust
+status: idea
+created: 2026-03-16
+notes: |
+  The current F_D evaluators are Python-centric (pytest, coverage.py, check-tags grep).
+  Projects using Java, Go, or Rust have no deterministic evaluator support — their
+  features cannot converge because F_D has nothing to run.
+
+  Each tech stack pack provides:
+  - Test runner integration (JUnit/Maven for Java, go test for Go, cargo test for Rust)
+  - Coverage report ingestion (Jacoco, go cover, llvm-cov) mapped to F_D pass/fail
+  - Implements:/Validates: tag checker for that language's comment syntax
+  - REQ key coverage check adapted for the language's file structure
+
+  These are the first natural candidates for the Discovery mechanism (BL-005):
+  a Java project that hits a missing F_D evaluator spawns a discovery that produces
+  the Java F_D pack and registers it.
+
+  What's uncertain:
+  - Packaging: each pack as a separate installable? Or one genesis_sdlc_tools package?
+  - Tag syntax per language:
+    - Java: // Implements: REQ-F-*  in Javadoc?
+    - Go:   // Implements: REQ-F-*
+    - Rust: // Implements: REQ-F-*
+  - CI integration: how do packs hook into the engine's evaluator invocation?
+
+  What would need to be true before promotion:
+  - One stack (Java most likely) fully specified with all four components above
+  - Tag syntax agreed for that language
+  - Evaluator invocation interface defined (how engine calls the pack)
+  - BL-006 (tool registry) exists to receive the output

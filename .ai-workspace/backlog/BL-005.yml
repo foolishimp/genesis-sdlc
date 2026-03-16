@@ -1,0 +1,36 @@
+id: BL-005
+title: Discovery sub-projects — dependency gap spawning mechanism
+status: incubating
+created: 2026-03-16
+notes: |
+  When iteration hits a dependency it cannot satisfy — missing F_D evaluator for a
+  tech stack, unknown protocol, unbuilt tool — the engine currently blocks silently.
+  This item adds a formal mechanism to spawn a sub-intent project to close the gap.
+
+  Model:
+  - Parent feature reaches edge, F_D evaluator for dependency is missing
+  - Engine emits intent_raised{signal_source: dependency_gap, dependency: "..."}
+  - A new project is bootstrapped under discoveries/{slug}/
+  - Full SDLC graph runs inside the sub-project (self-governed)
+  - On convergence the artifact is promoted back to the parent as a registered tool
+  - Parent feature resumes with the gap closed
+
+  Example: iterating a Java feature, no Java F_D test runner defined →
+  Discovery: java-fd-evaluator → builds pytest-equivalent for Java → registers in
+  tool registry → parent Java feature can now converge.
+
+  What's uncertain:
+  - Lifecycle management: who owns the discovery project after spawning?
+    Same agent? New session? How does the parent know it converged?
+  - Blocking semantics: does the parent feature stay "iterating" or move to a
+    "blocked" status? What event marks the unblock?
+  - Depth limit: can a discovery spawn its own discovery? Probably yes, but needs
+    a guard against infinite recursion.
+  - Relationship to backlog: discovery items may be pre-registered as BL items
+    (known gaps) or dynamically created at runtime
+
+  What would need to be true before promotion:
+  - blocked_on field added to feature vector schema
+  - discovery_spawned event type defined in event schema
+  - At least one concrete discovery lifecycle traced end-to-end (even manually)
+  - Convergence signal from sub-project to parent specified

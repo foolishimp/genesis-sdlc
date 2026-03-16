@@ -1,0 +1,41 @@
+id: BL-012
+title: Telemetry closed loop — production signals as intent
+status: idea
+created: 2026-03-16
+notes: |
+  The current graph ends at uat_tests. The full vision extends to:
+  running system → telemetry → tolerance breach → intent_raised → SDLC loop
+
+  Production is not an endpoint — it is a constraint surface. When the running system
+  breaches a tolerance (P99 latency > threshold, error rate spike, SLA miss), the
+  sensory system (BL-001) captures the signal and emits intent_raised{signal_source:
+  telemetry}. The normal homeostatic loop then drives a fix from requirements through
+  to redeployment.
+
+  At the highest level, persistent tolerance breaches that cannot be fixed without
+  redesign put the spec itself under gradient pressure — the constraint surface changes.
+
+  Components needed:
+  - Telemetry schema: metric name, observed value, tolerance, breach severity
+  - Collector: ingests signals from running system (statsd, Prometheus, CloudWatch,
+    or a simple webhook)
+  - Tolerance registry: per-REQ thresholds (connects back to §X — constraints need
+    tolerances to be operational)
+  - Breach detector: evaluates observed vs tolerance, classifies severity
+  - Signal router: coding_error → bug_fixed path (ADR-S-039); design_flaw →
+    intent_raised; spec_pressure → escalate to F_H
+
+  What's uncertain:
+  - Collector substrate: Prometheus scrape vs push webhook vs log parsing?
+  - Tolerance registry location: in the GTL spec? In a separate config file?
+  - Spec pressure escalation: what does "the spec needs to change" look like as a
+    formal event? New event type? Feature proposal with requires_spec_change: true?
+  - Feedback latency: how quickly should a production signal trigger a new intent?
+    Real-time paging vs batched morning review?
+
+  What would need to be true before promotion:
+  - BL-001 (sensory monitors) at least ready — telemetry is exteroception at runtime
+  - At least one tolerance defined in the genesis_sdlc spec itself (dog-food)
+  - Telemetry event schema agreed (what fields does a telemetry_signal event carry?)
+  - Signal → intent routing rules specified (which breach severity triggers what response)
+  - One end-to-end trace: production signal → intent_raised → feature → fix → deployed

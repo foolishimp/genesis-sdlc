@@ -1,0 +1,38 @@
+id: BL-006
+title: Tool registry — cumulative capability store
+status: idea
+created: 2026-03-16
+notes: |
+  Tools produced by Discoveries (or built directly) are currently one-off. There is
+  no mechanism to register them, version them, or make them available to future projects.
+
+  The vision: every tool built by genesis_sdlc enters a registry, making the system
+  cumulatively more capable. The registry is itself a genesis_sdlc project with its
+  own spec and convergence criteria.
+
+  Registry model:
+  - Each tool has: name, version, interface spec, F_D test suite, Docker image or
+    installable package, tech stack tags
+  - Tools are discovered by the engine when evaluating gaps (if gap_type matches a
+    registered tool's interface, it can be auto-invoked)
+  - Backstage or a simpler YAML catalogue are candidate implementations
+
+  Tool categories:
+  - Tech stack F_D packs (Java, Go, Rust test runners and coverage tools)
+  - Visual evaluators (Playwright, screenshot diffing)
+  - Data investigation (Jupyter runner)
+  - Contract verifiers (OpenAPI diff, gRPC schema check)
+  - Telemetry collectors
+  - LLM benchmark harnesses
+
+  What's uncertain:
+  - Registry hosting: local YAML catalogue vs hosted Backstage instance vs Docker Hub tags
+  - Discovery integration: how does the engine query the registry during gap evaluation?
+    Is it a lookup by gap_type, by tech stack, by interface type?
+  - Versioning: tools evolve — how does a project pin a tool version vs take latest?
+
+  What would need to be true before promotion:
+  - At least two tool entries fully specified (interface, F_D suite, packaging)
+  - Registry schema defined (YAML catalogue minimum)
+  - One lookup integration point in the engine defined (even if not implemented)
+  - BL-005 (Discovery mechanism) at least incubating — tools need a production path

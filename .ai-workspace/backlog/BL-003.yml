@@ -1,0 +1,29 @@
+id: BL-003
+title: Release cascade automation
+status: incubating
+created: 2026-03-16
+notes: |
+  Version bumps are currently manual across three files (__init__.py, install.py,
+  pyproject.toml) and the .genesis-installed marker. This produced a v0.1.5 miss
+  where the installed engine was ahead of the source version.
+
+  The release protocol is documented in operating-standards/RELEASE.md but not
+  enforced structurally.
+
+  What's needed:
+  - Single source of truth for version (pyproject.toml only; others read from it)
+  - Release script: bump version → run UAT sandbox → generate cascade commit
+  - Cascade validator: checks that .genesis-installed version matches source VERSION
+    constant — fail loudly if mismatched (F_D evaluator)
+  - Installed-project registry: track which downstream projects have installed which
+    version so cascade can surface stale installs
+
+  What's uncertain:
+  - Where does the installed-project registry live? Central file in genesis_sdlc or
+    per-project marker that reports back?
+  - Cascade commit format — should it be a single commit or one per affected file?
+
+  What would need to be true before promotion:
+  - Version single-source-of-truth ADR written and accepted
+  - F_D evaluator for version consistency defined (can be a simple grep check)
+  - At least one downstream project identified as the cascade test target

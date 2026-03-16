@@ -1,0 +1,46 @@
+id: BL-010
+title: Chat construction interface — multi-agent channel as build surface
+status: incubating
+created: 2026-03-16
+notes: |
+  The CHATBOT_WALKTHROUGH.md (Nexus) demonstrates the key insight: the GTL
+  F_D→F_P→F_H escalation chain works identically at runtime as it does at build time.
+  An incoming message is an intent asset. The same formal model governs both.
+
+  For genesis_sdlc this becomes a multi-agent construction channel: a chat interface
+  where human and agent participants collaborate to build software. The channel is the
+  UX; the event stream and spec are the persistent substrate.
+
+  Runtime dispatch model (same as Nexus):
+  - F_D: registered commands matched by pattern → deterministic execution (no LLM)
+  - F_P: freeform message → LLM resolution with workspace context assembled from
+    event stream + spec + design marketplace posts
+  - F_H: sensitive operations (approve feature, cut release, emit review_approved)
+    require explicit human confirmation in the channel
+
+  Construction-specific capabilities:
+  - Any agent in the channel can read the full event stream
+  - Write territory rules still apply — agents write only to their own territory
+  - F_H gate messages are surfaced as channel prompts awaiting human reaction/reply
+  - gen-status / gen-gaps / gen-review are channel commands, not just CLI commands
+  - New intent raised by human message → engine picks it up on next cycle
+
+  Channel substrate candidates: Slack, Discord, a local TUI, or a web chat UI.
+  The MessageAdapter pattern from Nexus makes the channel substrate swappable.
+
+  What's uncertain:
+  - Agent identity in channel: how does the channel know which messages are F_P vs F_D
+    vs F_H? Role tags? Separate bot accounts per agent?
+  - Session continuity: LLM agents are stateless — how does the channel reassemble
+    context for a returning agent mid-feature?
+  - Write territory enforcement in a chat context: need a lightweight check before
+    any file write triggered by a channel message
+
+  What would need to be true before promotion:
+  - MessageAdapter interface from Nexus walkthrough formalised as a genesis_sdlc spec
+  - At least one channel substrate (Slack or local TUI) prototyped
+  - Agent identity scheme defined (how the channel routes messages to the right agent)
+  - F_H gate channel UX specified (what does "waiting for human approval" look like
+    in the channel?)
+  - BL-006 (tool registry) not required but F_D command registry would be its first
+    practical use in chat context

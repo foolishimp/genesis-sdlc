@@ -1,0 +1,25 @@
+id: BL-001
+title: Implement sensory monitor daemon (interoception + exteroception)
+status: incubating
+created: 2026-03-16
+notes: |
+  The engine is currently purely reactive — it only moves when a human invokes a command.
+  This item adds autonomous sensing: a background daemon that observes workspace state
+  and emits intent_raised when drift is detected without human prompting.
+
+  Interoception signals: test health, event stream freshness, coverage drift, feature
+  vector stalls, spec/code divergence.
+
+  Exteroception signals: CVE feeds, dependency updates, API contract changes, runtime
+  telemetry anomalies (pre-telemetry-loop, this is ecosystem-level).
+
+  What's uncertain:
+  - Daemon lifecycle — how does it start/stop cleanly alongside Claude Code sessions?
+  - Signal deduplication — same gap detected on every poll should not spam intent_raised
+  - Polling interval vs event-triggered — filesystem watch vs cron
+
+  What would need to be true before promotion:
+  - At least two concrete interoception checks specified with tolerances
+  - One exteroception source (dep update or CVE) with ingestion schema defined
+  - Clear boundary: sensory system observes and proposes; it cannot emit intent_raised
+    without F_H accountability (review boundary from §VIII)

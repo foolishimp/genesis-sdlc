@@ -1,0 +1,26 @@
+id: BL-002
+title: Human proxy morning review UX
+status: incubating
+created: 2026-03-16
+notes: |
+  --human-proxy exists but proxy decisions have no first-class review surface.
+  After an unattended run the human has no clean way to see what the proxy decided
+  and approve or override those decisions.
+
+  What's needed:
+  - gen-status --morning: shows all proxy decisions since last attended session,
+    grouped by feature, with the proxy-log path and summary of criteria evaluated
+  - gen-review --morning: one-shot dismiss or override flow for each pending proxy decision
+  - Dismissal writes a "Reviewed: {date}" line to the proxy-log (non-destructive)
+  - Override emits a correcting review_approved or review_rejected with actor: "human"
+    which supersedes the proxy decision in the event stream projection
+
+  What's uncertain:
+  - How to define "last attended session" — last human-actor event? Timestamp marker file?
+  - Override semantics: does a human rejection after proxy approval trigger re-iteration
+    from the same edge, or does it halt and require manual gen-start?
+
+  What would need to be true before promotion:
+  - Proxy-log format is stable and queryable
+  - gen-status already surfaces proxy decisions (even without --morning filter)
+  - Override event schema agreed (actor: "human", supersedes: "{proxy_event_id}")

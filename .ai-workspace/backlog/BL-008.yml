@@ -1,0 +1,31 @@
+id: BL-008
+title: Jupyter notebook runner for data investigation
+status: idea
+created: 2026-03-16
+notes: |
+  Data-heavy features (analytics, ML, data pipeline validation) need an investigation
+  surface that the engine can execute and evaluate. A Jupyter runner provides a
+  sandboxed notebook execution environment where F_P can write exploratory code,
+  run it, and evaluate the outputs for spec conformance or anomalies.
+
+  Use cases within genesis_sdlc:
+  - Data schema validation (does the pipeline output match the REQ spec?)
+  - Coverage analytics (visualise REQ coverage trends across versions)
+  - Event stream analysis (replay and inspect event history for a feature)
+  - F_P investigation of ambiguous requirements (agent writes notebook, runs it,
+    evaluates results, reports findings as a design marketplace post)
+
+  Delivery model: Docker container, nbconvert-based execution, outputs returned as
+  JSON + rendered HTML. Registered in tool registry (BL-006).
+
+  What's uncertain:
+  - Kernel management: Python only in v1, or multi-kernel from the start?
+  - Output evaluation: how does F_P consume notebook cell outputs? JSON structured
+    output from final cell, or full notebook HTML passed to vision model?
+  - Security boundary: notebooks run arbitrary code — sandboxing is critical
+
+  What would need to be true before promotion:
+  - At least one concrete genesis_sdlc use case traced (e.g. REQ coverage analytics)
+  - Execution interface (input notebook + params → outputs) defined
+  - Security sandbox approach confirmed
+  - BL-006 (tool registry) at least incubating

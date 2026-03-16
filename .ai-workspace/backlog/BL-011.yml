@@ -1,0 +1,42 @@
+id: BL-011
+title: Full multi-agent design marketplace — multi-tenant concurrent iteration
+status: idea
+created: 2026-03-16
+notes: |
+  V1 is single-tenant (claude only). The design marketplace vision is multiple agents
+  — claude, codex, gemini, bedrock — iterating the same graph concurrently, each in
+  their own write territory, with F_H as the sole merge authority.
+
+  The event stream is shared and append-only. Each agent reads everything, writes only
+  to its own territory. Competing proposals on the same feature/edge are surfaced to
+  F_H for resolution — the human picks which artifact advances.
+
+  This is the natural extension of the current comments/ directory structure:
+  - comments/claude/, comments/codex/, comments/gemini/ already partitioned in §XIX
+  - reviews/pending/ already accepts proposals from any agent
+  - The missing piece is concurrent iteration on the same feature without collision
+
+  New mechanisms needed:
+  - Feature lock / claim: when an agent starts iterating an edge, it claims it —
+    other agents see "claimed by claude" and can propose alternatives but not
+    overwrite the primary iteration
+  - Competing proposal surface: F_H review shows side-by-side alternatives from
+    different agents
+  - Merge event: review_approved carries which agent's artifact was selected;
+    losing artifacts are archived not deleted
+
+  What's uncertain:
+  - Claim semantics: hard lock (only one agent at a time) or soft claim (others can
+    propose in parallel, F_H picks)? Soft claim is more powerful but harder to
+    reason about.
+  - Agent registration: how does a new agent (e.g. gemini) register its identity
+    and territory? Install-time? Dynamic?
+  - Cost accounting: multi-agent runs cost more — does the engine track cost_usd
+    per agent per edge? (Already in StepResult schema)
+
+  What would need to be true before promotion:
+  - BL-010 (chat interface) at least incubating — multi-agent without a shared
+    communication surface is hard to coordinate
+  - Feature claim schema defined and implemented
+  - At least two agents (claude + one other) completing one shared feature end-to-end
+  - Competing proposal F_H UX specified

@@ -147,7 +147,7 @@ class TestCommandsInstall:
         stamp = tmp_path / ".claude" / "commands" / ".genesis-installed"
         assert stamp.exists()
         data = json.loads(stamp.read_text())
-        assert data["version"] == "0.1.4"
+        assert data["version"] == "0.1.6"
 
 
 # ── CLAUDE.md ─────────────────────────────────────────────────────────────────
