@@ -189,6 +189,9 @@ PYTHONPATH=.genesis python -m genesis emit-event \
 Update this list when new projects adopt genesis_sdlc:
 
 - `genesis-manager` — `--project-slug genesis_manager`
+- `abiogenesis` — `--project-slug abiogenesis` — dogfood: genesis_sdlc builds the engine that runs genesis_sdlc
+- `gen_enterprise_arch` — `--project-slug gen_enterprise_arch`
+- `genesis_chat` — `--project-slug genesis_chat`
 
 ---
 
