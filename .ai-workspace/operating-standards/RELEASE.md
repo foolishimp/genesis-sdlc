@@ -113,25 +113,15 @@ print(hashlib.sha256(json.dumps(sorted(mod.package.requirements)).encode()).hexd
 "
 ```
 
-### 3. Self-install
+### 3. Run tests again
 
-```bash
-PYTHONPATH=builds/python/src:.genesis python -m genesis_sdlc.install \
-  --target . \
-  --project-slug genesis_sdlc
-```
-
-This updates `.claude/commands/`, `CLAUDE.md` (bootloader), and `.ai-workspace/operating-standards/`.
-
-### 4. Run tests again
-
-Verify the self-install did not break anything:
+Verify the version bump did not break anything:
 
 ```bash
 PYTHONPATH=builds/python/src:.genesis python -m pytest builds/python/tests/ -m 'not e2e'
 ```
 
-### 5. Verify gaps converged
+### 4. Verify gaps converged
 
 ```bash
 PYTHONPATH=.genesis python -m genesis gaps --workspace .
@@ -139,7 +129,7 @@ PYTHONPATH=.genesis python -m genesis gaps --workspace .
 
 `converged: true` required. If not, the release has introduced a spec change that invalidates prior assessments — drive to convergence before releasing.
 
-### 6. Commit
+### 5. Commit
 
 ```bash
 git add -A
@@ -148,33 +138,34 @@ git commit -m "feat(v{VERSION}): {short description of what changed}"
 
 Commit message format: `feat` for new features, `fix` for bug fixes, `chore` for tooling/process changes.
 
-### 7. Tag and push
+### 6. Tag and push
 
 ```bash
 git tag v{VERSION}
 git push origin main --tags
 ```
 
-### 8. Cascade install to dependent projects
+### 7. Cascade install to all dependent projects
 
-For each project that depends on genesis_sdlc, run the installer:
+Run the installer against every project in the Known Dependent Projects list.
+`genesis_sdlc` itself is always first — it is a dependent like any other.
 
 ```bash
 PYTHONPATH=builds/python/src:.genesis python -m genesis_sdlc.install \
-  --target /path/to/dependent/project \
+  --target /path/to/project \
   --project-slug {slug}
 ```
 
-Commit the updated artifacts in the dependent project:
+Commit the updated artifacts in each project that is a git repo:
 
 ```bash
-cd /path/to/dependent/project
+cd /path/to/project
 git add .claude/ .genesis/ CLAUDE.md .ai-workspace/operating-standards/
 git commit -m "chore: cascade genesis_sdlc v{VERSION}"
 git push origin main
 ```
 
-### 9. Emit release event
+### 8. Emit release event
 
 ```bash
 PYTHONPATH=.genesis python -m genesis emit-event \
@@ -186,9 +177,15 @@ PYTHONPATH=.genesis python -m genesis emit-event \
 
 ## Known Dependent Projects
 
-Update this list when new projects adopt genesis_sdlc:
+Run the cascade installer against all of these on every release, starting with `genesis_sdlc` itself.
 
-- `genesis-manager` — `--project-slug genesis_manager`
+| Project | Slug | Notes |
+|---------|------|-------|
+| `genesis_sdlc` | `genesis_sdlc` | Always first — updates its own commands, bootloader, standards |
+| `genesis-manager` | `genesis_manager` | |
+| `abiogenesis` | `abiogenesis` | Dogfood: genesis_sdlc builds the engine that runs genesis_sdlc |
+| `gen_enterprise_arch` | `gen_enterprise_arch` | No git repo — install only |
+| `genesis_chat` | `genesis_chat` | No git repo — install only |
 
 ---
 
@@ -197,4 +194,4 @@ Update this list when new projects adopt genesis_sdlc:
 - Editing comment posts in `.ai-workspace/comments/` — these are workspace artifacts, not versioned artifacts
 - Editing ADRs in `builds/python/design/adrs/` — ADRs are immutable; supersede with a new ADR
 
-**Note**: Editing `standards/` files (operating standards) DOES require a release — they are installer assets deployed to dependent projects. Update the source, bump the version (MINOR), run self-install, commit.
+**Note**: Editing `standards/` files (operating standards) DOES require a release — they are installer assets deployed to dependent projects. Update the source, bump the version (MINOR), cascade, commit.
