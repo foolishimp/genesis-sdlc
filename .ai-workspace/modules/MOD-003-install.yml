@@ -1,0 +1,20 @@
+id: MOD-003
+name: install
+description: |
+  Bootstrap installer. Copies the abiogenesis runner, GTL primitives, and — after
+  v0.2.0 — the released genesis_sdlc spec into .genesis/ of any target project.
+  Generates the starter local spec. Idempotent: engine files replaced on reinstall,
+  local spec never overwritten.
+implements_features:
+  - REQ-F-BOOT
+  - REQ-F-BOOT-V2
+dependencies:
+  - MOD-001
+rank: 2
+interfaces:
+  - cli: python -m genesis_sdlc.install --target DIR [--project-slug SLUG]
+  - event: genesis_installed emitted on success
+  - output: .genesis/genesis/, .genesis/gtl/, .genesis/spec/, .genesis/genesis.yml
+  - output: gtl_spec/packages/{slug}.py (generated if absent)
+source_files:
+  - builds/python/src/genesis_sdlc/install.py

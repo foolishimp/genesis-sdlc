@@ -1,0 +1,30 @@
+id: REQ-F-BOOT-V2
+title: Three-Layer Install Architecture — Immutable Core + Local Spec
+status: completed
+satisfies:
+  - REQ-F-BOOT-003
+  - REQ-F-BOOT-004
+  - REQ-F-BOOT-005
+description: |
+  Extend the installer to produce a three-layer structure in every target project:
+
+  Layer 1 — abiogenesis runner (.genesis/genesis/, .genesis/gtl/) — already correct.
+  Layer 2 — released genesis_sdlc methodology (.genesis/spec/genesis_sdlc.py) — NEW.
+             Immutable. Copied from sdlc_graph.py at install time. Replaced atomically
+             on upgrade. Never edited by the project.
+  Layer 3 — local project spec (gtl_spec/packages/{slug}.py) — mutable, project-owned.
+             Generated as a starter on first install. Never overwritten on reinstall.
+
+  The genesis_sdlc self-hosting special case: both copies coexist during development.
+  .genesis/spec/ holds the frozen prior release; gtl_spec/ holds the version under
+  construction. After release they are identical until the next cycle begins.
+acceptance_criteria:
+  - install copies sdlc_graph.py into {target}/.genesis/spec/genesis_sdlc.py
+  - .genesis/spec/__init__.py created so it is importable as genesis.spec.genesis_sdlc
+  - install generates {target}/gtl_spec/packages/{slug}.py if not present
+  - reinstall replaces .genesis/spec/ unconditionally (immutable layer is always the release)
+  - reinstall never overwrites existing gtl_spec/packages/{slug}.py
+  - test confirms editing gtl_spec/ after install does not change .genesis/spec/ content
+dependencies:
+  - REQ-F-BOOT
+  - REQ-F-GRAPH

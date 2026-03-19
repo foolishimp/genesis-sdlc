@@ -1,0 +1,23 @@
+id: MOD-001
+name: sdlc_graph
+description: |
+  Standard SDLC graph definition. Exports the pre-built GTL Package and Worker
+  covering the full bootstrap path. This is the methodology core — the reusable
+  graph template any project installs and extends.
+implements_features:
+  - REQ-F-GRAPH
+  - REQ-F-CMD
+  - REQ-F-COV
+  - REQ-F-GATE
+  - REQ-F-TAG
+  - REQ-F-TEST
+  - REQ-F-TEST-V2
+  - REQ-F-UAT
+  - REQ-F-MDECOMP
+dependencies: []
+rank: 1
+interfaces:
+  - package: GTL Package — the standard SDLC graph with all assets, edges, evaluators
+  - worker: Worker — claude_code worker with all 7 jobs
+source_files:
+  - builds/python/src/genesis_sdlc/sdlc_graph.py

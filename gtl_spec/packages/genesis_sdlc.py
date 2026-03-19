@@ -280,7 +280,7 @@ eval_code_fp = Evaluator(
 eval_tests_pass = Evaluator(
     "tests_pass", F_D,
     "pytest: zero failures, zero errors (excluding e2e tests — F_D evaluators must be acyclic)",
-    command="python -m pytest builds/python/tests/ -q --tb=short -m 'not e2e'",
+    command="PYTHONPATH=builds/python/src/:.genesis python -m pytest builds/python/tests/ -q --tb=short -m 'not e2e'",
 )
 eval_test_tags = Evaluator(
     "validates_tags", F_D,
@@ -292,7 +292,7 @@ eval_e2e_exists = Evaluator(
     "At least one @pytest.mark.e2e test exists — e2e/integration scenarios are the primary "
     "test surface; pure unit tests are supplementary",
     command=(
-        "python -c \""
+        "PYTHONPATH=builds/python/src/:.genesis python -c \""
         "import pathlib,sys; "
         "tests=list(pathlib.Path('builds/python/tests/').rglob('*.py')); "
         "has_e2e=any('@pytest.mark.e2e' in f.read_text() for f in tests); "
@@ -394,6 +394,7 @@ package = Package(
         # Testing philosophy
         "REQ-F-TEST-001",   # Integration and E2E tests are the primary test surface; e2e_tests_exist F_D enforces minimum
         "REQ-F-TEST-002",   # coverage_complete F_P evaluates integration coverage, not unit test count
+        "REQ-F-TEST-003",   # test evaluator commands pin PYTHONPATH=builds/python/src/:.genesis (version sandboxing)
         # UAT
         "REQ-F-UAT-001",    # unit_tests→uat_tests edge: sandbox install + e2e proof required to ship
         # Backlog

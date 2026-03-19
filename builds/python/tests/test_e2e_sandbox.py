@@ -1,4 +1,5 @@
 # Validates: REQ-F-UAT-001
+# Validates: REQ-F-TEST-001
 # Validates: REQ-F-BOOT-001
 # Validates: REQ-F-BOOT-002
 # Validates: REQ-F-CMD-001
@@ -11,6 +12,14 @@
 # Validates: REQ-F-BACKLOG-002
 # Validates: REQ-F-BACKLOG-003
 # Validates: REQ-F-BACKLOG-004
+# Validates: REQ-F-BOOT-003
+# Validates: REQ-F-BOOT-004
+# Validates: REQ-F-BOOT-005
+# Validates: REQ-F-MDECOMP-001
+# Validates: REQ-F-MDECOMP-002
+# Validates: REQ-F-MDECOMP-003
+# Validates: REQ-F-MDECOMP-005
+# Validates: REQ-F-TEST-003
 """
 UAT sandbox tests for genesis_sdlc.
 
@@ -189,8 +198,8 @@ class TestEngineCommands:
     def test_gaps_sees_full_sdlc_graph(self, sandbox):
         result = run_genesis(sandbox, "gaps", check=True)
         data = json.loads(result.stdout)
-        assert data["jobs_considered"] == 6, (
-            f"Expected 6 jobs (7-asset SDLC graph), got {data['jobs_considered']}"
+        assert data["jobs_considered"] == 7, (
+            f"Expected 7 jobs (8-asset SDLC graph with module_decomp), got {data['jobs_considered']}"
         )
 
     def test_fresh_workspace_is_all_delta(self, sandbox):

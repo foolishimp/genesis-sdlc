@@ -1,6 +1,6 @@
 id: REQ-F-MDECOMP
 title: Module Decomposition and Build Scheduling
-status: active
+status: completed
 satisfies:
   - REQ-F-MDECOMP-001
   - REQ-F-MDECOMP-002

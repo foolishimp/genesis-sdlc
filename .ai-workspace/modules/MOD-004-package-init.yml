@@ -1,0 +1,20 @@
+id: MOD-004
+name: package_init
+description: |
+  Package public API and version. Re-exports package and worker from sdlc_graph
+  so callers can import directly from genesis_sdlc. Holds the authoritative
+  __version__ string used by the release process and installer.
+implements_features:
+  - REQ-F-BOOT
+  - REQ-F-DOCS
+dependencies:
+  - MOD-001
+  - MOD-002
+  - MOD-003
+rank: 3
+interfaces:
+  - genesis_sdlc.package: re-export of sdlc_graph.package
+  - genesis_sdlc.worker: re-export of sdlc_graph.worker
+  - genesis_sdlc.__version__: authoritative version string
+source_files:
+  - builds/python/src/genesis_sdlc/__init__.py

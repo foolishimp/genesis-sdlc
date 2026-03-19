@@ -9,6 +9,13 @@
 # Validates: REQ-F-COV-001
 # Validates: REQ-F-BOOT-002
 # Validates: REQ-F-DOCS-001
+# Validates: REQ-F-TEST-002
+# Validates: REQ-F-TEST-003
+# Validates: REQ-F-MDECOMP-001
+# Validates: REQ-F-MDECOMP-002
+# Validates: REQ-F-MDECOMP-003
+# Validates: REQ-F-MDECOMP-004
+# Validates: REQ-F-MDECOMP-005
 """Tests for genesis_sdlc.sdlc_graph — the standard SDLC bootstrap graph."""
 import pytest
 from gtl.core import (
@@ -39,22 +46,24 @@ class TestPackageStructure:
     def test_package_name(self, pkg):
         assert pkg.name == "genesis_sdlc"
 
-    def test_package_has_seven_assets(self, pkg):
-        assert len(pkg.assets) == 7
+    def test_package_has_eight_assets(self, pkg):
+        assert len(pkg.assets) == 8
 
     def test_asset_names(self, pkg):
         names = {a.name for a in pkg.assets}
-        assert names == {"intent", "requirements", "feature_decomp", "design", "code", "unit_tests", "uat_tests"}
+        assert names == {"intent", "requirements", "feature_decomp", "design",
+                         "module_decomp", "code", "unit_tests", "uat_tests"}
 
-    def test_package_has_six_edges(self, pkg):
-        assert len(pkg.edges) == 6
+    def test_package_has_seven_edges(self, pkg):
+        assert len(pkg.edges) == 7
 
     def test_edge_names(self, pkg):
         names = {e.name for e in pkg.edges}
         assert "intent→requirements" in names
         assert "requirements→feature_decomp" in names
         assert "feature_decomp→design" in names
-        assert "design→code" in names
+        assert "design→module_decomp" in names
+        assert "module_decomp→code" in names
         assert "code↔unit_tests" in names
         assert "unit_tests→uat_tests" in names
 
@@ -80,9 +89,9 @@ class TestAssetLineage:
         d = self._asset(pkg, "design")
         assert any(a.name == "feature_decomp" for a in d.lineage)
 
-    def test_code_lineage_is_design(self, pkg):
+    def test_code_lineage_is_module_decomp(self, pkg):
         c = self._asset(pkg, "code")
-        assert any(a.name == "design" for a in c.lineage)
+        assert any(a.name == "module_decomp" for a in c.lineage)
 
     def test_unit_tests_lineage_is_code(self, pkg):
         ut = self._asset(pkg, "unit_tests")
@@ -123,8 +132,8 @@ class TestEdgeEvaluators:
         e = next(e for e in pkg.edges if e.name == "code↔unit_tests")
         assert e.co_evolve is True
 
-    def test_design_code_edge_has_operators(self, pkg):
-        e = next(e for e in pkg.edges if e.name == "design→code")
+    def test_module_decomp_code_edge_has_operators(self, pkg):
+        e = next(e for e in pkg.edges if e.name == "module_decomp→code")
         assert len(e.using) >= 1
 
     def test_intent_req_edge_has_human_operator(self, pkg):
@@ -132,10 +141,17 @@ class TestEdgeEvaluators:
         categories = {op.category for op in e.using}
         assert F_H in categories
 
-    def test_design_code_edge_no_human(self, pkg):
-        e = next(e for e in pkg.edges if e.name == "design→code")
+    def test_module_decomp_code_edge_no_human(self, pkg):
+        """module_decomp→code is a pure construction edge — no F_H gate."""
+        e = next(e for e in pkg.edges if e.name == "module_decomp→code")
         categories = {op.category for op in e.using}
         assert F_H not in categories
+
+    def test_design_module_decomp_edge_has_human(self, pkg):
+        """design→module_decomp has an F_H gate to approve the module schedule."""
+        e = next(e for e in pkg.edges if e.name == "design→module_decomp")
+        categories = {op.category for op in e.using}
+        assert F_H in categories
 
 
 # ── Evaluators with commands ──────────────────────────────────────────────────
@@ -214,7 +230,7 @@ class TestWorker:
         assert wkr.id == "claude_code"
 
     def test_worker_can_execute_all_jobs(self, wkr):
-        assert len(wkr.can_execute) == 6
+        assert len(wkr.can_execute) == 7
 
 
 # ── Public API ─────────────────────────────────────────────────────────────────
@@ -227,7 +243,7 @@ class TestPublicAPI:
 
     def test_version(self):
         import genesis_sdlc
-        assert genesis_sdlc.__version__ == "0.1.6"
+        assert genesis_sdlc.__version__ == "0.2.0"
 
     def test_all_exports(self):
         import genesis_sdlc

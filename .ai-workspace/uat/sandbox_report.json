@@ -1,9 +1,11 @@
 {
   "install_success": true,
-  "sandbox_path": "/tmp/uat_sandbox_pytest",
-  "test_count": 6,
-  "pass_count": 6,
+  "sandbox_path": "builds/python/uat_sandbox",
+  "test_count": 33,
+  "pass_count": 31,
   "fail_count": 0,
+  "skipped_count": 2,
   "all_pass": true,
-  "timestamp": "2026-03-15T23:27:46.324120+00:00"
+  "timestamp": "2026-03-19T07:58:35.926107+00:00",
+  "notes": "2 skipped: backlog CLI not installed in sandbox (expected \u2014 backlog.py not in genesis_sdlc package yet)"
 }

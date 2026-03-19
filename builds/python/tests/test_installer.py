@@ -1,5 +1,8 @@
 # Validates: REQ-F-BOOT-001
 # Validates: REQ-F-BOOT-002
+# Validates: REQ-F-BOOT-003
+# Validates: REQ-F-BOOT-004
+# Validates: REQ-F-BOOT-005
 """Tests for genesis_sdlc.install — the product installer."""
 import json
 import subprocess
@@ -147,7 +150,7 @@ class TestCommandsInstall:
         stamp = tmp_path / ".claude" / "commands" / ".genesis-installed"
         assert stamp.exists()
         data = json.loads(stamp.read_text())
-        assert data["version"] == "0.1.6"
+        assert data["version"] == "0.2.0"
 
 
 # ── CLAUDE.md ─────────────────────────────────────────────────────────────────
@@ -219,4 +222,4 @@ class TestEngineBootsAfterInstall:
         assert result.returncode == 0, f"gaps failed:\n{result.stderr}"
         data = json.loads(result.stdout)
         assert data["scope"]["package"] == "my_domain"
-        assert data["jobs_considered"] == 6  # full SDLC graph with UAT, not the stub
+        assert data["jobs_considered"] == 7  # full SDLC graph with module_decomp + UAT, not the stub

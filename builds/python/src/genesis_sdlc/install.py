@@ -1,5 +1,8 @@
 # Implements: REQ-F-BOOT-001
 # Implements: REQ-F-BOOT-002
+# Implements: REQ-F-BOOT-003
+# Implements: REQ-F-BOOT-004
+# Implements: REQ-F-BOOT-005
 #!/usr/bin/env python3
 """
 genesis_sdlc installer — deploys the full SDLC code builder into a target project.
@@ -35,7 +38,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-VERSION = "0.1.6"
+VERSION = "0.2.0"
+BOOTLOADER_VERSION = "3.0.2"  # matches **Version**: in gtl_spec/GENESIS_BOOTLOADER.md
 
 # Commands inherited from the abiogenesis engine plugin.
 # Source: <abiogenesis>/builds/claude_code/.claude-plugin/plugins/genesis/commands/
@@ -325,6 +329,36 @@ def install_operating_standards(source: Path, target: Path) -> str:
     return f"installed:{','.join(installed)}" if installed else "empty"
 
 
+def install_immutable_spec(source: Path, target: Path) -> str:
+    """
+    Install the released sdlc_graph.py into {target}/.genesis/spec/ as Layer 2.
+
+    Layer 2 is the immutable methodology core — the released version of genesis_sdlc
+    that downstream projects import. It is always replaced on reinstall (idempotent),
+    ensuring the installed methodology tracks the released package.
+
+    The local spec (Layer 3, gtl_spec/packages/{slug}.py) imports from Layer 2 and
+    is never overwritten by this function.
+    """
+    spec_dir = target / ".genesis" / "spec"
+    spec_dir.mkdir(parents=True, exist_ok=True)
+    init_py = spec_dir / "__init__.py"
+    if not init_py.exists():
+        init_py.touch()
+
+    src = source / "builds" / "python" / "src" / "genesis_sdlc" / "sdlc_graph.py"
+    if not src.exists():
+        # Fall back to installed package location
+        import genesis_sdlc
+        pkg_root = Path(genesis_sdlc.__file__).parent
+        src = pkg_root / "sdlc_graph.py"
+        if not src.exists():
+            return "source_missing"
+
+    shutil.copy2(src, spec_dir / "genesis_sdlc.py")
+    return "installed"
+
+
 def install_sdlc_starter_spec(source: Path, target: Path, slug: str,
                               platform: str = "python") -> str | None:
     """
@@ -344,7 +378,8 @@ def install_sdlc_starter_spec(source: Path, target: Path, slug: str,
         return None  # abiogenesis installer should have written it — skip
 
     existing = starter_path.read_text(encoding="utf-8")
-    # Only replace if it still has the abiogenesis stub (not yet customised)
+    # Never overwrite a customised local spec — Layer 3 belongs to the project.
+    # Only replace the abiogenesis stub (identifiable by the "spec→output" marker).
     if "spec→output" not in existing:
         return "already_customised"
 
@@ -371,6 +406,17 @@ def install_sdlc_starter_spec(source: Path, target: Path, slug: str,
     return "installed"
 
 
+def _read_existing_slug(target: Path) -> str | None:
+    """Read the package slug from an existing .genesis/genesis.yml, if present."""
+    genesis_yml = target / ".genesis" / "genesis.yml"
+    if not genesis_yml.exists():
+        return None
+    import re
+    text = genesis_yml.read_text(encoding="utf-8")
+    m = re.search(r"^package:\s+gtl_spec\.packages\.(\w+):package", text, re.MULTILINE)
+    return m.group(1) if m else None
+
+
 def install(
     target: Path,
     *,
@@ -383,12 +429,19 @@ def install(
     src = resolve_source(str(source) if source else None)
     project_name = target.name
 
+    # Preserve the slug already in genesis.yml so reinstalling with a different
+    # --project-slug does not silently redirect the engine to a different spec.
+    existing_slug = _read_existing_slug(target)
+    if existing_slug and existing_slug != slug:
+        slug = existing_slug
+
     result: dict = {
         "version": VERSION,
         "target": str(target),
         "source": str(src),
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "engine": None,
+        "immutable_spec": None,
         "commands": [],
         "claude_md": None,
         "sdlc_starter_spec": None,
@@ -407,7 +460,13 @@ def install(
     except (FileNotFoundError, RuntimeError) as exc:
         result["errors"].append(f"engine: {exc}")
 
-    # 2. Replace abiogenesis stub with full SDLC bootstrap graph
+    # 2. Install immutable methodology spec into .genesis/spec/ (Layer 2 — always replaced)
+    try:
+        result["immutable_spec"] = install_immutable_spec(src, target)
+    except Exception as exc:
+        result["errors"].append(f"immutable_spec: {exc}")
+
+    # 2b. Write starter local spec if absent (Layer 3 — never overwritten)
     try:
         result["sdlc_starter_spec"] = install_sdlc_starter_spec(src, target, slug, platform)
     except Exception as exc:
@@ -454,6 +513,7 @@ def _verify(target: Path, result: dict, platform: str = "python") -> dict:
         "engine": (target / ".genesis" / "genesis" / "__main__.py").exists(),
         "gtl": (target / ".genesis" / "gtl" / "core.py").exists(),
         "genesis_yml": (target / ".genesis" / "genesis.yml").exists(),
+        "immutable_spec": (target / ".genesis" / "spec" / "genesis_sdlc.py").exists(),
         "gtl_spec": (target / "gtl_spec" / "packages").is_dir(),
         "builds_src": (target / "builds" / platform / "src").is_dir(),
         "builds_tests": (target / "builds" / platform / "tests").is_dir(),

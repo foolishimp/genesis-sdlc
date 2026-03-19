@@ -1,0 +1,32 @@
+id: REQ-F-TEST-V2
+title: Test Version Sandboxing — Evaluator Commands Pin to RC Source
+status: completed
+satisfies:
+  - REQ-F-TEST-003
+description: |
+  All test evaluator commands must explicitly pin their import path to the
+  development source (builds/python/src/) rather than inheriting from the
+  environment. This is the version-sandboxing principle applied to the
+  development loop, consistent with the UAT edge which already sandboxes
+  by installing into a fresh /tmp sandbox.
+
+  The principle: every test layer runs against an explicitly pinned version.
+    - Unit/integration tests: PYTHONPATH=builds/python/src/:.genesis (RC source)
+    - UAT tests: fresh sandbox install of RC (already correct)
+
+  This is not a PYTHONPATH fix — it is the mechanical expression of
+  version-sandboxing. genesis_sdlc dogfoods the discipline it enforces
+  on downstream projects.
+
+  Affected evaluator commands:
+    - tests_pass (F_D)
+    - e2e_tests_exist (F_D)
+  Both in genesis_sdlc.py and sdlc_graph.py.
+acceptance_criteria:
+  - tests_pass evaluator command includes PYTHONPATH=builds/python/src/:.genesis
+  - e2e_tests_exist evaluator command includes PYTHONPATH=builds/python/src/:.genesis
+  - running gen gaps in an env without genesis_sdlc installed still passes tests_pass
+  - UAT sandbox evaluator unchanged (already version-sandboxed correctly)
+dependencies:
+  - REQ-F-TEST
+  - REQ-F-BOOT-V2

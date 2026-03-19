@@ -1,0 +1,16 @@
+id: MOD-002
+name: backlog
+description: |
+  Backlog management. Implements the BL-*.yml schema and directory convention,
+  gen backlog list/promote commands, and the sensory integration that surfaces
+  ready backlog items in gen gaps/status output.
+implements_features:
+  - REQ-F-BACKLOG
+dependencies: []
+rank: 1
+interfaces:
+  - cli: gen backlog list — print all BL-*.yml items with status
+  - cli: gen backlog promote BL-xxx — emit intent_raised, mark promoted
+  - schema: .ai-workspace/backlog/BL-*.yml
+source_files:
+  - builds/python/src/genesis_sdlc/backlog.py
