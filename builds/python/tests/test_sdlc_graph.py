@@ -331,7 +331,7 @@ class TestPublicAPI:
 
     def test_version(self):
         import genesis_sdlc
-        assert genesis_sdlc.__version__ == "0.2.1"
+        assert genesis_sdlc.__version__ == "0.3.0"
 
     def test_all_exports(self):
         import genesis_sdlc

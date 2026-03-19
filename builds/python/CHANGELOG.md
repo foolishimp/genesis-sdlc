@@ -2,6 +2,28 @@
 
 ---
 
+## v0.3.0 — 2026-03-20
+
+**Bootloader**: v3.0.2
+**Spec hash**: `9a96e8f7acb2118c`
+**Test results**: 107 passed, 0 failed
+
+### Added
+- `standards/SPEC.md` — spec writing standard deployed to all dependent workspaces as an operating standard
+
+### Changed
+- `gen-status` command output now includes `Workflow: {workflow} v{version}` from `.genesis/active-workflow.json`
+
+### Fixed
+- **B1**: Provenance migration skipped for pre-0.2.1 projects with no prior `active-workflow.json` — installer now scans `events.jsonl` for prior `genesis_sdlc_installed` events to detect upgrade path
+- **B2**: Provenance migration hashed against standard graph instead of project's actual worker — now loads worker from `genesis.yml` (with pythonpath), falling back to standard spec only if project worker is unavailable
+- **B3**: `_verify()` blind to operating standards drift — now compares installed files against `standards/` source and reports missing files as `standards_drift`; install event now includes `operating_standards` and `migration` outcome
+- **B4**: `gen-status` had no version field — `WORKSPACE STATUS` block now shows installed workflow version
+
+**REQ keys added**: none
+
+---
+
 ## v0.2.1 — 2026-03-20
 
 **Bootloader**: v3.0.2

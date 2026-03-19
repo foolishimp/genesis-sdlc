@@ -37,7 +37,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-VERSION = "0.2.1"
+VERSION = "0.3.0"
 BOOTLOADER_VERSION = "3.0.2"  # matches **Version**: in gtl_spec/GENESIS_BOOTLOADER.md
 
 # Commands inherited from the abiogenesis engine plugin.
@@ -270,6 +270,27 @@ def install_active_workflow(target: Path) -> tuple[str, bool, str | None]:
                 needs_migration = True
         except Exception:
             pass
+    else:
+        # No active-workflow.json means a pre-0.2.1 install (the file is new in 0.2.1).
+        # Check the event stream for prior genesis_sdlc_installed events so migration runs.
+        events_file = target / ".ai-workspace" / "events" / "events.jsonl"
+        if events_file.exists():
+            try:
+                with events_file.open(encoding="utf-8") as _f:
+                    for _line in _f:
+                        _line = _line.strip()
+                        if not _line:
+                            continue
+                        try:
+                            _ev = json.loads(_line)
+                        except Exception:
+                            continue
+                        if _ev.get("event_type") == "genesis_sdlc_installed":
+                            # Keep scanning — use the last installed version found
+                            previous_version = _ev.get("data", {}).get("version")
+                            needs_migration = True
+            except Exception:
+                pass
 
     data = {
         "workflow": "genesis_sdlc.standard",
@@ -499,6 +520,19 @@ def install_operating_standards(source: Path, target: Path) -> str:
     return f"installed:{','.join(installed)}" if installed else "empty"
 
 
+def _read_worker_ref(target: Path) -> tuple[str | None, str | None]:
+    """Return (module, attr) for the project worker declared in genesis.yml."""
+    genesis_yml = target / ".genesis" / "genesis.yml"
+    if not genesis_yml.exists():
+        return None, None
+    import re
+    text = genesis_yml.read_text(encoding="utf-8")
+    m = re.search(r"^worker:\s+(\S+):(\w+)", text, re.MULTILINE)
+    if not m:
+        return None, None
+    return m.group(1), m.group(2)
+
+
 def _read_existing_slug(target: Path) -> str | None:
     genesis_yml = target / ".genesis" / "genesis.yml"
     if not genesis_yml.exists():
@@ -579,30 +613,60 @@ def _migrate_provenance(target: Path) -> dict:
     if not fp_seen and not fh_seen:
         return {"migrated": 0, "skipped": "no_convergence_events"}
 
-    # Import the installed workflow to get job definitions
+    # Import the project's actual worker from genesis.yml so custom edges are included.
+    # Fall back to the standard spec only if the project worker cannot be loaded.
     genesis_path = str(target / ".genesis")
     added_to_path = genesis_path not in _sys.path
     if added_to_path:
         _sys.path.insert(0, genesis_path)
 
+    # Collect extra pythonpath entries declared in genesis.yml
+    added_project_paths: list[str] = []
+    genesis_yml = target / ".genesis" / "genesis.yml"
+    if genesis_yml.exists():
+        import re as _re2
+        _yml_text = genesis_yml.read_text(encoding="utf-8")
+        for _pp in _re2.findall(r"^\s+-\s+(.+)$", _yml_text, _re2.MULTILINE):
+            _pp_abs = str((target / _pp.strip()).resolve())
+            if _pp_abs not in _sys.path:
+                _sys.path.insert(0, _pp_abs)
+                added_project_paths.append(_pp_abs)
+
+    migr_worker = None
     try:
-        ver = VERSION.replace(".", "_")
-        spec_mod = importlib.import_module(
-            f"workflows.genesis_sdlc.standard.v{ver}.spec"
-        )
-        slug = _read_existing_slug(target) or "project_package"
-        instantiate_fn = getattr(spec_mod, "instantiate", None)
-        if instantiate_fn:
-            _, migr_worker = instantiate_fn(slug=slug)
-        else:
-            migr_worker = spec_mod.worker
-    except Exception as exc:
-        if added_to_path:
-            try:
-                _sys.path.remove(genesis_path)
-            except ValueError:
-                pass
-        return {"migrated": 0, "error": f"workflow_import_failed: {exc}"}
+        # Prefer the project's own worker (resolves custom edges like design→code)
+        _worker_mod, _worker_attr = _read_worker_ref(target)
+        if _worker_mod and _worker_attr:
+            _mod = importlib.import_module(_worker_mod)
+            migr_worker = getattr(_mod, _worker_attr)
+    except Exception:
+        migr_worker = None
+
+    if migr_worker is None:
+        # Fallback: standard genesis_sdlc spec
+        try:
+            ver = VERSION.replace(".", "_")
+            spec_mod = importlib.import_module(
+                f"workflows.genesis_sdlc.standard.v{ver}.spec"
+            )
+            slug = _read_existing_slug(target) or "project_package"
+            instantiate_fn = getattr(spec_mod, "instantiate", None)
+            if instantiate_fn:
+                _, migr_worker = instantiate_fn(slug=slug)
+            else:
+                migr_worker = spec_mod.worker
+        except Exception as exc:
+            for _p in added_project_paths:
+                try:
+                    _sys.path.remove(_p)
+                except ValueError:
+                    pass
+            if added_to_path:
+                try:
+                    _sys.path.remove(genesis_path)
+                except ValueError:
+                    pass
+            return {"migrated": 0, "error": f"workflow_import_failed: {exc}"}
 
     def _job_hash(job) -> str:
         """Mirror of genesis.bind.job_evaluator_hash — must stay in sync."""
@@ -651,6 +715,11 @@ def _migrate_provenance(target: Path) -> dict:
             f.write(json.dumps({"event_type": "review_approved", "event_time": now, "data": data}) + "\n")
             migrated_fh += 1
 
+    for _p in added_project_paths:
+        try:
+            _sys.path.remove(_p)
+        except ValueError:
+            pass
     if added_to_path:
         try:
             _sys.path.remove(genesis_path)
@@ -789,6 +858,12 @@ def _verify(target: Path, result: dict, platform: str = "python") -> dict:
         target / ".genesis" / "workflows" / "genesis_sdlc"
         / "standard" / f"v{VERSION.replace('.', '_')}" / "spec.py"
     )
+    _standards_dir = target / ".ai-workspace" / "operating-standards"
+    _src_standards = resolve_source(None) / "standards"
+    _installed_files = set(p.name for p in _standards_dir.glob("*.md")) if _standards_dir.is_dir() else set()
+    _source_files = set(p.name for p in _src_standards.glob("*.md")) if _src_standards.is_dir() else set()
+    _standards_ok = _source_files.issubset(_installed_files) and bool(_source_files)
+
     checks = {
         "engine": (target / ".genesis" / "genesis" / "__main__.py").exists(),
         "gtl": (target / ".genesis" / "gtl" / "core.py").exists(),
@@ -805,7 +880,10 @@ def _verify(target: Path, result: dict, platform: str = "python") -> dict:
             _BOOTLOADER_START in (target / "CLAUDE.md").read_text(encoding="utf-8")
             if (target / "CLAUDE.md").exists() else False
         ),
+        "operating_standards": _standards_ok,
     }
+    if not _standards_ok:
+        result["standards_drift"] = sorted(_source_files - _installed_files)
     result["checks"] = checks
     result["status"] = "ok" if all(checks.values()) else "incomplete"
     result["missing"] = [k for k, v in checks.items() if not v]
@@ -823,6 +901,8 @@ def _emit_install_event(target: Path, install_result: dict) -> None:
             "engine_status": install_result.get("engine"),
             "commands_installed": len(install_result.get("commands", [])),
             "claude_md": install_result.get("claude_md"),
+            "operating_standards": install_result.get("operating_standards"),
+            "migration": install_result.get("migration"),
             "target": install_result["target"],
         },
     }
