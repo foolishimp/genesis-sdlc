@@ -369,27 +369,30 @@ eval_sandbox_run = Evaluator(
 # integration_tests→user_guide: version currency and REQ coverage are deterministic.
 eval_guide_version = Evaluator(
     "guide_version_current", F_D,
-    "USER_GUIDE.md version string matches current release version in builds/python/src/genesis_sdlc/install.py",
+    "USER_GUIDE.md **Version**: field matches current release version in builds/python/src/genesis_sdlc/install.py",
     command=(
         "python -c \""
         "import re,sys,pathlib; "
         "guide=pathlib.Path('docs/USER_GUIDE.md').read_text(); "
         "install=pathlib.Path('builds/python/src/genesis_sdlc/install.py').read_text(); "
-        "ver=re.search(r'VERSION\\\\s*=\\\\s*\\\\\"([^\\\\\"]+)\\\\\"', install).group(1); "
-        "sys.exit(0 if ver in guide else 1)"
+        "ver=re.search(r'VERSION = .([0-9][0-9.]+).', install).group(1); "
+        "sys.exit(0 if ('**Version**: '+ver) in guide else 1)"
         "\""
     ),
 )
 eval_guide_coverage = Evaluator(
     "guide_req_coverage", F_D,
-    "USER_GUIDE.md contains <!-- Covers: REQ-F-* --> tags for all operator-facing REQ keys",
+    "USER_GUIDE.md <!-- Covers: --> tags include every key in package.requirements",
     command=(
-        "python -c \""
-        "import re,sys,pathlib; "
+        "PYTHONPATH=builds/python/src:.genesis python -c \""
+        "import re,sys,pathlib,importlib; "
         "guide=pathlib.Path('docs/USER_GUIDE.md').read_text(); "
-        "tags=set(re.findall(r'REQ-F-[A-Z0-9-]+', guide)); "
-        "sys.exit(0 if tags else 1)"
-        "\""
+        "covered=set(r for t in re.findall(r'<!-- Covers:([^>]+)-->', guide) "
+        "for r in re.findall(r'REQ-F-[A-Z0-9-]+', t)); "
+        "pkg=importlib.import_module('genesis_sdlc.sdlc_graph').package; "
+        "missing=sorted(set(pkg.requirements)-covered); "
+        "print('uncovered:', missing) if missing else None; "
+        "sys.exit(len(missing))\""
     ),
 )
 eval_guide_content = Evaluator(

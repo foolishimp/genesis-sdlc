@@ -16,17 +16,16 @@ Usage:
     python -m genesis_sdlc.install --target .
     python -m genesis_sdlc.install --target . --platform java
     python -m genesis_sdlc.install --target . --verify
+    python -m genesis_sdlc.install --target . --migrate-full-copy
 
-What gets installed:
-    .genesis/                       ← abiogenesis engine (via gen-install.py)
-    gtl_spec/packages/<slug>.py     ← SDLC bootstrap graph as starter spec
-    builds/<platform>/              ← src/, tests/, design/adrs/ scaffold
-    .claude/commands/gen-*.md       ← all genesis slash commands
-    CLAUDE.md                       ← project orientation + Genesis Bootloader
+Three-layer model
+─────────────────
+Layer 1  .genesis/genesis/                                  abiogenesis engine — replaced on reinstall
+Layer 2  .genesis/workflows/genesis_sdlc/standard/vX_Y_Z/  immutable versioned release — written once
+Layer 3  gtl_spec/packages/<slug>.py                        system-owned generated wrapper — replaced on redeploy
 
-Source resolution order (--source flag or auto-detected):
-    1. --source /path/to/genesis_sdlc    local disk clone
-    2. Detected from installed package   sys.path resolution
+The generated wrapper calls instantiate(slug) from the versioned release. Redeploy updates
+active-workflow.json and rewrites the wrapper; versioned releases are never modified.
 """
 from __future__ import annotations
 
@@ -38,11 +37,10 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 BOOTLOADER_VERSION = "3.0.2"  # matches **Version**: in gtl_spec/GENESIS_BOOTLOADER.md
 
 # Commands inherited from the abiogenesis engine plugin.
-# Source: <abiogenesis>/builds/claude_code/.claude-plugin/plugins/genesis/commands/
 ABIOGENESIS_COMMANDS = [
     "gen-start",
     "gen-gaps",
@@ -50,7 +48,6 @@ ABIOGENESIS_COMMANDS = [
 ]
 
 # Commands owned by genesis_sdlc — SDLC additions on top of the engine.
-# Source: builds/claude_code/.claude-plugin/plugins/genesis/commands/
 GENESIS_SDLC_COMMANDS = [
     "gen-iterate",
     "gen-review",
@@ -96,13 +93,14 @@ PYTHONPATH=.genesis python -m genesis gaps --workspace .
 
 ```
 {project_name}/
-├── gtl_spec/packages/{slug}.py   ← GTL spec — the construction contract
+├── gtl_spec/packages/{slug}.py        ← generated workflow wrapper (system-owned)
+├── gtl_spec/packages/{slug}_local.py  ← local overlay (user-owned, optional)
 ├── builds/{platform}/
-│   ├── src/                      ← implementation source
-│   ├── tests/                    ← test suite
-│   └── design/adrs/              ← architecture decision records
-├── .genesis/                     ← abiogenesis engine (do not edit)
-└── .ai-workspace/                ← runtime state (events, features, reviews)
+│   ├── src/                           ← implementation source
+│   ├── tests/                         ← test suite
+│   └── design/adrs/                   ← architecture decision records
+├── .genesis/                          ← engine + versioned workflow releases
+└── .ai-workspace/                     ← runtime state (events, features, reviews)
 ```
 
 ## Invocation
@@ -131,13 +129,11 @@ def _source_root_from_package() -> Path | None:
     """Locate genesis_sdlc source root from the installed package location."""
     try:
         import genesis_sdlc
-        # install.py lives at .../genesis_sdlc/builds/python/src/genesis_sdlc/
-        # So the project root is 4 levels up from the package directory.
         pkg_path = Path(genesis_sdlc.__file__).resolve().parent
         for parent in [
-            pkg_path.parent.parent,           # builds/python/
-            pkg_path.parent.parent.parent,    # builds/
-            pkg_path.parent.parent.parent.parent,  # genesis_sdlc/ ← correct root
+            pkg_path.parent.parent,
+            pkg_path.parent.parent.parent,
+            pkg_path.parent.parent.parent.parent,
         ]:
             if (parent / "gtl_spec").exists() and (parent / ".genesis").exists():
                 return parent
@@ -147,15 +143,7 @@ def _source_root_from_package() -> Path | None:
 
 
 def _source_root_from_script() -> Path:
-    """Source root relative to this script: src/genesis_sdlc/install.py → project root.
-
-    install.py is at: <root>/builds/python/src/genesis_sdlc/install.py
-      parents[0] = .../genesis_sdlc/          (package dir)
-      parents[1] = .../src/
-      parents[2] = .../builds/python/
-      parents[3] = .../builds/
-      parents[4] = <root>/                    ← genesis_sdlc project root
-    """
+    """install.py is at: <root>/builds/python/src/genesis_sdlc/install.py → parents[4]"""
     return Path(__file__).resolve().parents[4]
 
 
@@ -172,11 +160,6 @@ def resolve_source(explicit: str | None) -> Path:
 
 
 def _run_abiogenesis_installer(source: Path, target: Path, slug: str, platform: str) -> dict:
-    """
-    Delegate engine installation to abiogenesis gen-install.py.
-    Resolves gen-install.py from the sibling abiogenesis directory.
-    Returns the parsed result dict.
-    """
     candidates = [
         source.parent / "abiogenesis" / "builds" / "claude_code" / "code" / "gen-install.py",
     ]
@@ -200,13 +183,219 @@ def _run_abiogenesis_installer(source: Path, target: Path, slug: str, platform: 
     return json.loads(result.stdout)
 
 
-def install_commands(source: Path, target: Path) -> list[str]:
-    """Copy gen-*.md commands into target/.claude/commands/.
+def _sdlc_graph_source(source: Path) -> Path | None:
+    """Locate sdlc_graph.py from source root or installed package."""
+    candidates = [
+        source / "builds" / "python" / "src" / "genesis_sdlc" / "sdlc_graph.py",
+    ]
+    for c in candidates:
+        if c.exists():
+            return c
+    try:
+        import genesis_sdlc
+        p = Path(genesis_sdlc.__file__).parent / "sdlc_graph.py"
+        if p.exists():
+            return p
+    except ImportError:
+        pass
+    return None
 
-    Composes from two sources:
-      1. abiogenesis engine commands  — inherited, single source of truth in abiogenesis
-      2. genesis_sdlc own commands    — SDLC additions, owned here
+
+def install_workflow_release(source: Path, target: Path) -> str:
     """
+    Install the versioned immutable workflow release into:
+        .genesis/workflows/genesis_sdlc/standard/v{VERSION}/spec.py
+
+    This directory is written once and never overwritten — it is the immutable release
+    artifact. Reinstalling a newer version adds a new versioned directory alongside
+    existing ones; old releases remain on disk for provenance.
+    """
+    ver_dir = (
+        target / ".genesis" / "workflows" / "genesis_sdlc"
+        / "standard"
+        / f"v{VERSION.replace('.', '_')}"
+    )
+    spec_file = ver_dir / "spec.py"
+
+    if spec_file.exists():
+        return "exists"  # immutable — never overwrite
+
+    src = _sdlc_graph_source(source)
+    if src is None:
+        return "source_missing"
+
+    ver_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create __init__.py files so the versioned package is importable
+    for init_dir in [
+        target / ".genesis" / "workflows",
+        target / ".genesis" / "workflows" / "genesis_sdlc",
+        target / ".genesis" / "workflows" / "genesis_sdlc" / "standard",
+        ver_dir,
+    ]:
+        init_py = init_dir / "__init__.py"
+        if not init_py.exists():
+            init_py.touch()
+
+    shutil.copy2(src, spec_file)
+
+    manifest = {
+        "workflow": "genesis_sdlc.standard",
+        "version": VERSION,
+        "installed_at": datetime.now(timezone.utc).isoformat(),
+        "spec_file": "spec.py",
+    }
+    (ver_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
+    return "installed"
+
+
+def install_active_workflow(target: Path) -> tuple[str, bool, str | None]:
+    """
+    Write/update .genesis/active-workflow.json — the mutable active baseline pointer.
+
+    Returns (status, needs_migration, previous_version).
+
+    needs_migration is True when upgrading from the old "genesis_sdlc" workflow name to
+    "genesis_sdlc.standard" — the provenance migration runs once on this transition.
+    """
+    active_path = target / ".genesis" / "active-workflow.json"
+
+    needs_migration = False
+    previous_version: str | None = None
+    if active_path.exists():
+        try:
+            old = json.loads(active_path.read_text(encoding="utf-8"))
+            previous_version = old.get("version")
+            if old.get("workflow") != "genesis_sdlc.standard":
+                needs_migration = True
+        except Exception:
+            pass
+
+    data = {
+        "workflow": "genesis_sdlc.standard",
+        "version": VERSION,
+        "spec_module": f"workflows.genesis_sdlc.standard.v{VERSION.replace('.', '_')}.spec",
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    active_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    return "installed", needs_migration, previous_version
+
+
+def install_immutable_spec(source: Path, target: Path) -> str:
+    """
+    Install sdlc_graph.py into .genesis/spec/genesis_sdlc.py (backwards compat shim).
+
+    This path is kept so that user-owned local specs written before the 4-layer model
+    (which import from spec.genesis_sdlc) continue to work after reinstall. New generated
+    wrappers import from the versioned release path instead.
+    """
+    spec_dir = target / ".genesis" / "spec"
+    spec_dir.mkdir(parents=True, exist_ok=True)
+    init_py = spec_dir / "__init__.py"
+    if not init_py.exists():
+        init_py.touch()
+
+    src = _sdlc_graph_source(source)
+    if src is None:
+        return "source_missing"
+
+    shutil.copy2(src, spec_dir / "genesis_sdlc.py")
+    return "installed"
+
+
+# ── Generated wrapper template (Layer 3 — system-owned) ───────────────────────
+#
+# This file is always rewritten on redeploy as long as the genesis_sdlc-generated
+# marker is present. Two lines: import instantiate from the versioned release,
+# then call it with the project slug. All customisation lives in sdlc_graph.instantiate.
+
+_GENERATED_WRAPPER_TEMPLATE = '''\
+# genesis_sdlc-generated — system-owned; rewritten on every redeploy.
+from workflows.genesis_sdlc.standard.v{VERSION_UNDERSCORED}.spec import instantiate
+package, worker = instantiate(slug="{slug}")
+'''
+
+
+def _render_wrapper(slug: str) -> str:
+    """Render the generated wrapper template for a given slug."""
+    return (
+        _GENERATED_WRAPPER_TEMPLATE
+        .replace("{VERSION_UNDERSCORED}", VERSION.replace(".", "_"))
+        .replace("{slug}", slug)
+    )
+
+
+def install_sdlc_starter_spec(source: Path, target: Path, slug: str,
+                               platform: str = "python") -> str | None:
+    """
+    Write the generated wrapper (Layer 3) into gtl_spec/packages/{slug}.py.
+
+    The wrapper is rewritten whenever it carries an explicit system-ownership marker:
+      - genesis_sdlc-generated  (new model — always replaced)
+      - genesis_sdlc-stub       (old thin-wrapper — upgraded to new model)
+      - spec→output             (abiogenesis stub — replaced by genesis_sdlc)
+
+    Any other content is treated as user-owned and not touched. Legacy full-copy specs
+    from pre-0.2.0 installs fall into this category; use --migrate-full-copy to opt in.
+    """
+    wrapper_path = target / "gtl_spec" / "packages" / f"{slug}.py"
+    if not wrapper_path.exists():
+        return None  # abiogenesis installer should have written it
+
+    existing = wrapper_path.read_text(encoding="utf-8")
+    is_system_owned = (
+        "genesis_sdlc-generated" in existing
+        or "genesis_sdlc-stub" in existing
+        or "spec→output" in existing
+    )
+    if not is_system_owned:
+        return "already_customised"
+
+    wrapper_path.write_text(_render_wrapper(slug), encoding="utf-8")
+    return "installed"
+
+
+def migrate_full_copy(target: Path, slug: str) -> dict:
+    """
+    Explicit migration for legacy full-copy local specs (pre-0.2.0 installs).
+
+    Safe content heuristics cannot reliably distinguish a pristine old copy from a
+    user-edited one, so migration is opt-in via --migrate-full-copy. This command:
+      1. Moves {slug}.py → {slug}_legacy_{timestamp}.py
+      2. Writes the new generated wrapper to {slug}.py
+      3. Creates {slug}_local.py if absent
+      4. Returns a report of what was moved and what must be ported manually.
+    """
+    wrapper_path = target / "gtl_spec" / "packages" / f"{slug}.py"
+    if not wrapper_path.exists():
+        return {"status": "no_spec_found"}
+
+    existing = wrapper_path.read_text(encoding="utf-8")
+
+    if "genesis_sdlc-generated" in existing:
+        return {"status": "already_migrated", "message": "Spec is already the generated wrapper."}
+    if "spec→output" in existing:
+        return {"status": "abiogenesis_stub", "message": "Use regular install to replace this stub."}
+    if "genesis_sdlc-stub" in existing:
+        return {"status": "already_migrated", "message": "Spec is the old thin-wrapper stub; regular install will upgrade it."}
+
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+    legacy_path = target / "gtl_spec" / "packages" / f"{slug}_legacy_{ts}.py"
+    shutil.move(str(wrapper_path), str(legacy_path))
+
+    wrapper_path.write_text(_render_wrapper(slug), encoding="utf-8")
+
+    return {
+        "status": "migrated",
+        "legacy_path": str(legacy_path),
+        "message": (
+            f"Legacy spec moved to {legacy_path.name}. "
+            f"Review it and port any customisations to the project spec directly."
+        ),
+    }
+
+
+def install_commands(source: Path, target: Path) -> list[str]:
     abiogenesis_src = (
         source.parent / "abiogenesis" / "builds" / "claude_code"
         / ".claude-plugin" / "plugins" / "genesis" / "commands"
@@ -228,7 +417,6 @@ def install_commands(source: Path, target: Path) -> list[str]:
     commands_dir = target / ".claude" / "commands"
     commands_dir.mkdir(parents=True, exist_ok=True)
 
-    # Remove any stale gen-*.md files not in the current command set
     current = {f"{cmd}.md" for cmd in ABIOGENESIS_COMMANDS + GENESIS_SDLC_COMMANDS}
     for stale in commands_dir.glob("gen-*.md"):
         if stale.name not in current:
@@ -247,7 +435,6 @@ def install_commands(source: Path, target: Path) -> list[str]:
             shutil.copy2(src, commands_dir / f"{cmd}.md")
             installed.append(cmd)
 
-    # Write install stamp
     stamp = commands_dir / ".genesis-installed"
     stamp.write_text(
         json.dumps({"version": VERSION, "installed": installed,
@@ -258,15 +445,8 @@ def install_commands(source: Path, target: Path) -> list[str]:
 
 def install_claude_md(source: Path, target: Path, slug: str, platform: str,
                       project_name: str) -> str:
-    """
-    Write or update CLAUDE.md in target.
-
-    The Genesis Bootloader section is always replaced with the latest version.
-    Everything outside the bootloader markers is preserved.
-    """
     bootloader_path = source / "gtl_spec" / "GENESIS_BOOTLOADER.md"
     if not bootloader_path.exists():
-        # Fallback: abiogenesis bootloader
         bootloader_path = (
             source.parent / "abiogenesis" / "gtl_spec" / "GENESIS_BOOTLOADER.md"
         ).resolve()
@@ -286,7 +466,6 @@ def install_claude_md(source: Path, target: Path, slug: str, platform: str,
     if claude_md.exists():
         existing = claude_md.read_text(encoding="utf-8")
         if _BOOTLOADER_START in existing:
-            # Replace existing bootloader section
             import re
             pattern = re.compile(
                 re.escape(_BOOTLOADER_START) + r".*?" + re.escape(_BOOTLOADER_END),
@@ -296,24 +475,15 @@ def install_claude_md(source: Path, target: Path, slug: str, platform: str,
             claude_md.write_text(updated, encoding="utf-8")
             return "updated"
         else:
-            # Append bootloader to existing CLAUDE.md
             with claude_md.open("a", encoding="utf-8") as f:
                 f.write(f"\n\n---\n\n{bootloader_section}")
             return "appended"
     else:
-        # Fresh install — write header + bootloader
         claude_md.write_text(header + bootloader_section, encoding="utf-8")
         return "created"
 
 
 def install_operating_standards(source: Path, target: Path) -> str:
-    """
-    Copy standards/ from genesis_sdlc source → .ai-workspace/operating-standards/.
-
-    operating-standards/ is the authoritative fallback for any agent action not
-    covered by a more specific convention. Agents load the relevant standard
-    before writing comments, backlog items, user guides, etc.
-    """
     src_standards = source / "standards"
     if not src_standards.exists():
         return "source_missing"
@@ -329,85 +499,7 @@ def install_operating_standards(source: Path, target: Path) -> str:
     return f"installed:{','.join(installed)}" if installed else "empty"
 
 
-def install_immutable_spec(source: Path, target: Path) -> str:
-    """
-    Install the released sdlc_graph.py into {target}/.genesis/spec/ as Layer 2.
-
-    Layer 2 is the immutable methodology core — the released version of genesis_sdlc
-    that downstream projects import. It is always replaced on reinstall (idempotent),
-    ensuring the installed methodology tracks the released package.
-
-    The local spec (Layer 3, gtl_spec/packages/{slug}.py) imports from Layer 2 and
-    is never overwritten by this function.
-    """
-    spec_dir = target / ".genesis" / "spec"
-    spec_dir.mkdir(parents=True, exist_ok=True)
-    init_py = spec_dir / "__init__.py"
-    if not init_py.exists():
-        init_py.touch()
-
-    src = source / "builds" / "python" / "src" / "genesis_sdlc" / "sdlc_graph.py"
-    if not src.exists():
-        # Fall back to installed package location
-        import genesis_sdlc
-        pkg_root = Path(genesis_sdlc.__file__).parent
-        src = pkg_root / "sdlc_graph.py"
-        if not src.exists():
-            return "source_missing"
-
-    shutil.copy2(src, spec_dir / "genesis_sdlc.py")
-    return "installed"
-
-
-def install_sdlc_starter_spec(source: Path, target: Path, slug: str,
-                              platform: str = "python") -> str | None:
-    """
-    Replace the minimal abiogenesis starter spec with the full SDLC bootstrap graph.
-
-    Substitutions applied to the genesis_sdlc template:
-      - Package name: "genesis_sdlc" → slug
-      - req_coverage package ref: gtl_spec.packages.genesis_sdlc → gtl_spec.packages.<slug>
-      - builds/python/src/  → builds/<platform>/src/
-      - builds/python/tests/ → builds/<platform>/tests/
-      - builds/python/design/adrs/ → builds/<platform>/design/adrs/
-
-    Only written if the file still contains the abiogenesis stub (safe to re-run).
-    """
-    starter_path = target / "gtl_spec" / "packages" / f"{slug}.py"
-    if not starter_path.exists():
-        return None  # abiogenesis installer should have written it — skip
-
-    existing = starter_path.read_text(encoding="utf-8")
-    # Never overwrite a customised local spec — Layer 3 belongs to the project.
-    # Only replace the abiogenesis stub (identifiable by the "spec→output" marker).
-    if "spec→output" not in existing:
-        return "already_customised"
-
-    sdlc_spec_src = source / "gtl_spec" / "packages" / "genesis_sdlc.py"
-    if not sdlc_spec_src.exists():
-        return None
-
-    template = sdlc_spec_src.read_text(encoding="utf-8")
-    adapted = (
-        template
-        # Package identity
-        .replace('name="genesis_sdlc"', f'name="{slug}"')
-        .replace("genesis_sdlc — standard SDLC bootstrap graph",
-                 f"{slug} — standard SDLC bootstrap graph")
-        # Self-referential spec path in req_coverage evaluator
-        .replace("gtl_spec.packages.genesis_sdlc:package",
-                 f"gtl_spec.packages.{slug}:package")
-        # Platform-specific build paths
-        .replace("builds/python/src/", f"builds/{platform}/src/")
-        .replace("builds/python/tests/", f"builds/{platform}/tests/")
-        .replace("builds/python/design/adrs/", f"builds/{platform}/design/adrs/")
-    )
-    starter_path.write_text(adapted, encoding="utf-8")
-    return "installed"
-
-
 def _read_existing_slug(target: Path) -> str | None:
-    """Read the package slug from an existing .genesis/genesis.yml, if present."""
     genesis_yml = target / ".genesis" / "genesis.yml"
     if not genesis_yml.exists():
         return None
@@ -417,6 +509,161 @@ def _read_existing_slug(target: Path) -> str | None:
     return m.group(1) if m else None
 
 
+def _emit_workflow_activated_event(target: Path, previous_version: str | None) -> None:
+    """Append a workflow_activated event to the event stream."""
+    events_dir = target / ".ai-workspace" / "events"
+    events_dir.mkdir(parents=True, exist_ok=True)
+    event = {
+        "event_type": "workflow_activated",
+        "event_time": datetime.now(timezone.utc).isoformat(),
+        "data": {
+            "workflow": "genesis_sdlc.standard",
+            "version": VERSION,
+            "previous_version": previous_version,
+            "target": str(target),
+        },
+    }
+    with (events_dir / "events.jsonl").open("a", encoding="utf-8") as f:
+        f.write(json.dumps(event) + "\n")
+
+
+def _migrate_provenance(target: Path) -> dict:
+    """
+    One-time provenance migration: re-emit passing fp_assessments with job_evaluator_hash
+    spec_hash, and review_approved events with workflow_version.
+
+    Called on first activation when upgrading from old "genesis_sdlc" workflow naming.
+    Only the most-recent passing assessment per (edge, evaluator) is migrated.
+    Only the most-recent review_approved per edge is migrated.
+    """
+    import hashlib as _hashlib
+    import importlib
+    import re as _re
+    import sys as _sys
+
+    events_file = target / ".ai-workspace" / "events" / "events.jsonl"
+    if not events_file.exists():
+        return {"migrated": 0, "skipped": "no_events_file"}
+
+    events: list[dict] = []
+    with events_file.open(encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                try:
+                    events.append(json.loads(line))
+                except json.JSONDecodeError:
+                    pass
+
+    if not events:
+        return {"migrated": 0, "skipped": "no_events"}
+
+    # Collect most-recent passing fp_assessment per (edge, evaluator)
+    fp_seen: dict = {}
+    for e in events:
+        if (
+            e.get("event_type") == "fp_assessment"
+            and e.get("data", {}).get("result") == "pass"
+        ):
+            key = (e["data"].get("edge"), e["data"].get("evaluator"))
+            fp_seen[key] = e
+
+    # Collect most-recent review_approved per edge
+    fh_seen: dict = {}
+    for e in events:
+        if e.get("event_type") == "review_approved":
+            edge = e.get("data", {}).get("edge")
+            if edge:
+                fh_seen[edge] = e
+
+    if not fp_seen and not fh_seen:
+        return {"migrated": 0, "skipped": "no_convergence_events"}
+
+    # Import the installed workflow to get job definitions
+    genesis_path = str(target / ".genesis")
+    added_to_path = genesis_path not in _sys.path
+    if added_to_path:
+        _sys.path.insert(0, genesis_path)
+
+    try:
+        ver = VERSION.replace(".", "_")
+        spec_mod = importlib.import_module(
+            f"workflows.genesis_sdlc.standard.v{ver}.spec"
+        )
+        slug = _read_existing_slug(target) or "project_package"
+        instantiate_fn = getattr(spec_mod, "instantiate", None)
+        if instantiate_fn:
+            _, migr_worker = instantiate_fn(slug=slug)
+        else:
+            migr_worker = spec_mod.worker
+    except Exception as exc:
+        if added_to_path:
+            try:
+                _sys.path.remove(genesis_path)
+            except ValueError:
+                pass
+        return {"migrated": 0, "error": f"workflow_import_failed: {exc}"}
+
+    def _job_hash(job) -> str:
+        """Mirror of genesis.bind.job_evaluator_hash — must stay in sync."""
+        lines = sorted(
+            f"{ev.name}:{ev.category.__name__}:{getattr(ev, 'command', '') or ''}:{ev.description}"
+            for ev in job.evaluators
+        )
+        raw = "\n".join(_re.sub(r"\s+", " ", line.strip()) for line in lines)
+        return _hashlib.sha256(raw.encode()).hexdigest()[:16]
+
+    job_by_edge = {job.edge.name: job for job in migr_worker.can_execute}
+
+    # Read workflow_version from the just-written active-workflow.json
+    active_path = target / ".genesis" / "active-workflow.json"
+    try:
+        active_data = json.loads(active_path.read_text(encoding="utf-8"))
+        workflow_version = f"{active_data['workflow']}@{active_data['version']}"
+    except Exception:
+        workflow_version = "unknown"
+
+    now = datetime.now(timezone.utc).isoformat()
+    migrated_fp = 0
+    migrated_fh = 0
+
+    with events_file.open("a", encoding="utf-8") as f:
+        for (edge, evaluator), orig in fp_seen.items():
+            job = job_by_edge.get(edge)
+            if job is None:
+                continue  # edge no longer in graph — skip
+            spec_hash = _job_hash(job)
+            data = {
+                "edge": edge,
+                "evaluator": evaluator,
+                "result": "pass",
+                "spec_hash": spec_hash,
+                "migrated_from": orig.get("event_time"),
+                "actor": "migration",
+            }
+            f.write(json.dumps({"event_type": "fp_assessment", "event_time": now, "data": data}) + "\n")
+            migrated_fp += 1
+
+        for edge, orig in fh_seen.items():
+            data = dict(orig.get("data", {}))
+            data["workflow_version"] = workflow_version
+            data["migrated_from"] = orig.get("event_time")
+            f.write(json.dumps({"event_type": "review_approved", "event_time": now, "data": data}) + "\n")
+            migrated_fh += 1
+
+    if added_to_path:
+        try:
+            _sys.path.remove(genesis_path)
+        except ValueError:
+            pass
+
+    return {
+        "migrated": migrated_fp + migrated_fh,
+        "fp_assessments": migrated_fp,
+        "review_approvals": migrated_fh,
+    }
+
+
 def install(
     target: Path,
     *,
@@ -424,16 +671,18 @@ def install(
     slug: str = "project_package",
     platform: str = "python",
     verify_only: bool = False,
+    do_migrate: bool = False,
 ) -> dict:
     target = target.resolve()
     src = resolve_source(str(source) if source else None)
     project_name = target.name
 
-    # Preserve the slug already in genesis.yml so reinstalling with a different
-    # --project-slug does not silently redirect the engine to a different spec.
     existing_slug = _read_existing_slug(target)
     if existing_slug and existing_slug != slug:
         slug = existing_slug
+
+    if do_migrate:
+        return migrate_full_copy(target, slug)
 
     result: dict = {
         "version": VERSION,
@@ -441,17 +690,20 @@ def install(
         "source": str(src),
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "engine": None,
+        "workflow_release": None,
+        "active_workflow": None,
         "immutable_spec": None,
         "commands": [],
         "claude_md": None,
         "sdlc_starter_spec": None,
+        "migration": None,
         "errors": [],
     }
 
     if verify_only:
         return _verify(target, result, platform=platform)
 
-    # 1. Engine + gtl_spec + builds/<platform>/ scaffold via abiogenesis installer
+    # 1. Engine + gtl_spec + builds/<platform>/ scaffold via abiogenesis
     try:
         engine_result = _run_abiogenesis_installer(src, target, slug, platform)
         result["engine"] = engine_result.get("status")
@@ -460,37 +712,52 @@ def install(
     except (FileNotFoundError, RuntimeError) as exc:
         result["errors"].append(f"engine: {exc}")
 
-    # 2. Install immutable methodology spec into .genesis/spec/ (Layer 2 — always replaced)
+    # 2. Versioned immutable workflow release (Layer 2 — written once, never overwritten)
+    try:
+        result["workflow_release"] = install_workflow_release(src, target)
+    except Exception as exc:
+        result["errors"].append(f"workflow_release: {exc}")
+
+    # 3. Active baseline pointer + migration detection
+    needs_migration = False
+    previous_version: str | None = None
+    try:
+        active_status, needs_migration, previous_version = install_active_workflow(target)
+        result["active_workflow"] = active_status
+    except Exception as exc:
+        result["errors"].append(f"active_workflow: {exc}")
+
+    # 4. Backwards-compat shim: spec/genesis_sdlc.py for old imports
     try:
         result["immutable_spec"] = install_immutable_spec(src, target)
     except Exception as exc:
         result["errors"].append(f"immutable_spec: {exc}")
 
-    # 2b. Write starter local spec if absent (Layer 3 — never overwritten)
+    # 5. Generated wrapper (Layer 3 — rewritten when system-ownership marker present)
     try:
         result["sdlc_starter_spec"] = install_sdlc_starter_spec(src, target, slug, platform)
     except Exception as exc:
         result["errors"].append(f"sdlc_starter_spec: {exc}")
 
-    # 3. Slash commands
+    # 6. Slash commands
     try:
         result["commands"] = install_commands(src, target)
     except FileNotFoundError as exc:
         result["errors"].append(f"commands: {exc}")
 
-    # 4. CLAUDE.md + bootloader
+    # 7. CLAUDE.md + bootloader
     try:
         result["claude_md"] = install_claude_md(src, target, slug, platform, project_name)
     except FileNotFoundError as exc:
         result["errors"].append(f"claude_md: {exc}")
 
-    # 4b. Operating standards
+    # 8. Operating standards
     try:
         result["operating_standards"] = install_operating_standards(src, target)
     except Exception as exc:
         result["errors"].append(f"operating_standards: {exc}")
 
-    # 4c. SDLC workspace structure — directories the engine and agents write to
+    # 9. SDLC workspace directories
     for ws_dir in [
         ".ai-workspace/features/active",
         ".ai-workspace/features/completed",
@@ -501,7 +768,16 @@ def install(
     ]:
         (target / ws_dir).mkdir(parents=True, exist_ok=True)
 
-    # 5. Emit install event
+    # 10. Workflow activation event + one-time provenance migration
+    _emit_workflow_activated_event(target, previous_version)
+    if needs_migration:
+        try:
+            result["migration"] = _migrate_provenance(target)
+        except Exception as exc:
+            result["errors"].append(f"migration: {exc}")
+            result["migration"] = {"error": str(exc)}
+
+    # 11. Install event
     _emit_install_event(target, result)
 
     result["status"] = "installed" if not result["errors"] else "partial"
@@ -509,10 +785,16 @@ def install(
 
 
 def _verify(target: Path, result: dict, platform: str = "python") -> dict:
+    ver_spec = (
+        target / ".genesis" / "workflows" / "genesis_sdlc"
+        / "standard" / f"v{VERSION.replace('.', '_')}" / "spec.py"
+    )
     checks = {
         "engine": (target / ".genesis" / "genesis" / "__main__.py").exists(),
         "gtl": (target / ".genesis" / "gtl" / "core.py").exists(),
         "genesis_yml": (target / ".genesis" / "genesis.yml").exists(),
+        "workflow_release": ver_spec.exists(),
+        "active_workflow": (target / ".genesis" / "active-workflow.json").exists(),
         "immutable_spec": (target / ".genesis" / "spec" / "genesis_sdlc.py").exists(),
         "gtl_spec": (target / "gtl_spec" / "packages").is_dir(),
         "builds_src": (target / "builds" / platform / "src").is_dir(),
@@ -564,6 +846,8 @@ def main() -> None:
                         help="Build platform name for builds/<platform>/ (default: python)")
     parser.add_argument("--verify", action="store_true",
                         help="Verify installation only — do not install")
+    parser.add_argument("--migrate-full-copy", action="store_true",
+                        help="Migrate a legacy full-copy local spec to the 4-layer model")
     args = parser.parse_args()
 
     slug = args.project_slug
@@ -584,13 +868,14 @@ def main() -> None:
             slug=slug,
             platform=args.platform,
             verify_only=args.verify,
+            do_migrate=args.migrate_full_copy,
         )
     except FileNotFoundError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(1)
 
     print(json.dumps(result, indent=2))
-    sys.exit(0 if result.get("status") in ("installed", "ok") else 1)
+    sys.exit(0 if result.get("status") in ("installed", "ok", "migrated") else 1)
 
 
 if __name__ == "__main__":

@@ -2,6 +2,32 @@
 
 ---
 
+## v0.2.1 — 2026-03-20
+
+**Bootloader**: v3.0.2
+**Spec hash**: `9a96e8f7acb2118c`
+**Test results**: 107 passed, 0 failed
+
+### Added
+- `instantiate(slug)` entry point in `sdlc_graph.py` — all slug-specific customisation (req_coverage command, sdlc_spec context locator) assembled inside the versioned release; Layer 3 becomes a two-line system-owned wrapper (REQ-F-VAR-001)
+- `workflow_activated` event emitted on install — records previous version for provenance
+- One-time provenance migration on upgrade from old workflow naming — re-emits fp_assessments with job_evaluator_hash and review_approved events with workflow_version
+
+### Changed
+- Workflow name: `genesis_sdlc` → `genesis_sdlc.standard` in `active-workflow.json`
+- Immutable release path: `genesis_sdlc/v{V_U}/` → `genesis_sdlc/standard/v{V_U}/`
+- Layer 3 generated wrapper: multi-line local overlay replaced with two-line `instantiate(slug)` call — rewritten on every redeploy, not written-once
+- `guide_version_current` evaluator: fixed POSIX sh quoting bug (embedded `\"` caused exit code 2); now checks `**Version**: {ver}` field specifically
+- `guide_req_coverage` evaluator: now checks for `<!-- Covers: REQ-F-* -->` blocks specifically, not any REQ-F-* token anywhere in the file
+
+### Fixed
+- USER_GUIDE.md version bumped to 0.2.1; §2 and §8 updated to describe generated wrapper model accurately
+- `gtl_spec/packages/genesis_sdlc.py` docstring updated to reflect full 9-edge graph
+
+**REQ keys added**: `REQ-F-VAR-001`
+
+---
+
 ## v0.2.0 — 2026-03-19
 
 **Bootloader**: v3.0.2

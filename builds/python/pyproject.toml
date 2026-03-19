@@ -4,7 +4,7 @@ build-backend = "setuptools.backends.legacy:build"
 
 [project]
 name = "genesis_sdlc"
-version = "0.2.0"
+version = "0.2.1"
 description = "Standard SDLC bootstrap graph as a GTL Package — built on abiogenesis."
 requires-python = ">=3.11"
 readme = "README.md"

@@ -1,7 +1,7 @@
 # genesis_sdlc User Guide
 
 **Author**: Dimitar Popov
-**Version**: 0.1.3
+**Version**: 0.2.1
 **GTL version**: 0.3.0
 
 ---
@@ -29,11 +29,13 @@ Teams using LLMs as code generators have no formal convergence criteria — no w
 
 ### The SDLC graph
 
+<!-- Covers: REQ-F-GRAPH-001, REQ-F-GRAPH-002 -->
+
 ```
-intent → requirements → feature_decomp → design → code ↔ unit_tests → uat_tests
+intent → requirements → feature_decomp → design → code ↔ unit_tests → integration_tests → user_guide → uat_tests
 ```
 
-Seven asset types. Six edges. Each edge has evaluators that must pass before the graph advances.
+Ten asset types. Nine edges. Each edge has evaluators that must pass before the graph advances.
 
 ### The three evaluator kinds
 
@@ -76,7 +78,7 @@ What the installer deploys:
 | Path | What it is |
 |------|-----------|
 | `.genesis/` | abiogenesis engine (via the abiogenesis installer) |
-| `gtl_spec/packages/<slug>.py` | Starter SDLC spec — written once, never overwritten |
+| `gtl_spec/packages/<slug>.py` | Generated wrapper — rewritten on every redeploy while system-owned marker is present |
 | `builds/python/` | `src/`, `tests/`, `design/adrs/` scaffold |
 | `.claude/commands/gen-*.md` | All genesis slash commands |
 | `CLAUDE.md` | Project orientation + Genesis Bootloader |
@@ -93,7 +95,7 @@ python -m genesis_sdlc.install --target /path/to/project --verify
 python -m genesis_sdlc.install --target /path/to/project
 ```
 
-Engine files are always replaced. The starter spec (`gtl_spec/packages/<slug>.py`) is never replaced after the first install. The config file (`.genesis/genesis.yml`) is always replaced — it is engine metadata, not user data.
+Engine files are always replaced. The generated wrapper (`gtl_spec/packages/<slug>.py`) is replaced on every redeploy as long as the `# genesis_sdlc-generated` marker is present on line 1 — it is a two-line system-owned file that calls `instantiate(slug="...")` from the versioned release. Remove the marker line if you need a fully customised spec; the installer will then treat the file as user-owned and never overwrite it. The config file (`.genesis/genesis.yml`) is always replaced — it is engine metadata, not user data.
 
 ### Platform scaffolding
 
@@ -149,6 +151,8 @@ When genesis_sdlc is installed into another project, the spec lives inside the t
 ---
 
 ## 4. The Commands
+
+<!-- Covers: REQ-F-CMD-001, REQ-F-CMD-002, REQ-F-CMD-003 -->
 
 All commands accept:
 
@@ -265,11 +269,27 @@ Reports workspace state: recent events, active features, edge convergence summar
 gen status --workspace .
 ```
 
+### `gen backlog`
+
+<!-- Covers: REQ-F-BACKLOG-001, REQ-F-BACKLOG-002, REQ-F-BACKLOG-003, REQ-F-BACKLOG-004 -->
+
+Manages the sensory backlog at `.ai-workspace/backlog/BL-*.yml`. Ready items surface automatically in `gen gaps` and `gen status` output. Two subcommands:
+
+```bash
+# List all backlog items with their status
+gen backlog list --workspace .
+
+# Promote a backlog item to an active intent_raised event
+gen backlog promote BL-001 --workspace .
+```
+
 ---
 
 ## 5. The SDLC Graph
 
-The graph has seven assets and six edges.
+<!-- Covers: REQ-F-GATE-001, REQ-F-TAG-001, REQ-F-TAG-002, REQ-F-UAT-001, REQ-F-UAT-002, REQ-F-UAT-003, REQ-F-DOCS-002 -->
+
+The graph has ten assets and nine edges.
 
 ### Assets
 
@@ -279,9 +299,12 @@ The graph has seven assets and six edges.
 | `requirements` | `REQ-{SEQ}` | Keys testable, intent covered, no implementation details |
 | `feature_decomp` | `FD-{SEQ}` | All REQ keys covered, dependency DAG acyclic, MVP boundary defined |
 | `design` | `DES-{SEQ}` | ADRs recorded, tech stack decided, interfaces specified, no implementation details |
+| `module_decomp` | `MOD-{SEQ}` | All features assigned, dependency DAG acyclic, build order defined |
 | `code` | `CODE-{SEQ}` | Implements tags present, importable, no V2 features |
 | `unit_tests` | `TEST-{SEQ}` | All pass, validates tags present |
-| `uat_tests` | `UAT-{SEQ}` | Sandbox install passes, e2e scenarios pass, accepted by human |
+| `integration_tests` | `ITEST-{SEQ}` | Sandbox install passes, e2e scenarios pass |
+| `user_guide` | `GUIDE-{SEQ}` | Version current, REQ coverage tagged, content certified |
+| `uat_tests` | `UAT-{SEQ}` | Accepted by human |
 
 ### Edges and evaluators
 
@@ -290,20 +313,29 @@ The graph has seven assets and six edges.
 | `intent→requirements` | `intent_approved` | F_H |
 | `requirements→feature_decomp` | `req_coverage`, `decomp_complete`, `decomp_approved` | F_D, F_P, F_H |
 | `feature_decomp→design` | `design_coherent`, `design_approved` | F_P, F_H |
-| `design→code` | `impl_tags`, `code_complete` | F_D, F_P |
-| `code↔unit_tests` | `tests_pass`, `validates_tags`, `coverage_complete` | F_D, F_D, F_P |
-| `unit_tests→uat_tests` | `uat_sandbox_report`, `uat_e2e_passed`, `uat_accepted` | F_D, F_P, F_H |
+| `design→module_decomp` | `module_schedule` | F_P |
+| `module_decomp→code` | `impl_tags`, `code_complete` | F_D, F_P |
+| `code↔unit_tests` | `tests_pass`, `validates_tags`, `e2e_tests_exist`, `coverage_complete` | F_D, F_D, F_D, F_P |
+| `unit_tests→integration_tests` | `sandbox_report_exists`, `sandbox_e2e_passed` | F_D, F_P |
+| `integration_tests→user_guide` | `guide_version_current`, `guide_req_coverage`, `guide_content_certified` | F_D, F_D, F_P |
+| `user_guide→uat_tests` | `uat_accepted` | F_H |
 
 ### Human gates
 
-Three edges carry F_H evaluators:
+Four edges carry F_H evaluators:
 
 - `intent→requirements` — confirms the problem is clearly stated before requirements work begins
 - `requirements→feature_decomp` — confirms the feature set is complete and correctly ordered before design begins
 - `feature_decomp→design` — confirms design before any code is written
-- `unit_tests→uat_tests` — confirms sandbox e2e proof before shipping
+- `user_guide→uat_tests` — human reviews sandbox evidence and user guide before approving the release
 
 The spec/design boundary sits at `feature_decomp→design`. Everything upstream is tech-agnostic (WHAT). Everything downstream is tech-bound (HOW).
+
+### Module decomposition
+
+<!-- Covers: REQ-F-MDECOMP-001, REQ-F-MDECOMP-002, REQ-F-MDECOMP-003, REQ-F-MDECOMP-004, REQ-F-MDECOMP-005 -->
+
+The `design→module_decomp` edge decomposes design ADRs into an ordered build schedule. Each module is recorded as a `.ai-workspace/modules/MOD-*.yml` artifact listing its rank, dependencies, and which design features it implements. The `module_coverage` F_D evaluator checks that every design feature is assigned to at least one module before any code is written. An F_H gate (`schedule_approved`) requires human approval of the module build order.
 
 ### The TDD edge
 
@@ -311,7 +343,19 @@ The spec/design boundary sits at `feature_decomp→design`. Everything upstream 
 
 ### UAT constitutional requirement
 
-Shipping requires sandbox e2e proof, not unit tests alone. The `unit_tests→uat_tests` edge enforces this. The F_D evaluator checks for a structured sandbox report at `.ai-workspace/uat/sandbox_report.json`. The F_P evaluator runs the full install into a fresh sandbox and writes that report. The F_H evaluator is the final sign-off.
+<!-- Covers: REQ-F-UAT-001, REQ-F-UAT-002, REQ-F-UAT-003 -->
+
+Shipping requires sandbox e2e proof, not unit tests alone. Two dedicated edges enforce this:
+
+**`unit_tests→integration_tests`**: The F_D evaluator (`sandbox_report_exists`) checks for a structured sandbox report at `.ai-workspace/uat/sandbox_report.json` with `all_pass: true`. The F_P evaluator (`sandbox_e2e_passed`) installs genesis_sdlc into a fresh `/tmp/uat_sandbox_*`, runs `pytest -m e2e`, and writes that report.
+
+**`user_guide→uat_tests`**: A pure F_H gate. The human reviews the sandbox evidence (from `integration_tests`) and the user guide (from `integration_tests→user_guide`) before approving. The separation is intentional: construction (assembling evidence) is separate from judgment (approving the release).
+
+### Testing philosophy
+
+<!-- Covers: REQ-F-TEST-001, REQ-F-TEST-002, REQ-F-TEST-003 -->
+
+Integration and end-to-end tests are the primary test surface. The `e2e_tests_exist` F_D evaluator on the `code↔unit_tests` edge enforces that at least one e2e test exists. The `coverage_complete` F_P evaluator checks integration coverage rather than unit test count. All F_D evaluator commands that invoke pytest or python pin `PYTHONPATH=builds/python/src:.genesis` to ensure tests always run against the release candidate source, not any installed package.
 
 ---
 
@@ -379,6 +423,8 @@ gen check-tags --type validates --path builds/python/tests/
 
 ### Check requirement coverage
 
+<!-- Covers: REQ-F-COV-001 -->
+
 ```bash
 gen check-req-coverage \
     --package gtl_spec.packages.genesis_sdlc:package \
@@ -406,7 +452,18 @@ Move from `active/` to `completed/` when the edge for that feature converges.
 
 ## 8. Writing Your Own Spec
 
-genesis_sdlc installs a starter spec at `gtl_spec/packages/<slug>.py`. The starter spec is a copy of the SDLC bootstrap graph. Edit it to match your domain.
+<!-- Covers: REQ-F-BOOT-001, REQ-F-BOOT-002, REQ-F-BOOT-003, REQ-F-BOOT-004, REQ-F-BOOT-005, REQ-F-DOCS-001 -->
+
+genesis_sdlc installs a starter spec at `gtl_spec/packages/<slug>.py`. The starter spec is a thin wrapper that imports the standard SDLC graph from Layer 2 (`.genesis/spec/genesis_sdlc.py`) and overrides only the `req_coverage` evaluator to point at your project's package. Edit it to match your domain.
+
+**Three-layer architecture**:
+- **Layer 1** (`.genesis/genesis/`): The abiogenesis engine — replaced on every reinstall
+- **Layer 2** (`.genesis/workflows/genesis_sdlc/standard/v{VERSION}/spec.py`): Immutable versioned release — written once, never overwritten; new versions add a new versioned directory alongside old ones
+- **Layer 3** (`gtl_spec/packages/<slug>.py`): System-owned generated wrapper — replaced on every redeploy while the `# genesis_sdlc-generated` marker is present
+
+<!-- Covers: REQ-F-VAR-001 -->
+
+Layer 3 is a two-line file: it imports `instantiate` from the versioned Layer 2 release and calls it with your project slug. All graph customisation lives in `sdlc_graph.instantiate()` inside Layer 2 — Layer 3 itself never needs editing. Remove the `# genesis_sdlc-generated` marker only if you need to replace the generated wrapper entirely with a hand-written spec; the installer will then treat the file as user-owned and never touch it again.
 
 A spec exports two names: `package` and `worker`.
 
@@ -486,7 +543,7 @@ Each edge loads specific context documents into the agent prompt:
 | Context | Locator | Loaded on |
 |---------|---------|----------|
 | `bootloader` | `gtl_spec/GENESIS_BOOTLOADER.md` | All edges |
-| `genesis_sdlc_spec` | `gtl_spec/packages/genesis_sdlc.py` | All edges |
+| `sdlc_spec` | `gtl_spec/packages/<slug>.py` (your spec) | All edges |
 | `intent` | `INTENT.md` | requirements, feature_decomp, design edges |
 | `design_adrs` | `builds/python/design/adrs/` | design, code, TDD, UAT edges |
 
@@ -521,10 +578,6 @@ Deterministic test commands must never invoke genesis subcommands. Calling `gen 
 ### Single worker
 
 V1 has one worker (`claude_code`). Multi-tenant scheduling with conflict detection is deferred to V2. The `schedule()` function and `Worker.conflicts_with()` are implemented but only exercised with a single worker in V1.
-
-### UAT edge
-
-The `unit_tests→uat_tests` edge is defined in the spec and the evaluators are wired. The F_D sandbox report check and F_P sandbox install evaluator are complete. The edge is in active development and is not yet certified converged in the self-hosting workspace.
 
 ### Source layout
 

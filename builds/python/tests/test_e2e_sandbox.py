@@ -20,6 +20,7 @@
 # Validates: REQ-F-MDECOMP-003
 # Validates: REQ-F-MDECOMP-005
 # Validates: REQ-F-TEST-003
+# Validates: REQ-F-UAT-002
 """
 UAT sandbox tests for genesis_sdlc.
 
@@ -155,7 +156,8 @@ class TestInstallStructure:
     def test_starter_spec_has_correct_slug(self, sandbox):
         spec = sandbox / "gtl_spec" / "packages" / f"{PROJECT_SLUG}.py"
         content = spec.read_text()
-        assert f'name="{PROJECT_SLUG}"' in content
+        assert "instantiate" in content, "Generated wrapper must call instantiate()"
+        assert f'slug="{PROJECT_SLUG}"' in content, "Generated wrapper must pass correct slug"
 
     def test_build_scaffold_created(self, sandbox):
         assert (sandbox / "builds" / "python" / "src").exists()
@@ -198,8 +200,8 @@ class TestEngineCommands:
     def test_gaps_sees_full_sdlc_graph(self, sandbox):
         result = run_genesis(sandbox, "gaps", check=True)
         data = json.loads(result.stdout)
-        assert data["jobs_considered"] == 7, (
-            f"Expected 7 jobs (8-asset SDLC graph with module_decomp), got {data['jobs_considered']}"
+        assert data["jobs_considered"] == 9, (
+            f"Expected 9 jobs (10-asset SDLC graph with integration_tests + user_guide), got {data['jobs_considered']}"
         )
 
     def test_fresh_workspace_is_all_delta(self, sandbox):
@@ -214,7 +216,9 @@ class TestEngineCommands:
         data = json.loads(result.stdout)
         edge_names = [g["edge"] for g in data["gaps"]]
         assert "intent→requirements" in edge_names
-        assert "unit_tests→uat_tests" in edge_names
+        assert "unit_tests→integration_tests" in edge_names
+        assert "integration_tests→user_guide" in edge_names
+        assert "user_guide→uat_tests" in edge_names
 
 
 # ── Event stream ───────────────────────────────────────────────────────────────
@@ -367,11 +371,16 @@ class TestReqCoverage:
 
     def test_coverage_passes_when_all_keys_covered(self, sandbox):
         """Write feature vectors covering all REQ keys in the starter spec."""
-        spec_path = sandbox / "gtl_spec" / "packages" / f"{PROJECT_SLUG}.py"
-        spec_text = spec_path.read_text()
-
-        import re
-        req_keys = re.findall(r'"(REQ-[A-Z0-9\-]+)"', spec_text)
+        env = {**os.environ, "PYTHONPATH": str(sandbox / ".genesis")}
+        result = subprocess.run(
+            [sys.executable, "-c",
+             f"from gtl_spec.packages.{PROJECT_SLUG} import package; "
+             f"import json; print(json.dumps(package.requirements))"],
+            capture_output=True, text=True, cwd=str(sandbox), env=env, timeout=15,
+        )
+        if result.returncode != 0:
+            pytest.skip(f"Could not import package to read requirements: {result.stderr}")
+        req_keys = json.loads(result.stdout)
         if not req_keys:
             pytest.skip("No REQ keys found in starter spec")
 

@@ -10,7 +10,7 @@ This file IS the spec. The type system is the law.
 
 genesis_sdlc follows the standard SDLC bootstrap graph:
 
-    intent → requirements → feature_decomp → design → code ↔ unit_tests → uat_tests
+    intent → requirements → feature_decomp → design → module_decomp → code ↔ unit_tests → integration_tests → user_guide → uat_tests
 
 UAT is constitutional: shipping requires sandbox e2e proof, not unit tests alone.
 Integration and E2E tests are the primary test surface. Unit tests exist only for
@@ -138,11 +138,25 @@ unit_tests = Asset(
     markov=["all_pass", "validates_tags_present"],
 )
 
+integration_tests = Asset(
+    name="integration_tests",
+    id_format="ITEST-{SEQ}",
+    lineage=[unit_tests],
+    markov=["sandbox_install_passes", "e2e_scenarios_pass"],
+)
+
+user_guide = Asset(
+    name="user_guide",
+    id_format="GUIDE-{SEQ}",
+    lineage=[integration_tests],
+    markov=["version_current", "req_coverage_tagged", "content_certified"],
+)
+
 uat_tests = Asset(
     name="uat_tests",
     id_format="UAT-{SEQ}",
-    lineage=[unit_tests],
-    markov=["sandbox_install_passes", "e2e_scenarios_pass", "accepted_by_human"],
+    lineage=[user_guide],
+    markov=["accepted_by_human"],
 )
 
 
@@ -201,13 +215,30 @@ e_tdd = Edge(
     context=[bootloader, this_spec, design_adrs],
 )
 
-e_unit_uat = Edge(
-    name="unit_tests→uat_tests",
+e_unit_itest = Edge(
+    name="unit_tests→integration_tests",
     source=unit_tests,
-    target=uat_tests,
+    target=integration_tests,
+    using=[claude_agent],
+    context=[bootloader, this_spec],
+)
+
+e_itest_guide = Edge(
+    name="integration_tests→user_guide",
+    source=integration_tests,
+    target=user_guide,
     using=[claude_agent, human_gate],
     rule=standard_gate,
-    context=[bootloader, this_spec, design_adrs],
+    context=[bootloader, this_spec],
+)
+
+e_guide_uat = Edge(
+    name="user_guide→uat_tests",
+    source=user_guide,
+    target=uat_tests,
+    using=[human_gate],
+    rule=standard_gate,
+    context=[bootloader, this_spec],
 )
 
 
@@ -307,12 +338,12 @@ eval_coverage_fp = Evaluator(
     "Pure unit tests mocking internals do not satisfy coverage for workflow features.",
 )
 
-# unit_tests→uat_tests
+# unit_tests→integration_tests
 # F_D verifier: checks that the F_P actor wrote a structured sandbox report.
 # The report is created by the F_P actor during sandbox installation and e2e run.
 # No genesis subcommands — reads a JSON file. Acyclicity preserved.
-eval_uat_report = Evaluator(
-    "uat_sandbox_report", F_D,
+eval_sandbox_report = Evaluator(
+    "sandbox_report_exists", F_D,
     "Sandbox e2e report exists at .ai-workspace/uat/sandbox_report.json with all_pass: true",
     command=(
         "python -c \""
@@ -323,8 +354,8 @@ eval_uat_report = Evaluator(
         "\""
     ),
 )
-eval_uat_fp = Evaluator(
-    "uat_e2e_passed", F_P,
+eval_sandbox_run = Evaluator(
+    "sandbox_e2e_passed", F_P,
     "Install into a fresh sandbox: "
     "python builds/python/src/genesis_sdlc/install.py --target /tmp/uat_sandbox_{timestamp} --project-slug {slug}. "
     "Then run e2e tests in that sandbox: "
@@ -333,12 +364,47 @@ eval_uat_fp = Evaluator(
     "{install_success: bool, sandbox_path: str, test_count: int, pass_count: int, fail_count: int, all_pass: bool, timestamp: ISO}. "
     "Unit tests alone do not satisfy this edge — sandbox e2e is the acceptance proof.",
 )
+
+# integration_tests→user_guide
+eval_guide_version = Evaluator(
+    "guide_version_current", F_D,
+    "USER_GUIDE.md version string matches current release version in builds/python/src/genesis_sdlc/install.py",
+    command=(
+        "python -c \""
+        "import re,sys,pathlib; "
+        "guide=pathlib.Path('docs/USER_GUIDE.md').read_text(); "
+        "install=pathlib.Path('builds/python/src/genesis_sdlc/install.py').read_text(); "
+        "ver=re.search(r'VERSION\\s*=\\s*\\\"([^\\\"]+)\\\"', install).group(1); "
+        "sys.exit(0 if ver in guide else 1)"
+        "\""
+    ),
+)
+eval_guide_coverage = Evaluator(
+    "guide_req_coverage", F_D,
+    "USER_GUIDE.md contains <!-- Covers: REQ-F-* --> tags for all operator-facing REQ keys",
+    command=(
+        "python -c \""
+        "import re,sys,pathlib; "
+        "guide=pathlib.Path('docs/USER_GUIDE.md').read_text(); "
+        "tags=set(re.findall(r'REQ-F-[A-Z0-9-]+', guide)); "
+        "sys.exit(0 if tags else 1)"
+        "\""
+    ),
+)
+eval_guide_content = Evaluator(
+    "guide_content_certified", F_P,
+    "Agent: verify USER_GUIDE.md coherently answers: install steps, first session, "
+    "gen-start/gen-gaps/gen-iterate commands, operating loop, and recovery paths. "
+    "Version string must match current release. REQ-F-* coverage tags must be present.",
+)
+
+# user_guide→uat_tests
 eval_uat_fh = Evaluator(
     "uat_accepted", F_H,
-    "Human confirms: (1) .ai-workspace/uat/sandbox_report.json shows all_pass: true, "
-    "(2) all e2e scenarios pass end-to-end in the sandbox, "
-    "(3) every feature acceptance criterion is demonstrated by at least one scenario. "
-    "No feature is shipped without sandbox proof.",
+    "Human confirms: (1) sandbox_report.json shows all_pass: true, "
+    "(2) USER_GUIDE.md is coherent and version-current, "
+    "(3) every operator-facing feature is documented. "
+    "No release ships without sandbox proof and a current guide.",
 )
 
 
@@ -350,14 +416,16 @@ job_feat_design    = Job(e_feat_design,    [eval_design_fp, eval_design_fh])
 job_design_mdecomp = Job(e_design_mdecomp, [eval_module_coverage, eval_module_schedule_fp, eval_schedule_fh])
 job_mdecomp_code   = Job(e_mdecomp_code,   [eval_impl_tags, eval_code_fp])
 job_tdd            = Job(e_tdd,            [eval_tests_pass, eval_test_tags, eval_e2e_exists, eval_coverage_fp])
-job_uat            = Job(e_unit_uat,       [eval_uat_report, eval_uat_fp, eval_uat_fh])
+job_unit_itest     = Job(e_unit_itest,     [eval_sandbox_report, eval_sandbox_run])
+job_itest_guide    = Job(e_itest_guide,    [eval_guide_version, eval_guide_coverage, eval_guide_content])
+job_guide_uat      = Job(e_guide_uat,      [eval_uat_fh])
 
 
 # ── Worker ────────────────────────────────────────────────────────────────────
 
 worker = Worker(
     id="claude_code",
-    can_execute=[job_intent_req, job_req_feat, job_feat_design, job_design_mdecomp, job_mdecomp_code, job_tdd, job_uat],
+    can_execute=[job_intent_req, job_req_feat, job_feat_design, job_design_mdecomp, job_mdecomp_code, job_tdd, job_unit_itest, job_itest_guide, job_guide_uat],
 )
 
 
@@ -367,8 +435,8 @@ worker = Worker(
 
 package = Package(
     name="genesis_sdlc",
-    assets=[intent, requirements, feature_decomp, design, module_decomp, code, unit_tests, uat_tests],
-    edges=[e_intent_req, e_req_feat, e_feat_design, e_design_mdecomp, e_mdecomp_code, e_tdd, e_unit_uat],
+    assets=[intent, requirements, feature_decomp, design, module_decomp, code, unit_tests, integration_tests, user_guide, uat_tests],
+    edges=[e_intent_req, e_req_feat, e_feat_design, e_design_mdecomp, e_mdecomp_code, e_tdd, e_unit_itest, e_itest_guide, e_guide_uat],
     operators=[claude_agent, human_gate, pytest_op, check_impl_op, check_test_op, check_modules_op],
     rules=[standard_gate],
     contexts=[bootloader, this_spec, intent_doc, design_adrs, modules_dir],
@@ -412,8 +480,10 @@ package = Package(
         "REQ-F-BOOT-003",     # installer copies released spec into .genesis/spec/ as immutable layer
         "REQ-F-BOOT-004",     # installer generates starter local spec in gtl_spec/packages/{slug}.py
         "REQ-F-BOOT-005",     # reinstall replaces .genesis/spec/ atomically; never overwrites local gtl_spec/
-        # Test version sandboxing
-        "REQ-F-TEST-003",     # test evaluator commands pin PYTHONPATH to builds/python/src/ — tests run against RC source, never installed version
+        # Integration tests and user guide as first-class graph assets (INT-003)
+        "REQ-F-UAT-002",      # integration_tests asset: sandbox install + e2e run produces structured report; F_D enforces report exists
+        "REQ-F-UAT-003",      # uat_tests simplified to pure F_H gate; sandbox proof and guide must precede human approval
+        "REQ-F-DOCS-002",     # user_guide is a blocking graph asset with F_D version check and REQ coverage tag enforcement
     ],
 )
 

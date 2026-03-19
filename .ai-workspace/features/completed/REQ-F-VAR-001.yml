@@ -1,0 +1,268 @@
+id: REQ-F-VAR-001
+title: Variant Evolution Model — Named Variants, Stream Provenance, Binding Rules
+status: proposed
+satisfies:
+  - REQ-F-VAR-001
+  - REQ-F-VAR-002
+  - REQ-F-VAR-003
+  - REQ-F-VAR-004
+  - REQ-F-PROV-001
+  - REQ-F-PROV-002
+  - REQ-F-PROV-003
+  - REQ-F-PROV-004
+  - REQ-F-PROV-005
+
+description: |
+  End-state implementation of the variant evolution model (Claude/Codex consensus
+  2026-03-20). The graph and the event stream are independent. The stream is
+  immutable append-only data. The graph is a versioned pure function applied to it.
+  Upgrading the graph requires no data migration — only a pointer change and a
+  gaps run. This feature makes that property operational end-to-end.
+
+  ─────────────────────────────────────────────────────────────
+  REQ-F-VAR-001  Base workflow named as genesis_sdlc.standard
+  ─────────────────────────────────────────────────────────────
+  The base workflow is renamed from "genesis_sdlc" to "genesis_sdlc.standard"
+  throughout the installer, wrapper template, and active-workflow.json schema.
+
+  Directory layout changes:
+    BEFORE: .genesis/workflows/genesis_sdlc/v0_2_0/spec.py
+    AFTER:  .genesis/workflows/genesis_sdlc/standard/v0_2_0/spec.py
+
+  active-workflow.json changes:
+    BEFORE: {"workflow": "genesis_sdlc", "version": "0.2.0", ...}
+    AFTER:  {"workflow": "genesis_sdlc.standard", "version": "0.2.0", ...}
+
+  Generated wrapper import changes:
+    BEFORE: from workflows.genesis_sdlc.v0_2_0.spec import ...
+    AFTER:  from workflows.genesis_sdlc.standard.v0_2_0 import instantiate
+
+  The variant name is the dot-separated path below "genesis_sdlc":
+    genesis_sdlc.standard, genesis_sdlc.enterprise, genesis_sdlc.poc, etc.
+
+  ─────────────────────────────────────────────────────────────
+  REQ-F-VAR-002  active-workflow.json is a cache; installer is sole writer
+  ─────────────────────────────────────────────────────────────
+  active-workflow.json is never edited directly. It is written exclusively by
+  the installer. No other process writes this file. The workflow_activated event
+  (REQ-F-PROV-001) is the source of truth. active-workflow.json is a performance
+  cache of the latest activation event. If the file is absent or corrupt, the
+  engine reconstructs it by scanning events.jsonl for the most recent
+  workflow_activated event.
+
+  The installer reads active-workflow.json before writing to capture
+  previous_version for the workflow_activated event payload.
+
+  ─────────────────────────────────────────────────────────────
+  REQ-F-VAR-003  instantiate(slug) entry point; wrapper is pure data binding
+  ─────────────────────────────────────────────────────────────
+  Each variant module exposes:
+
+    def instantiate(slug: str) -> tuple[Package, Worker]
+
+  instantiate() constructs and returns (package, worker) with exactly these
+  field values — no others may differ from _base_package/_base_worker:
+
+    package.name                    = slug
+    package.requirements            = []
+    package.contexts                = [_this_spec if c.name == "sdlc_spec" else c
+                                       for c in _base_package.contexts]
+    _this_spec.locator              = f"workspace://gtl_spec/packages/{slug}.py"
+    _this_spec.digest               = "sha256:" + "0" * 64
+
+    worker.can_execute              = [_job_req_feat if j.edge.name ==
+                                       "requirements→feature_decomp" else j
+                                       for j in _base_worker.can_execute]
+    _job_req_feat req_coverage cmd  = "python -m genesis check-req-coverage --workspace ."
+
+  The req_coverage evaluator command reads from the workspace requirements
+  artifact. It does not reference package.requirements or the slug.
+
+  The generated wrapper is exactly two executable lines:
+
+    from workflows.genesis_sdlc.standard.v0_2_0 import instantiate
+    package, worker = instantiate(slug="{slug}")
+
+  Plus the genesis_sdlc-generated marker comment at the top. No other logic.
+
+  ─────────────────────────────────────────────────────────────
+  REQ-F-VAR-004  Layer 4 ({slug}_local.py) eliminated
+  ─────────────────────────────────────────────────────────────
+  The installer no longer generates {slug}_local.py. The LOCAL_OVERLAY_TEMPLATE
+  is removed. The install_local_overlay() function is removed. The generated
+  wrapper template contains no try/except ImportError overlay block. The
+  install() result dict no longer contains a "local_overlay" key.
+  --migrate-full-copy no longer creates an overlay file.
+  Customisation surface is the variant model only.
+
+  ─────────────────────────────────────────────────────────────
+  REQ-F-PROV-001  workflow_activated event appended on every installer write
+  ─────────────────────────────────────────────────────────────
+  The installer appends to events.jsonl immediately after writing
+  active-workflow.json:
+
+    {
+      "event_type": "workflow_activated",
+      "event_time": "<UTC ISO 8601, assigned by event logger>",
+      "data": {
+        "workflow": "genesis_sdlc.standard",
+        "workflow_version": "0.2.0",
+        "previous_version": "<prior value from active-workflow.json, or null>"
+      }
+    }
+
+  This is written via the standard event logger (_emit_install_event path),
+  never directly. event_time is assigned at append; the caller cannot supply it.
+
+  ─────────────────────────────────────────────────────────────
+  REQ-F-PROV-002  workflow_version on fp_assessment events
+  ─────────────────────────────────────────────────────────────
+  The engine reads active-workflow.json once at startup into an in-memory
+  structure. All events emitted during that engine invocation carry:
+
+    "workflow_version": "<value from active-workflow.json at startup>"
+
+  The engine does not re-read the file mid-run. workflow_version is consistent
+  within a single invocation.
+
+  ─────────────────────────────────────────────────────────────
+  REQ-F-PROV-003  workflow_version on review_approved events
+  ─────────────────────────────────────────────────────────────
+  Same rule as PROV-002. review_approved events carry workflow_version from
+  the active-workflow.json loaded at engine startup for that invocation.
+
+  ─────────────────────────────────────────────────────────────
+  REQ-F-PROV-004  Approval binding rule
+  ─────────────────────────────────────────────────────────────
+  Before treating a review_approved event as satisfying the F_H gate for an
+  edge, the engine evaluates:
+
+    VALID if:
+      (a) event.data.workflow_version == active_workflow_version, OR
+      (b) edge name is in manifest.json approved_carry_forward for active version
+
+    INVALID (edge reopens, delta > 0) otherwise.
+
+  approved_carry_forward schema in manifest.json:
+
+    {
+      "workflow": "genesis_sdlc.standard",
+      "version": "0.3.0",
+      "approved_carry_forward": [
+        {
+          "edge": "intent→requirements",
+          "from_version": "0.2.0"
+        }
+      ]
+    }
+
+  Rules:
+  - carry_forward is from exactly one prior version (from_version field).
+    Multi-hop carry-forward is not permitted. An approval from 0.1.0 does not
+    carry forward to 0.3.0 even if 0.3.0 carries forward from 0.2.0.
+  - If from_version does not match event.data.workflow_version, the carry-forward
+    does not apply and the edge reopens.
+  - Only the variant author (manifest.json writer) may declare carry-forward.
+    It cannot be asserted from the workspace.
+
+  Pre-provenance approvals (review_approved events with no workflow_version field)
+  are treated as belonging to the workflow_version of the most recent
+  workflow_activated event whose event_time precedes the approval's event_time.
+  If no prior workflow_activated event exists, the approval is treated as
+  workflow_version "0.0.0". The binding rule then applies normally.
+  No special-casing. No transition period. The binding rule is uniform.
+
+  ─────────────────────────────────────────────────────────────
+  REQ-F-PROV-005  spec_hash covers evaluator definitions per edge
+  ─────────────────────────────────────────────────────────────
+  spec_hash on fp_assessment events is computed as:
+
+    SHA-256( join("\n", sorted(
+      f"{ev.name}:{ev.category}:{ev.command}"
+      for ev in edge.evaluators
+    )) )
+
+  Encoded as lowercase hex string. This is the edge evaluator set hash —
+  the same value for all fp_assessment events on the same edge within the same
+  workflow version, because it covers all evaluators on the edge, not just the
+  one being assessed.
+
+  The engine computes this hash from the current graph at startup and stores it
+  per edge. When evaluating an fp_assessment event from the stream, the engine
+  compares the event's spec_hash against the current edge hash. A mismatch means
+  the assessment was made against a different evaluator definition. The engine
+  treats the assessment as stale (delta contribution not zero'd by this event).
+
+  The evaluator command string used in the hash is the literal command as defined
+  in the graph, including all arguments. Whitespace is normalised (stripped,
+  internal runs collapsed to single space) before hashing.
+
+acceptance_criteria:
+  # REQ-F-VAR-001 — naming
+  - active-workflow.json contains "workflow": "genesis_sdlc.standard"
+  - versioned release written to .genesis/workflows/genesis_sdlc/standard/v0_2_0/
+  - generated wrapper first import line is "from workflows.genesis_sdlc.standard.v0_2_0 import instantiate"
+  - test_installer: test_genesis_yml_written passes with new path
+  - test_installer: all existing installer tests pass with renamed paths
+
+  # REQ-F-VAR-002 — active-workflow.json as cache
+  - active-workflow.json absent → engine reconstructs from latest workflow_activated event
+  - installer reads prior active-workflow.json before writing; captures previous_version
+  - no code path outside install.py writes active-workflow.json
+
+  # REQ-F-VAR-003 — instantiate()
+  - from workflows.genesis_sdlc.standard.v0_2_0 import instantiate succeeds (PYTHONPATH=.genesis)
+  - instantiate("my_proj") returns (Package, Worker) with package.name == "my_proj"
+  - package.requirements == [] after instantiate()
+  - this_spec context locator contains "gtl_spec/packages/my_proj.py"
+  - req_coverage evaluator command contains "--workspace ." and does not contain "my_proj"
+  - generated wrapper for slug="my_proj" is exactly:
+      # genesis_sdlc-generated — system-owned; rewritten on every redeploy.
+      from workflows.genesis_sdlc.standard.v0_2_0 import instantiate
+      package, worker = instantiate(slug="my_proj")
+  - test_gaps_runs_after_install passes: engine loads package, returns 9 jobs_considered
+
+  # REQ-F-VAR-004 — Layer 4 removed
+  - installer does not create {slug}_local.py
+  - generated wrapper contains no "try" or "except ImportError"
+  - install() result dict has no "local_overlay" key
+  - test_installer: no test references {slug}_local.py as expected output
+
+  # REQ-F-PROV-001 — workflow_activated event
+  - events.jsonl contains workflow_activated event after install
+  - event contains workflow, workflow_version, previous_version fields
+  - previous_version is null on first install, prior version string on reinstall
+  - event_time is assigned by logger (not passed by caller)
+
+  # REQ-F-PROV-002/003 — workflow_version on events
+  - fp_assessment events emitted by engine contain workflow_version field
+  - review_approved events emitted by engine contain workflow_version field
+  - workflow_version value matches active-workflow.json at engine startup
+
+  # REQ-F-PROV-004 — approval binding
+  - review_approved with matching workflow_version: edge treated as converged
+  - review_approved with non-matching workflow_version and no carry-forward: edge delta > 0
+  - review_approved with non-matching workflow_version but edge in approved_carry_forward
+    with correct from_version: edge treated as converged
+  - review_approved with no workflow_version field: inferred from prior workflow_activated;
+    binding rule applied to inferred version
+
+  # REQ-F-PROV-005 — spec_hash
+  - spec_hash on fp_assessment is SHA-256 hex of sorted evaluator definitions for the edge
+  - changing any evaluator command on an edge changes the spec_hash for all assessments on that edge
+  - engine rejects fp_assessment whose spec_hash does not match current edge hash (treats as stale)
+  - two fp_assessment events on the same edge under same workflow version have identical spec_hash
+
+  # Engine — orphan tolerance
+  - engine does not error or crash on events referencing edge names absent from current graph
+  - orphaned events are silently skipped in gap analysis
+  - gaps output does not reference orphaned edge names
+
+dependencies:
+  - REQ-F-BOOT-V2   # four-layer installer already in place
+  - REQ-F-GRAPH     # graph structure stable at 10 assets, 9 edges, 9 jobs
+
+out_of_scope:
+  - Package.requirements GTL primitive change (separate spec-level ADR required)
+  - Additional named variants beyond genesis_sdlc.standard (separate features)
+  - requirements as workspace artifact (depends on GTL ADR above)

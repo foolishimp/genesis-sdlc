@@ -1,0 +1,36 @@
+id: REQ-F-INT-003
+title: Integration Tests and User Guide as First-Class Graph Assets (INT-003)
+status: completed
+satisfies:
+  - REQ-F-UAT-002
+  - REQ-F-UAT-003
+  - REQ-F-DOCS-002
+description: |
+  Implements INT-003: inserts integration_tests and user_guide as first-class
+  blocking assets between unit_tests and uat_tests.
+
+  integration_tests: sandbox install + e2e run produces a structured report.
+  F_D (sandbox_report_exists) enforces the report exists with all_pass: true.
+  F_P (sandbox_e2e_passed) runs the sandbox and writes the report.
+
+  user_guide: documentation asset with version currency and REQ coverage tag
+  enforcement. F_D (guide_version_current) checks version string matches release.
+  F_D (guide_req_coverage) checks <!-- Covers: REQ-F-* --> tags are present.
+  F_P (guide_content_certified) certifies coherent content coverage.
+
+  uat_tests: simplified to pure F_H gate. Human approves once sandbox proof
+  and guide are both current. No sandbox or guide logic runs at uat_tests.
+
+  The full path: code ↔ unit_tests → integration_tests → user_guide → uat_tests.
+acceptance_criteria:
+  - integration_tests asset exists in Package with markov [sandbox_install_passes, e2e_scenarios_pass]
+  - user_guide asset exists in Package with markov [version_current, req_coverage_tagged, content_certified]
+  - uat_tests.markov is [accepted_by_human] only — sandbox conditions removed
+  - unit_tests→integration_tests edge exists with F_D (report check) + F_P (sandbox runner)
+  - integration_tests→user_guide edge exists with F_D (version + coverage) + F_P (content)
+  - user_guide→uat_tests edge exists as pure F_H gate
+  - Package has 10 assets, 9 edges, 9 jobs
+dependencies:
+  - REQ-F-UAT-001
+  - REQ-F-DOCS-001
+  - REQ-F-GRAPH

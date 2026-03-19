@@ -14,10 +14,12 @@ implements_features:
   - REQ-F-TEST-V2
   - REQ-F-UAT
   - REQ-F-MDECOMP
+  - REQ-F-INT-003
+  - REQ-F-VAR-001
 dependencies: []
 rank: 1
 interfaces:
   - package: GTL Package — the standard SDLC graph with all assets, edges, evaluators
-  - worker: Worker — claude_code worker with all 7 jobs
+  - worker: Worker — claude_code worker with all 9 jobs
 source_files:
   - builds/python/src/genesis_sdlc/sdlc_graph.py
