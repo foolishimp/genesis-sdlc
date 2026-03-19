@@ -24,6 +24,7 @@ Parse stdout as JSON.
 ```
 WORKSPACE STATUS
   Package:   {scope.package}
+  Workflow:  {active-workflow.json → workflow} v{active-workflow.json → version}
   Delta:     {total_delta}
   Status:    {CONVERGED | IN PROGRESS}
 
