@@ -1,0 +1,34 @@
+id: REQ-F-MDECOMP
+title: Module Decomposition and Build Scheduling
+status: active
+satisfies:
+  - REQ-F-MDECOMP-001
+  - REQ-F-MDECOMP-002
+  - REQ-F-MDECOMP-003
+  - REQ-F-MDECOMP-004
+  - REQ-F-MDECOMP-005
+description: |
+  Insert a module_decomp asset between design and code, mirroring the role
+  feature_decomp plays between requirements and design.
+
+  The design→module_decomp edge decomposes design ADRs and interface specifications
+  into a ranked module dependency graph. Modules are ordered leaf-to-root (no
+  dependencies first) so the agent builds against stable interfaces at every step.
+
+  The module_decomp→code edge replaces the current design→code edge. Code is
+  written per-module in build-schedule order.
+
+  Output artifacts: .ai-workspace/modules/*.yml — one per module, declaring
+  dependencies, build rank, and the design features it implements.
+acceptance_criteria:
+  - design→module_decomp edge exists with F_P (decomp) + F_H (schedule_approved) evaluators
+  - module_coverage F_D evaluator passes: every design feature assigned to ≥1 module
+  - module dependency DAG is acyclic (enforced by F_D check)
+  - build order is defined: modules ranked by dependency depth (leaf=1, root=N)
+  - F_H gate: human approves module schedule before any code is written
+  - module_decomp→code edge replaces design→code in the graph
+  - .ai-workspace/modules/ directory holds one .yml per module
+dependencies:
+  - REQ-F-GRAPH
+  - REQ-F-GATE
+  - REQ-F-DESIGN

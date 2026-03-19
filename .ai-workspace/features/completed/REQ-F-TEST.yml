@@ -1,0 +1,22 @@
+id: REQ-F-TEST
+title: Testing Philosophy — Integration and E2E as Primary Test Surface
+status: completed
+satisfies:
+  - REQ-F-TEST-001
+  - REQ-F-TEST-002
+description: |
+  Integration and E2E tests are the primary test surface for genesis_sdlc.
+  Unit tests are not the coverage target — real integration behaviour is.
+  The e2e_tests_exist F_D evaluator enforces that at least one @pytest.mark.e2e
+  test exists so coverage cannot be vacuously satisfied.
+  The coverage_complete F_P evaluator assesses integration coverage, not unit
+  test count — it judges whether the implementation is behaviourally verified,
+  not whether line coverage thresholds are met.
+acceptance_criteria:
+  - e2e_tests_exist F_D evaluator passes (at least one @pytest.mark.e2e test present)
+  - coverage_complete F_P evaluator targets integration coverage, not unit test count
+  - Test suite uses @pytest.mark.e2e marker for end-to-end scenarios
+  - No unit-test-count coverage threshold enforced by F_D
+dependencies:
+  - REQ-F-GRAPH
+  - REQ-F-GATE
