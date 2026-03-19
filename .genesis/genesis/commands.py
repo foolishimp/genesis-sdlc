@@ -6,6 +6,8 @@
 # Implements: REQ-F-GRAPH-002
 # Implements: REQ-F-EVAL-002
 # Implements: REQ-F-VIS-001
+# Implements: REQ-F-PROV-001
+# Implements: REQ-F-PROV-003
 """
 commands — gen_start, gen_iterate, gen_gaps, Scope.
 
@@ -26,10 +28,63 @@ from typing import Callable, Optional
 
 from gtl.core import Job, Package, Worker
 
-from .bind import bind_fd, bind_fp, req_hash
+from .bind import bind_fd, bind_fp, bind_fh, job_evaluator_hash, req_hash
 from .core import ContextResolver, EventStream, project
 from .manifest import BoundJob
 from .schedule import delta, iterate, schedule
+
+
+# ── Workflow provenance helpers ───────────────────────────────────────────────
+
+def _read_workflow_version(workspace: Path) -> str:
+    """
+    Read .genesis/active-workflow.json and return "{workflow}@{version}".
+
+    Returns "unknown" on any failure: file absent, invalid JSON, missing keys,
+    non-string values. The engine never fails to start due to this file's state.
+
+    Pure function — no Scope dependency. Called by Scope.__post_init__ at
+    engine startup and by _emit_event_cmd at CLI call time (REQ-F-PROV-001/002).
+    """
+    active_wf = workspace / ".genesis" / "active-workflow.json"
+    try:
+        data = json.loads(active_wf.read_text(encoding="utf-8"))
+        workflow = data["workflow"]
+        version = data["version"]
+        if not isinstance(workflow, str) or not isinstance(version, str):
+            return "unknown"
+        return f"{workflow}@{version}"
+    except Exception:
+        return "unknown"
+
+
+def _read_carry_forward(scope: "Scope") -> list[dict]:
+    """
+    Read approved_carry_forward from the variant manifest.json.
+
+    Path: .genesis/workflows/{pkg}/{variant}/{version}/manifest.json
+    where workflow "genesis_sdlc.standard@0.2.0" → pkg="genesis_sdlc",
+    variant="standard", version="0.2.0".
+
+    Returns [] if workflow_version is "unknown", file absent, or key missing.
+    """
+    if scope.workflow_version == "unknown":
+        return []
+    workflow, version = scope.workflow_version.split("@", 1)
+    parts = workflow.split(".", 1)
+    pkg_name = parts[0]
+    variant = parts[1] if len(parts) > 1 else "default"
+    version_dir = "v" + version.replace(".", "_")
+    manifest_path = (
+        scope.workspace_root / ".genesis" / "workflows"
+        / pkg_name / variant / version_dir / "manifest.json"
+    )
+    try:
+        data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        cf = data.get("approved_carry_forward", [])
+        return cf if isinstance(cf, list) else []
+    except Exception:
+        return []
 
 
 # ── Scope ─────────────────────────────────────────────────────────────────────
@@ -47,6 +102,10 @@ class Scope:
         _resolve_worker() falls back to the genesis self-hosting spec import
         (V1 CLI convenience; remove in V2 — callers should always supply worker).
 
+    workflow_version: read from .genesis/active-workflow.json at construction.
+        "{workflow}@{version}" when file present and valid; "unknown" otherwise.
+        When "unknown", all provenance behaviour is bypassed for full backward compat.
+
     V1: build is always "claude_code". Multi-tenant deferred to V2.
     """
     package: Package
@@ -55,6 +114,10 @@ class Scope:
     edge: Optional[str] = None        # edge name override (None = topological)
     build: str = "claude_code"
     worker: Optional[Worker] = None   # explicit worker; None = spec-import fallback
+    workflow_version: str = field(init=False, default="unknown")
+
+    def __post_init__(self) -> None:
+        self.workflow_version = _read_workflow_version(self.workspace_root)
 
 
 # ── gen_gaps — bind_fd over scope ─────────────────────────────────────────────
@@ -68,6 +131,7 @@ def gen_gaps(scope: Scope, stream: EventStream) -> dict:
 
     Returns: jobs considered, failing evaluators per job, total delta.
     """
+    stream.workflow_version = scope.workflow_version
     resolver = ContextResolver(scope.workspace_root)
     worker = _resolve_worker(scope)
     jobs = _scoped_jobs(scope, worker)
@@ -90,11 +154,23 @@ def gen_gaps(scope: Scope, stream: EventStream) -> dict:
         and e.get("data", {}).get("target")
     }
 
-    spec_hash = req_hash(scope.package.requirements)
+    carry_forward = _read_carry_forward(scope)
 
     results = []
     for job in jobs:
-        pre = bind_fd(job, stream, resolver, scope.workspace_root, spec_hash=spec_hash)
+        # Orphan tolerance: events referencing edges not in scope.jobs are
+        # silently ignored. This is the mechanism that allows graph evolution
+        # without event stream migration.
+        if scope.workflow_version == "unknown":
+            spec_hash = req_hash(scope.package.requirements)
+        else:
+            spec_hash = job_evaluator_hash(job)
+        pre = bind_fd(
+            job, stream, resolver, scope.workspace_root,
+            spec_hash=spec_hash,
+            current_workflow_version=scope.workflow_version,
+            carry_forward=carry_forward,
+        )
         results.append({
             "edge": job.edge.name,
             "delta": pre.delta,
@@ -145,6 +221,7 @@ def gen_iterate(
     The most important command to keep pure.
     One Job. One Asset. One iterate call.
     """
+    stream.workflow_version = scope.workflow_version
     resolver = ContextResolver(scope.workspace_root)
     worker = _resolve_worker(scope)
     jobs = _scoped_jobs(scope, worker)
@@ -152,13 +229,22 @@ def gen_iterate(
     if not jobs:
         return {"status": "nothing_to_do", "reason": "no jobs in scope"}
 
-    spec_hash = req_hash(scope.package.requirements)
+    carry_forward = _read_carry_forward(scope)
 
     # Select the first unconverged job in topological order
     selected_job = None
     selected_pre = None
     for job in jobs:
-        pre = bind_fd(job, stream, resolver, scope.workspace_root, spec_hash=spec_hash)
+        if scope.workflow_version == "unknown":
+            spec_hash = req_hash(scope.package.requirements)
+        else:
+            spec_hash = job_evaluator_hash(job)
+        pre = bind_fd(
+            job, stream, resolver, scope.workspace_root,
+            spec_hash=spec_hash,
+            current_workflow_version=scope.workflow_version,
+            carry_forward=carry_forward,
+        )
         if pre.has_gap:
             selected_job = job
             selected_pre = pre
@@ -336,11 +422,20 @@ def _derive_state(scope: Scope, stream: EventStream) -> dict:
     if not jobs:
         return {"status": "nothing_to_do", "reason": "no jobs in scope"}
 
-    spec_hash = req_hash(scope.package.requirements)
+    carry_forward = _read_carry_forward(scope)
 
     total_delta = 0
     for job in jobs:
-        pre = bind_fd(job, stream, resolver, scope.workspace_root, spec_hash=spec_hash)
+        if scope.workflow_version == "unknown":
+            spec_hash = req_hash(scope.package.requirements)
+        else:
+            spec_hash = job_evaluator_hash(job)
+        pre = bind_fd(
+            job, stream, resolver, scope.workspace_root,
+            spec_hash=spec_hash,
+            current_workflow_version=scope.workflow_version,
+            carry_forward=carry_forward,
+        )
         total_delta += pre.delta
 
     if total_delta == 0:

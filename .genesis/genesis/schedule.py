@@ -5,6 +5,7 @@
 # Implements: REQ-F-GATE-001
 # Implements: REQ-F-GATE-002
 # Implements: REQ-F-EVAL-002
+# Implements: REQ-F-PROV-004
 """
 schedule — delta, iterate, schedule.
 
@@ -28,7 +29,7 @@ from typing import Callable, Optional
 
 from gtl.core import Evaluator, F_D, F_H, F_P, Job, Worker, WorkingSurface
 
-from .bind import bind_fd, req_hash, run_fd_evaluator
+from .bind import bind_fd, bind_fh, req_hash, run_fd_evaluator
 from .core import EventStream, project
 from .manifest import BoundJob
 
@@ -40,6 +41,8 @@ def delta(
     stream: EventStream,
     workspace_root: Path,
     spec_hash: str | None = None,
+    current_workflow_version: str = "unknown",
+    carry_forward: list[dict] | None = None,
 ) -> float:
     """
     0.0 = converged. > 0.0 = work needed.
@@ -68,12 +71,10 @@ def delta(
                 failing += 1
 
         elif ev.category is F_H:
-            approved = any(
-                e.get("event_type") == "review_approved"
-                and e.get("data", {}).get("edge") == job.edge.name
-                for e in events
-            )
-            if not approved:
+            # Orphan tolerance: events referencing edges not in scope.jobs are
+            # silently ignored. This is the mechanism that allows graph evolution
+            # without event stream migration.
+            if not bind_fh(job, events, current_workflow_version, carry_forward):
                 failing += 1
 
         elif ev.category is F_P:

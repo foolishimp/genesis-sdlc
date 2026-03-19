@@ -1,6 +1,8 @@
 # Implements: REQ-F-CORE-004
 # Implements: REQ-F-EVAL-002
 # Implements: REQ-F-BIND-001
+# Implements: REQ-F-PROV-003
+# Implements: REQ-F-PROV-004
 """
 bind — F_D pre-computation: bind_fd, bind_fp, select_relevant_contexts,
        render_delta.
@@ -16,6 +18,7 @@ from __future__ import annotations
 import hashlib
 import json as _json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -33,12 +36,78 @@ def req_hash(requirements: list[str]) -> str:
     """
     Compute a stable hash of Package.requirements.
 
-    Used to detect spec evolution: any fp_assessment emitted against a different
-    requirements list is stale and must not contribute to convergence.
+    Deprecated: used only when scope.workflow_version == "unknown" (no active-workflow.json).
+    New code should use job_evaluator_hash(job) instead. Kept for backward compatibility
+    with workspaces that have not yet activated workflow provenance.
     """
     return hashlib.sha256(
         _json.dumps(sorted(requirements)).encode()
     ).hexdigest()[:16]
+
+
+def job_evaluator_hash(job: Job) -> str:
+    """
+    Hash of all evaluator definitions on this job.
+
+    Covers F_D (command), F_P/F_H (description), and name+category for all.
+    Changing any evaluator field on the job changes this hash.
+
+    Used as spec_hash when scope.workflow_version != "unknown". Replaces req_hash
+    for workspaces with active-workflow.json present (REQ-F-PROV-003).
+    """
+    lines = sorted(
+        f"{ev.name}:{ev.category.__name__}:{ev.command}:{ev.description}"
+        for ev in job.evaluators
+    )
+    raw = "\n".join(re.sub(r'\s+', ' ', line.strip()) for line in lines)
+    return hashlib.sha256(raw.encode()).hexdigest()[:16]
+
+
+def bind_fh(
+    job: Job,
+    all_events: list[dict],
+    current_workflow_version: str = "unknown",
+    carry_forward: list[dict] | None = None,
+) -> bool:
+    """
+    Evaluate whether the F_H gate for this job's edge is satisfied.
+
+    When current_workflow_version == "unknown":
+      Accept any review_approved matching edge name alone (full backward compat).
+
+    When current_workflow_version != "unknown":
+      Accept only if:
+        Condition A — event.data.workflow_version == current_workflow_version, OR
+        Condition B — edge in carry_forward with event.data.workflow_version == from_version
+
+    Pre-provenance events (no workflow_version field) return None from
+    event.data.get("workflow_version"), which satisfies neither condition.
+
+    Default arguments preserve all existing call sites without modification.
+    """
+    if carry_forward is None:
+        carry_forward = []
+
+    for e in all_events:
+        if (
+            e.get("event_type") == "review_approved"
+            and e.get("data", {}).get("edge") == job.edge.name
+        ):
+            if current_workflow_version == "unknown":
+                return True
+
+            ev_wv = e.get("data", {}).get("workflow_version")
+
+            # Condition A: exact version match
+            if ev_wv == current_workflow_version:
+                return True
+
+            # Condition B: carry-forward — edge declared, from_version matches event
+            for cf in carry_forward:
+                if cf.get("edge") == job.edge.name and cf.get("from_version") == ev_wv:
+                    return True
+
+    return False
 
 
 # ── F_D evaluator runner ──────────────────────────────────────────────────────
@@ -109,6 +178,8 @@ def bind_fd(
     resolver: ContextResolver,
     workspace_root: Path,
     spec_hash: str | None = None,
+    current_workflow_version: str = "unknown",
+    carry_forward: list[dict] | None = None,
 ) -> PrecomputedManifest:
     """
     F_D pre-computation phase. Everything computable without an LLM.
@@ -136,12 +207,7 @@ def bind_fd(
         if ev.category is F_D:
             return fd_results.get(ev.name, {}).get("passes", False)
         if ev.category is F_H:
-            # Resolved if review_approved event exists for this edge
-            return any(
-                e.get("event_type") == "review_approved"
-                and e.get("data", {}).get("edge") == job.edge.name
-                for e in all_events
-            )
+            return bind_fh(job, all_events, current_workflow_version, carry_forward)
         if ev.category is F_P:
             # Resolved if fp_assessment with result=pass exists for this evaluator+edge
             # AND the assessment was emitted against the current spec (spec_hash match).

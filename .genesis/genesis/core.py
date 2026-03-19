@@ -3,6 +3,7 @@
 # Implements: REQ-F-CORE-003
 # Implements: REQ-F-CORE-005
 # Implements: REQ-F-EVAL-005
+# Implements: REQ-F-PROV-002
 """
 core — substrate functions: emit, project, EventStream, ContextResolver,
        workspace_bootstrap.
@@ -38,6 +39,7 @@ class EventStream:
 
     def __init__(self, path: Path) -> None:
         self.path = path
+        self.workflow_version: str = "unknown"
 
     @classmethod
     def open(cls, workspace: Path) -> "EventStream":
@@ -52,10 +54,13 @@ class EventStream:
         event_time is assigned from the system clock — not from the caller.
         Business times (effective_at, completed_at) live in data.
         """
+        record_data = {**data}
+        if self.workflow_version != "unknown":
+            record_data.setdefault("workflow_version", self.workflow_version)
         record = {
             "event_time": datetime.now(timezone.utc).isoformat(),
             "event_type": event_type,
-            "data": data,
+            "data": record_data,
         }
         with self.path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(record) + "\n")

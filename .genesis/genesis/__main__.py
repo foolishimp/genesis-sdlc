@@ -8,6 +8,7 @@
 # Implements: REQ-F-EVAL-003
 # Implements: REQ-F-EVAL-004
 # Implements: REQ-F-DOCS-001
+# Implements: REQ-F-PROV-002
 """
 __main__ — CLI entry point for the genesis engine.
 
@@ -306,6 +307,8 @@ def _emit_event_cmd(event_type: str, data_json: str, workspace: Path) -> int:
     import json as _json
     from datetime import datetime, timezone
 
+    from genesis.commands import _read_workflow_version
+
     try:
         data = _json.loads(data_json)
     except _json.JSONDecodeError as exc:
@@ -335,6 +338,10 @@ def _emit_event_cmd(event_type: str, data_json: str, workspace: Path) -> int:
         for msg in errors:
             print(f"ERROR: {msg}", file=sys.stderr)
         return 1
+
+    # Annotate workflow_version from active-workflow.json (REQ-F-PROV-002).
+    # Reads the file directly — emit-event runs pre-stack without a Scope object.
+    data["workflow_version"] = _read_workflow_version(workspace)
 
     events_dir = workspace / ".ai-workspace" / "events"
     events_dir.mkdir(parents=True, exist_ok=True)
