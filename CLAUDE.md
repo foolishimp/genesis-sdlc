@@ -90,6 +90,20 @@ Constraints restrict which transformations exist, limit composability, induce st
 | **Evaluators** | Convergence test — when is iteration done |
 | **Spec + Context** | Constraint surface — what bounds construction |
 
+These primitives are realised as GTL types in `gtl/core.py`:
+
+| GTL Type | Primitive | What it represents |
+|----------|-----------|-------------------|
+| **Package** | Graph | A complete graph definition — assets, edges, operators, rules, contexts, requirements |
+| **Asset** | Graph | A typed node with markov stability conditions |
+| **Edge** | Graph | An admissible transition between assets |
+| **Job** | Iterate | An Edge bound to its Evaluator list — the unit of iteration |
+| **Worker** | Iterate | An execution agent that can process Jobs |
+| **Evaluator** | Evaluators | A convergence test — F_D, F_P, or F_H |
+| **Operator** | Iterate | A named execution capability (agent, human gate, CLI command) |
+| **Rule** | Evaluators | A consensus/approval policy for an edge |
+| **Context** | Spec + Context | A constraint document loaded into the agent prompt |
+
 Everything else — stages, agents, TDD, BDD, commands, configurations, event schemas — is parameterisation of these four for specific graph edges. They are emergence, not the methodology.
 
 **The graph is not universal.** Any particular graph is one domain-specific instantiation. The four primitives are universal; the graph is parameterised.

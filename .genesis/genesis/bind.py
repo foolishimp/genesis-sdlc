@@ -201,8 +201,8 @@ def run_fd_evaluator(
             "status": "timeout",
             "reason": (
                 f"F_D evaluator {ev.name!r} exceeded {FD_TIMEOUT_SECONDS}s wall-clock limit. "
-                "Check that the command is acyclic (does not invoke genesis subcommands) "
-                "and uses -m 'not e2e' if running pytest."
+                "Check that the command does not re-enter orchestration (start/iterate/gaps/emit-event) "
+                "and excludes long-running test suites."
             ),
         }
     return result.returncode == 0, {
@@ -280,6 +280,10 @@ def bind_fd(
         except NotImplementedError as exc:
             # Unimplemented V1 scheme (git://, event://, registry://) — degrade gracefully
             resolved[ctx.name] = f"[context unavailable: {exc}]"
+        except FileNotFoundError as exc:
+            # Missing context file — report as gap signal, not fatal error.
+            # The F_P prompt will see the gap and the operator can fix it.
+            resolved[ctx.name] = f"[context not found: {exc}]"
         # REQ-F-BIND-001: ValueError (digest mismatch, unknown scheme) propagates as fatal.
         # A digest mismatch is a replay-integrity violation — the constraint surface has
         # changed and the engine must not continue dispatching F_P against a corrupted context.

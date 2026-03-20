@@ -106,7 +106,7 @@ class Scope:
         "{workflow}@{version}" when file present and valid; "unknown" otherwise.
         When "unknown", provenance checks are bypassed (no active-workflow.json present).
 
-    V1: build is always "claude_code". Multi-tenant deferred to V2.
+    Build identifier is build-layer specific. This Claude Code build defaults to "claude_code".
     """
     package: Package
     workspace_root: Path

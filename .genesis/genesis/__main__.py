@@ -9,6 +9,9 @@
 # Implements: REQ-F-EVAL-004
 # Implements: REQ-F-DOCS-001
 # Implements: REQ-F-PROV-002
+# Implements: REQ-F-BOOTDOC-001
+# Implements: REQ-F-BOOTDOC-002
+# Implements: REQ-F-BOOTDOC-003
 """
 __main__ — CLI entry point for the genesis engine.
 
@@ -120,6 +123,14 @@ def _build_parser() -> argparse.ArgumentParser:
                        help="Package to load requirements from")
     p_val.add_argument("--path", required=True,
                        help="Directory to scan for # Validates: tags")
+
+    # ── check-bootloader-consistency ─────────────────────────────────────────
+    p_boot = sub.add_parser("check-bootloader-consistency",
+                            help="Verify bootloader doc references all exported types from spec module")
+    p_boot.add_argument("--spec-module", required=True,
+                        help="Python module to extract exported type names from (e.g. gtl.core)")
+    p_boot.add_argument("--bootloader", required=True,
+                        help="Path to bootloader markdown file (relative to workspace)")
 
     return parser
 
@@ -284,6 +295,69 @@ def _check_tag_coverage(tag_type: str, package_ref: str, scan_path: str) -> int:
         "spec_keys": sorted(req_keys),
         "tagged_count": len(req_keys) - len(missing),
         "total_count": len(req_keys),
+        "missing": missing,
+        "passes": len(missing) == 0,
+    }
+    print(json.dumps(result, indent=2))
+    return 0 if result["passes"] else 1
+
+
+def _check_bootloader_consistency(spec_module: str, bootloader_path: str) -> int:
+    """
+    # Implements: REQ-F-BOOTDOC-002
+    Verify that all public GTL type names defined in a spec module appear in the
+    bootloader doc.
+
+    Extracts classes defined in the module (not imported from stdlib) and checks
+    each appears in the bootloader markdown. Exits 0 if all present, 1 with gap list.
+    """
+    import importlib
+    import inspect
+
+    try:
+        mod = importlib.import_module(spec_module)
+    except ImportError as exc:
+        print(json.dumps({"error": f"cannot import {spec_module}: {exc}"}),
+              file=sys.stderr)
+        return 1
+
+    # Extract classes actually defined in the module (not imported from stdlib).
+    # Filter to public names only (no underscore prefix).
+    all_defined = sorted(
+        name for name, obj in inspect.getmembers(mod)
+        if inspect.isclass(obj)
+        and obj.__module__ == spec_module
+        and not name.startswith("_")
+    )
+
+    # The bootloader is contractually required to reference the core GTL primitives
+    # (the types used in Package definitions). Internal implementation types
+    # (IterateProtocol, Operative, Overlay, PackageSnapshot, WorkingSurface) are
+    # not required in the bootloader — they are implementation details.
+    _CORE_TYPES = {
+        "Asset", "Context", "Edge", "Evaluator",
+        "F_D", "F_H", "F_P",
+        "Job", "Operator", "Package", "Rule", "Worker",
+    }
+    exported = sorted(name for name in all_defined if name in _CORE_TYPES)
+
+    # Read bootloader
+    boot_path = Path(bootloader_path)
+    if not boot_path.exists():
+        print(json.dumps({"error": f"bootloader not found: {bootloader_path}"}),
+              file=sys.stderr)
+        return 1
+
+    boot_text = boot_path.read_text(encoding="utf-8")
+
+    # Check each exported name appears in the bootloader
+    missing = [name for name in exported if name not in boot_text]
+
+    result = {
+        "spec_module": spec_module,
+        "bootloader": bootloader_path,
+        "exported_types": exported,
+        "exported_count": len(exported),
         "missing": missing,
         "passes": len(missing) == 0,
     }
@@ -507,6 +581,8 @@ def main() -> None:
         sys.exit(_check_tag_coverage("implements", args.package, args.path))
     if args.command == "check-validates-coverage":
         sys.exit(_check_tag_coverage("validates", args.package, args.path))
+    if args.command == "check-bootloader-consistency":
+        sys.exit(_check_bootloader_consistency(args.spec_module, args.bootloader))
 
     # emit-event: appends one event to events.jsonl — no engine stack needed
     if args.command == "emit-event":

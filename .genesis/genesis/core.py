@@ -259,13 +259,15 @@ class ContextResolver:
                     parts.append(f.read_text(encoding="utf-8"))
                     parts.append("")
             if not parts:
-                return f"[directory {path} exists but contains no readable files]"
+                raise FileNotFoundError(
+                    f"Context directory exists but contains no readable files: {path}"
+                )
             return "\n".join(parts)
 
         if path.is_file():
             return path.read_text(encoding="utf-8")
 
-        return f"[context not found: {path}]"
+        raise FileNotFoundError(f"Required context not found: {path}")
 
     def _load_git(self, locator: str) -> str:
         raise NotImplementedError(
