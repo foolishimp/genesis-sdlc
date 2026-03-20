@@ -70,7 +70,7 @@ this_spec = Context(
 
 intent_doc = Context(
     name="intent",
-    locator="workspace://INTENT.md",
+    locator="workspace://specification/INTENT.md",
     digest="sha256:" + "0" * 64,
 )
 

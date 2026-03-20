@@ -21,8 +21,8 @@ genesis_sdlc depends on abiogenesis (the GTL engine) and is built using it.
 The engine lives at .genesis/genesis/; run as:
     PYTHONPATH=.genesis python -m genesis <command> --workspace .
 
-No separate requirements document. REQ keys emerge from this Package
-and are traced through feature vectors in .ai-workspace/features/.
+specification/ provides human-readable descriptions and acceptance criteria
+for each REQ key registered in this Package.
 """
 from gtl.core import (
     Package, Asset, Edge, Operator, Rule, Context, Evaluator, Job, Worker,
@@ -49,7 +49,7 @@ this_spec = Context(
 
 intent_doc = Context(
     name="intent",
-    locator="workspace://INTENT.md",
+    locator="workspace://specification/INTENT.md",
     digest="sha256:" + "0" * 64,   # PENDING — written at intent edge
 )
 
