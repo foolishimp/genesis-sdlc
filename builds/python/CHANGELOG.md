@@ -2,6 +2,22 @@
 
 ---
 
+## v0.4.0 — 2026-03-20
+
+**Bootloader**: v3.1.0
+**Spec hash**: `46cba2dcd3660307`
+**Test results**: 138 passed, 0 failed
+
+### Changed
+- **Event schema**: `fp_assessment` → `assessed{kind: fp}`, `review_approved` → `approved{kind: fh_review}`, `review_rejected` → `assessed{kind: fh_review, result: reject}` — EC prime operator alignment
+- Bootloader §XIX updated with new event names (v3.0.2 → v3.1.0)
+- Migration function `_migrate_provenance()` now re-emits with new event types (scan logic still reads old names)
+- All command sources (gen-iterate, gen-review) updated; gen-start updated in abiogenesis v0.2.1
+
+**REQ keys added**: none
+
+---
+
 ## v0.3.0 — 2026-03-20
 
 **Bootloader**: v3.0.2

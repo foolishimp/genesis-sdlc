@@ -4,7 +4,7 @@ genesis_sdlc — AI-augmented SDLC toolkit built on abiogenesis.
 
 Provides the standard SDLC bootstrap graph as an importable GTL Package.
 """
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 from genesis_sdlc.sdlc_graph import package, worker
 

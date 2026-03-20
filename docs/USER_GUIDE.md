@@ -1,7 +1,7 @@
 # genesis_sdlc User Guide
 
 **Author**: Dimitar Popov
-**Version**: 0.3.0
+**Version**: 0.4.0
 **GTL version**: 0.3.0
 
 ---
@@ -45,7 +45,7 @@ Every evaluator belongs to one of three kinds:
 |------|--------|----------------|-------------|
 | **Deterministic test** | `F_D` | Scripts, test suites, tag coverage — anything with a binary result | The command exits 0 |
 | **Agent assessment** | `F_P` | LLM judgment — does this output satisfy the spec? | An agent records a passing assessment in the event log |
-| **Human approval** | `F_H` | Explicit sign-off at spec/design boundaries | A `review_approved` event exists for this edge |
+| **Human approval** | `F_H` | Explicit sign-off at spec/design boundaries | An `approved{kind: fh_review}` event exists for this edge |
 
 The engine runs deterministic tests first. Agent assessment only runs when all deterministic tests pass. Human approval only runs when agent assessment passes.
 
@@ -247,18 +247,18 @@ Surfaces a candidate for human approval at an F_H gate.
 gen review --feature REQ-F-GRAPH-001 --workspace .
 ```
 
-After reviewing, approve by emitting a `review_approved` event:
+After reviewing, approve by emitting an `approved` event:
 
 ```json
-{"event_type": "review_approved", "event_time": "...", "data": {"edge": "intent→requirements", "actor": "human"}}
+{"event_type": "approved", "event_time": "...", "data": {"kind": "fh_review", "edge": "intent→requirements", "actor": "human"}}
 ```
 
 Or via the engine CLI:
 
 ```bash
 PYTHONPATH=.genesis python -m genesis emit-event \
-    --type review_approved \
-    --data '{"edge": "intent→requirements", "actor": "human"}'
+    --type approved \
+    --data '{"kind": "fh_review", "edge": "intent→requirements", "actor": "human"}'
 ```
 
 ### `gen status`
@@ -375,9 +375,9 @@ gen iterate --workspace .
 tail -5 .ai-workspace/events/events.jsonl
 
 # 4. Respond to what the engine reported
-#    fd_gap_found    → fix the deterministic failure, then return to step 1
+#    fd_gap          → fix the deterministic failure, then return to step 1
 #    fp_dispatched   → do the agent work, record the assessment, then return to step 1
-#    fh_gate_pending → review and emit review_approved, then return to step 1
+#    fh_gate_pending → review and emit approved{kind: fh_review}, then return to step 1
 
 # 5. Confirm delta dropped
 gen gaps --workspace .
@@ -387,11 +387,11 @@ The workspace is done when `gen gaps` reports `converged: true` and `total_delta
 
 ### Responding to each stop reason
 
-**`fd_gap_found`** — a deterministic test failed. Read the failing evaluator name in the output, find the command in the spec (`gtl_spec/packages/genesis_sdlc.py`), run it manually to see the error, fix the artifact, and re-run.
+**`fd_gap`** — a deterministic test failed. Read the failing evaluator name in the output, find the command in the spec (`gtl_spec/packages/genesis_sdlc.py`), run it manually to see the error, fix the artifact, and re-run.
 
 **`fp_dispatched`** — an agent assessment evaluator fired. The engine emitted an `fp_dispatched` event and stopped. An agent (Claude, Codex) reads this event, does the work, and records the result. `gen iterate` does not invoke the agent directly — the agent invokes the engine. This separation keeps the engine deterministic.
 
-**`fh_gate_pending`** — a human approval evaluator is waiting. Review the candidate artifact, then emit a `review_approved` event (see §4 `gen review`).
+**`fh_gate_pending`** — a human approval evaluator is waiting. Review the candidate artifact, then emit an `approved{kind: fh_review}` event (see §4 `gen review`).
 
 ---
 
@@ -506,7 +506,7 @@ eval_design_fh = Evaluator(
 )
 ```
 
-The F_H evaluator passes when a `review_approved` event exists in the event log for this edge.
+The F_H evaluator passes when an `approved{kind: fh_review}` event exists in the event log for this edge.
 
 ### Updating the Package requirements list
 
@@ -563,10 +563,10 @@ When an F_P evaluator fires, `gen iterate` emits an `fp_dispatched` event and st
 
 ### Human approval requires a manual event
 
-To clear an F_H gate, emit a `review_approved` event into the event log:
+To clear an F_H gate, emit an `approved` event into the event log:
 
 ```json
-{"event_type": "review_approved", "event_time": "...", "data": {"edge": "intent→requirements", "actor": "human"}}
+{"event_type": "approved", "event_time": "...", "data": {"kind": "fh_review", "edge": "intent→requirements", "actor": "human"}}
 ```
 
 Once this event exists, the F_H evaluator passes on the next `gen gaps` or `gen iterate` call.

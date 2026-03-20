@@ -37,8 +37,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-VERSION = "0.3.0"
-BOOTLOADER_VERSION = "3.0.2"  # matches **Version**: in gtl_spec/GENESIS_BOOTLOADER.md
+VERSION = "0.4.0"
+BOOTLOADER_VERSION = "3.1.0"  # matches **Version**: in gtl_spec/GENESIS_BOOTLOADER.md
 
 # Commands inherited from the abiogenesis engine plugin.
 ABIOGENESIS_COMMANDS = [
@@ -563,12 +563,12 @@ def _emit_workflow_activated_event(target: Path, previous_version: str | None) -
 
 def _migrate_provenance(target: Path) -> dict:
     """
-    One-time provenance migration: re-emit passing fp_assessments with job_evaluator_hash
-    spec_hash, and review_approved events with workflow_version.
+    One-time provenance migration: scan for old fp_assessment/review_approved events and
+    re-emit as assessed{kind: fp}/approved{kind: fh_review} with spec_hash and workflow_version.
 
-    Called on first activation when upgrading from old "genesis_sdlc" workflow naming.
+    Called on first activation when upgrading from old event naming.
     Only the most-recent passing assessment per (edge, evaluator) is migrated.
-    Only the most-recent review_approved per edge is migrated.
+    Only the most-recent approval per edge is migrated.
     """
     import hashlib as _hashlib
     import importlib
@@ -705,14 +705,14 @@ def _migrate_provenance(target: Path) -> dict:
                 "migrated_from": orig.get("event_time"),
                 "actor": "migration",
             }
-            f.write(json.dumps({"event_type": "fp_assessment", "event_time": now, "data": data}) + "\n")
+            f.write(json.dumps({"event_type": "assessed", "event_time": now, "data": {**data, "kind": "fp"}}) + "\n")
             migrated_fp += 1
 
         for edge, orig in fh_seen.items():
             data = dict(orig.get("data", {}))
             data["workflow_version"] = workflow_version
             data["migrated_from"] = orig.get("event_time")
-            f.write(json.dumps({"event_type": "review_approved", "event_time": now, "data": data}) + "\n")
+            f.write(json.dumps({"event_type": "approved", "event_time": now, "data": {**data, "kind": "fh_review"}}) + "\n")
             migrated_fh += 1
 
     for _p in added_project_paths:

@@ -46,7 +46,7 @@ Call `mcp__claude-code-runner__claude_code` with:
 
 The actor writes its assessment JSON to `manifest["result_path"]`.
 
-**After MCP returns**, the skill reads `result_path` and emits `fp_assessment` for each
+**After MCP returns**, the skill reads `result_path` and emits `assessed` for each
 passing evaluator (F_P actors do NOT call emit-event — the skill is the F_D-controlled
 write path per GENESIS_BOOTLOADER §V):
 
@@ -55,8 +55,8 @@ result = read_json(manifest["result_path"])   # {edge, assessments: [{evaluator,
 for assessment in result["assessments"]:
   if assessment["result"] == "pass":
     PYTHONPATH=.genesis python -m genesis emit-event \
-      --type fp_assessment \
-      --data '{"edge": "{edge}", "evaluator": "{evaluator}", "result": "pass"}'
+      --type assessed \
+      --data '{"kind": "fp", "edge": "{edge}", "evaluator": "{evaluator}", "result": "pass"}'
 ```
 
 Go to Step 1.
@@ -64,7 +64,7 @@ Go to Step 1.
 **Step 4 — fd_gap (exit code 4 only)**
 
 F_D checks are still failing after F_P construction was resolved. The F_P actor already
-wrote its assessment (fp_assessment pass event exists in the stream) but the deterministic
+wrote its assessment (assessed pass event exists in the stream) but the deterministic
 checks still fail. This is a construction quality problem — do NOT re-dispatch F_P.
 
 Surface the F_D failures verbatim from `output["failing_evaluators"]` and the delta summary.
@@ -75,11 +75,11 @@ Stop. The operator must inspect and fix the underlying deterministic failure bef
 Surface the gate output to the user verbatim.
 
 **Standard path**: Wait for human decision.
-- On approval: emit `review_approved` event, then go to Step 1:
+- On approval: emit `approved` event, then go to Step 1:
   ```bash
   PYTHONPATH=.genesis python -m genesis emit-event \
-    --type review_approved \
-    --data '{"feature": "{F}", "edge": "{E}", "actor": "human"}'
+    --type approved \
+    --data '{"kind": "fh_review", "feature": "{F}", "edge": "{E}", "actor": "human"}'
   ```
 - On rejection: stop. Report to user.
 
@@ -106,10 +106,10 @@ Surface the gate output to the user verbatim.
 5. On approval: emit event, then go to Step 1:
    ```bash
    PYTHONPATH=.genesis python -m genesis emit-event \
-     --type review_approved \
-     --data '{"feature": "{F}", "edge": "{E}", "actor": "human-proxy", "proxy_log": "{path}"}'
+     --type approved \
+     --data '{"kind": "fh_review", "feature": "{F}", "edge": "{E}", "actor": "human-proxy", "proxy_log": "{path}"}'
    ```
-6. On rejection: emit `review_rejected` with `actor: "human-proxy"`. Stop. Do not retry
+6. On rejection: emit `assessed` with `kind: fh_review, result: reject, actor: "human-proxy"`. Stop. Do not retry
    this edge in the same session.
 
 ## Edge-Specific Constraints

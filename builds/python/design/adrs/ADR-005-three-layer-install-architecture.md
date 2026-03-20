@@ -18,7 +18,7 @@
 
 The installation architecture is the foundation that makes this possible in any downstream project. A broken install — one that conflates the frozen methodology with the mutable project spec — undermines traceability from the first `gen-start`. INT-001 implicitly requires install correctness.
 
-**INT-002** (module_decomp) exposed the defect. Editing `gtl_spec/packages/genesis_sdlc.py` to add `module_decomp` immediately changed the live graph the v0.1.6 runner was evaluating. The `spec_hash` changed, old `fp_assessment` events became stale, and the `design→code` edge disappeared from the live evaluation. This is what a conflated spec/development surface looks like in practice.
+**INT-002** (module_decomp) exposed the defect. Editing `gtl_spec/packages/genesis_sdlc.py` to add `module_decomp` immediately changed the live graph the v0.1.6 runner was evaluating. The `spec_hash` changed, old `assessed{kind: fp}` events became stale, and the `design→code` edge disappeared from the live evaluation. This is what a conflated spec/development surface looks like in practice.
 
 **REQ-F-BOOT-001** requires `gen-install` to bootstrap `.genesis/` into a target project.
 **REQ-F-BOOT-002** requires `genesis.yml` to resolve Package/Worker from the spec.

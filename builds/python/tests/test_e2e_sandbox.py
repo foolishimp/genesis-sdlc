@@ -403,13 +403,14 @@ class TestReqCoverage:
 
 @pytest.mark.e2e
 class TestHumanProxyGate:
-    """Verify F_H gate mechanics: review_approved event carries correct actor field."""
+    """Verify F_H gate mechanics: approved event carries correct actor field."""
 
-    def test_emit_review_approved_with_human_actor(self, sandbox):
+    def test_emit_approved_with_human_actor(self, sandbox):
         run_genesis(
             sandbox, "emit-event",
-            "--type", "review_approved",
+            "--type", "approved",
             "--data", json.dumps({
+                "kind": "fh_review",
                 "feature": "TEST-GATE-001",
                 "edge": "intent→requirements",
                 "actor": "human",
@@ -417,14 +418,15 @@ class TestHumanProxyGate:
             check=True,
         )
         evts = events(sandbox)
-        approvals = [e for e in evts if e["event_type"] == "review_approved"]
+        approvals = [e for e in evts if e["event_type"] == "approved"]
         assert any(e["data"].get("actor") == "human" for e in approvals)
 
-    def test_emit_review_approved_with_proxy_actor(self, sandbox):
+    def test_emit_approved_with_proxy_actor(self, sandbox):
         run_genesis(
             sandbox, "emit-event",
-            "--type", "review_approved",
+            "--type", "approved",
             "--data", json.dumps({
+                "kind": "fh_review",
                 "feature": "TEST-GATE-001",
                 "edge": "requirements→feature_decomp",
                 "actor": "human-proxy",
@@ -433,16 +435,16 @@ class TestHumanProxyGate:
             check=True,
         )
         evts = events(sandbox)
-        approvals = [e for e in evts if e["event_type"] == "review_approved"]
+        approvals = [e for e in evts if e["event_type"] == "approved"]
         assert any(e["data"].get("actor") == "human-proxy" for e in approvals)
 
     def test_actor_field_is_never_absent(self, sandbox):
-        """Every review_approved event in the stream must carry an actor field."""
+        """Every approved event in the stream must carry an actor field."""
         evts = events(sandbox)
-        approvals = [e for e in evts if e["event_type"] == "review_approved"]
+        approvals = [e for e in evts if e["event_type"] == "approved"]
         for evt in approvals:
             assert "actor" in evt["data"], (
-                f"review_approved event missing actor field: {evt}"
+                f"approved event missing actor field: {evt}"
             )
 
 

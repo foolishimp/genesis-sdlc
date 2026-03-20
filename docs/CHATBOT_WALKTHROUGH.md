@@ -176,8 +176,8 @@ Emit the approval:
 
 ```bash
 PYTHONPATH=.genesis python -m genesis emit-event \
-    --type review_approved \
-    --data '{"edge": "intent→requirements", "actor": "human"}'
+    --type approved \
+    --data '{"kind": "fh_review", "edge": "intent→requirements", "actor": "human"}'
 ```
 
 Run `gen gaps` again:
@@ -232,8 +232,8 @@ Approve the requirements:
 
 ```bash
 PYTHONPATH=.genesis python -m genesis emit-event \
-    --type review_approved \
-    --data '{"edge": "requirements→feature_decomp", "actor": "human"}'
+    --type approved \
+    --data '{"kind": "fh_review", "edge": "requirements→feature_decomp", "actor": "human"}'
 ```
 
 ---
@@ -317,8 +317,8 @@ Approve the decomposition:
 
 ```bash
 PYTHONPATH=.genesis python -m genesis emit-event \
-    --type review_approved \
-    --data '{"edge": "requirements→feature_decomp", "actor": "human"}'
+    --type approved \
+    --data '{"kind": "fh_review", "edge": "requirements→feature_decomp", "actor": "human"}'
 ```
 
 ---

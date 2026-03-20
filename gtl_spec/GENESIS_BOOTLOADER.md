@@ -1,6 +1,6 @@
 # Genesis Bootloader: LLM Constraint Context for the AI SDLC
 
-**Version**: 3.0.2
+**Version**: 3.1.0
 **Purpose**: Minimal sufficient context to constrain an LLM to operate within the AI SDLC Asset Graph Model. Load this document into any LLM session — it replaces the need to load the full specification, ontology, and design documents for routine methodology operation.
 
 ---
@@ -418,7 +418,7 @@ The `.ai-workspace/` directory is partitioned by agent identity. Violating these
 | `comments/codex/` | Codex only | Same exclusivity — Claude must not write here. |
 | `comments/gemini/` | Gemini only | Same. |
 | `reviews/pending/PROP-*.yml` | All agents | Proposals written by any agent; human gate resolves. |
-| `reviews/proxy-log/` | Proxy actor only | Written by `--human-proxy` mode before each `review_approved` event. |
+| `reviews/proxy-log/` | Proxy actor only | Written by `--human-proxy` mode before each `approved{kind: fh_review}` event. |
 
 **Post naming**: `YYYYMMDDTHHMMSS_CATEGORY_SUBJECT.md`. Categories: `REVIEW`, `STRATEGY`, `GAP`, `SCHEMA`, `HANDOFF`, `MATRIX`. Each file carries sufficient context for independent evaluation. Posts are immutable once written — supersede with a new file, never edit.
 
@@ -450,11 +450,11 @@ Human proxy mode allows the LLM to act as an authorised F_H substitute during un
 2. Evaluates each required criterion with explicit evidence
 3. Computes the decision: `approved` iff all required criteria pass; `rejected` if any fail
 4. Writes a proxy-log file to `.ai-workspace/reviews/proxy-log/{ISO}_{feature}_{edge}.md` **before** emitting any event
-5. Emits `review_approved{actor: "human-proxy", proxy_log: "{path}"}` on approval
+5. Emits `approved{kind: fh_review, actor: "human-proxy", proxy_log: "{path}"}` on approval
 
 **Rejection halt**: A proxy rejection pauses the auto-loop immediately. The proxy may not re-invoke iterate on the rejected edge in the same session (`rejected_in_session` set is checked). The feature remains `iterating`.
 
-**Actor field invariant**: Every `review_approved` event must carry `actor` field. Proxy decisions use `actor: "human-proxy"` (never `"human"`, never absent). Human decisions use `actor: "human"`. This is the auditability mechanism — the two must never be confused.
+**Actor field invariant**: Every `approved{kind: fh_review}` event must carry `actor` field. Proxy decisions use `actor: "human-proxy"` (never `"human"`, never absent). Human decisions use `actor: "human"`. This is the auditability mechanism — the two must never be confused.
 
 **Morning review**: `/gen-status` surfaces proxy decisions made since the last attended session. Humans dismiss with a `Reviewed: {date}` line or override via `/gen-review`. Proxy decisions are provisional — the human is the authority, not the proxy.
 
