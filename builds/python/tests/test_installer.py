@@ -16,7 +16,7 @@ BUILD_ROOT = Path(__file__).resolve().parents[1]   # builds/python/
 PROJECT_ROOT = BUILD_ROOT.parents[1]               # genesis_sdlc/
 INSTALL_MODULE = BUILD_ROOT / "src" / "genesis_sdlc" / "install.py"
 
-VERSION = "0.5.0"
+VERSION = "0.5.1"
 VERSION_UNDERSCORED = VERSION.replace(".", "_")
 
 # Installer requires abiogenesis as a sibling — skip if not present

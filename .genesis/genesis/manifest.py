@@ -32,7 +32,8 @@ class PrecomputedManifest:
     passing_evaluators: list[Evaluator]    # delta = 0 — excluded from F_P manifest
     fd_results: dict[str, Any]             # pytest output, check-tags counts, etc.
     relevant_contexts: dict[str, str]      # {context.name: resolved_text}
-    delta_summary: str                     # "3 tests fail, 2 files untagged"
+    missing_contexts: list[str] = field(default_factory=list)  # contexts that failed to resolve
+    delta_summary: str = ""                # "3 tests fail, 2 files untagged"
 
     @property
     def has_gap(self) -> bool:

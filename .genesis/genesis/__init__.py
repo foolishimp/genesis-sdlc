@@ -11,4 +11,4 @@ Six modules. No more, no less.
     commands  — gen_start, gen_iterate, gen_gaps, Scope
     __main__  — CLI entry point
 """
-__version__ = "0.5.0"
+__version__ = "0.5.1"

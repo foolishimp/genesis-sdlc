@@ -274,6 +274,7 @@ def bind_fd(
     # 4. Select relevant contexts (F_D filters to what the gap actually needs)
     relevant_ctxs = select_relevant_contexts(job.edge.context, failing)
     resolved: dict[str, str] = {}
+    _missing_contexts: list[str] = []
     for ctx in relevant_ctxs:
         try:
             resolved[ctx.name] = resolver.load(ctx)
@@ -281,9 +282,10 @@ def bind_fd(
             # Unimplemented V1 scheme (git://, event://, registry://) — degrade gracefully
             resolved[ctx.name] = f"[context unavailable: {exc}]"
         except FileNotFoundError as exc:
-            # Missing context file — report as gap signal, not fatal error.
-            # The F_P prompt will see the gap and the operator can fix it.
+            # Missing context — record for gap reporting but flag as unresolved.
+            # bind_fp will refuse to dispatch F_P against incomplete context.
             resolved[ctx.name] = f"[context not found: {exc}]"
+            _missing_contexts.append(ctx.name)
         # REQ-F-BIND-001: ValueError (digest mismatch, unknown scheme) propagates as fatal.
         # A digest mismatch is a replay-integrity violation — the constraint surface has
         # changed and the engine must not continue dispatching F_P against a corrupted context.
@@ -298,6 +300,7 @@ def bind_fd(
         passing_evaluators=passing,
         fd_results=fd_results,
         relevant_contexts=resolved,
+        missing_contexts=_missing_contexts,
         delta_summary=summary,
     )
 
@@ -314,7 +317,16 @@ def bind_fp(
 
     This function itself is F_D — template assembly only, no LLM.
     See ADR-003 for manifest structure.
+
+    Raises FileNotFoundError if required context failed to resolve —
+    F_P must not be dispatched against an incomplete constitutional surface.
     """
+    if pre.missing_contexts:
+        raise FileNotFoundError(
+            f"Cannot dispatch F_P: required context(s) not found: "
+            f"{', '.join(pre.missing_contexts)}. "
+            f"Fix the context locators or provide the missing files before iterating."
+        )
     prompt = _assemble_prompt(pre, job, result_path)
     return BoundJob(job=job, precomputed=pre, prompt=prompt, result_path=result_path)
 

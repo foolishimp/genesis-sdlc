@@ -2,6 +2,23 @@
 
 ---
 
+## v0.5.1 — 2026-03-21
+
+**Bootloader**: v1.1.0
+**Spec hash**: `1553416a00f568f1`
+**Test results**: 120 passed, 33 deselected, 0 failed
+
+### Changed
+- Engine updated from abiogenesis v0.5.1: `bind_fp` blocks F_P dispatch when required context is missing (fail-closed)
+- `PrecomputedManifest` gains `missing_contexts` field tracking unresolved context names
+
+### Fixed
+- Context resolution no longer silently substitutes sentinel strings — `FileNotFoundError` propagated to `bind_fp`
+
+**REQ keys added**: none
+
+---
+
 ## v0.5.0 — 2026-03-21
 
 **Bootloader**: v1.1.0
