@@ -337,7 +337,7 @@ When the user asks to build, fix, or iterate anything, that is `/gen-start` or
 
 # SDLC Bootloader: AI SDLC Instantiation of the GTL Formal System
 
-**Version**: 1.0.0
+**Version**: 1.1.0
 **Purpose**: Domain-specific instantiation of the GTL formal system for software development lifecycle projects. This bootloader extends the universal GTL Bootloader (sections I–XI) with SDLC-specific graph topology, feature vectors, profiles, workspace territory, and bug triage. It is loaded by the genesis_sdlc installer — a non-SDLC GTL Package would use its own domain bootloader instead.
 
 **Requires**: GTL Bootloader (universal axioms — four primitives, event stream, gradient, evaluators)

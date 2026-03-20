@@ -1,6 +1,6 @@
 {
   "workflow": "genesis_sdlc.standard",
-  "version": "0.4.0",
-  "spec_module": "workflows.genesis_sdlc.standard.v0_4_0.spec",
-  "updated_at": "2026-03-20T13:59:56.969468+00:00"
+  "version": "0.5.0",
+  "spec_module": "workflows.genesis_sdlc.standard.v0_5_0.spec",
+  "updated_at": "2026-03-20T15:21:22.476581+00:00"
 }
