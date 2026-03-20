@@ -358,6 +358,8 @@ Named profiles — each preserves all four invariants while varying the encoding
 
 Code disambiguation feeds back to **Spec** (business gap) or **Design** (tech gap). Never conflate.
 
+**Spec leads, code follows.** The specification is the normative constraint surface. Code is downstream — an implementation of the spec, never a replacement for it. If implementation outpaces the spec, stop and bring the spec current before advancing. A codebase that cannot be regenerated from its specification is not under methodological control — it is ad hoc construction with documentation. The spec is aspirational (what we want); gap analysis (`gen-gaps`) measures the delta to reality. ADRs refine the spec; they do not replace it.
+
 ---
 
 ## XVII. Invariants
@@ -370,6 +372,7 @@ Code disambiguation feeds back to **Spec** (business gap) or **Design** (tech ga
 | **Spec + Context** | Constraint surface bounds construction | Degeneracy, hallucination |
 | **Event stream** | State derived from stream; all writes via F_D event logger function — no direct mutation, no timestamp override | No replay, no recovery, no projection equivalence; timestamp integrity unenforceable |
 | **Completeness visibility** | Every convergence transition produces a human-readable summary before downstream proceeds | Silent convergence — system cannot be trusted |
+| **Spec authority** | Spec leads, code follows — implementation must be derivable from the specification | Code outpaces spec, becomes its own source of truth — ad hoc construction |
 
 **Projection validity**: `valid(P) ⟺ ∃ G ⊆ G_full ∧ ∀ edge ∈ G: iterate(edge) defined ∧ evaluators(edge) ≠ ∅ ∧ convergence(edge) defined ∧ context(P) ≠ ∅`
 

@@ -16,6 +16,18 @@ A spec is a step in that pipeline. Its job is to reduce ambiguity by exactly the
 
 ---
 
+## Spec Leads, Code Follows
+
+The specification is the normative constraint surface. Code is downstream — an implementation of the spec, never a replacement for it.
+
+- If implementation outpaces the spec, **stop and bring the spec current** before advancing.
+- A codebase that cannot be regenerated from its specification is not under methodological control.
+- The spec is aspirational — it describes what we want. Gap analysis (`gen-gaps`) measures the delta to reality. The gap is expected; the inversion is not.
+- ADRs refine the spec. They do not replace it.
+- Do not mix achieved-state language into the normative surface. The spec says what SHALL be true. Progress tracking belongs elsewhere.
+
+---
+
 ## Staged Sufficiency
 
 The sufficiency test is relative to position in the graph, not to implementation.
