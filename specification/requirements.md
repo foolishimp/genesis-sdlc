@@ -1,11 +1,11 @@
 # genesis_sdlc — Requirements
 
-**Derived from**: `gtl_spec/packages/genesis_sdlc.py` (the GTL Package IS the requirement registry)
+**Derived from**: `builds/python/src/genesis_sdlc/sdlc_graph.py` (the GTL Package IS the requirement registry)
 **Traces to**: INT-001, INT-002, INT-003
 **Status**: Approved
 **Date**: 2026-03-20
 
-These REQ keys are the traceability thread. Every design ADR, every code file, every test must tag back to these keys. The GTL Package in `genesis_sdlc.py` is the authoritative key registry — this document provides human-readable descriptions and acceptance criteria for each registered key.
+These REQ keys are the traceability thread. Every design ADR, every code file, every test must tag back to these keys. The GTL Package in `sdlc_graph.py` is the authoritative key registry — this document provides human-readable descriptions and acceptance criteria for each registered key.
 
 ---
 
@@ -13,15 +13,15 @@ These REQ keys are the traceability thread. Every design ADR, every code file, e
 
 ### REQ-F-BOOT-001 — gen-install bootstraps .genesis/ into target project
 
-The installer copies the genesis engine and methodology into a target project so it can run without an installed package.
+The installer copies the genesis engine and methodology into a target project so it can run without an installed package. It creates the four-territory structure: `.genesis/` (write-once), `.ai-workspace/` (read-write), `specification/` (read-only axioms), `builds/` (read-write source).
 
 **Acceptance Criteria**:
 - AC-1: `install(target, source)` creates `.genesis/genesis/` with engine modules copied from the abiogenesis engine
-- AC-2: Creates `.genesis/genesis.yml` pointing to `gtl_spec/packages/<slug>:package` and `gtl_spec/packages/<slug>:worker`
+- AC-2: Creates `.genesis/genesis.yml` pointing to `.genesis/gtl_spec/packages/<slug>:package` and `.genesis/gtl_spec/packages/<slug>:worker`
 - AC-3: Creates `.ai-workspace/` directory structure (events/, features/active/, features/completed/, comments/, reviews/)
 - AC-4: Installs operating standards from `specification/standards/` into `.ai-workspace/operating-standards/`
 - AC-5: Installs command files from plugin sources into `.claude/commands/`
-- AC-6: Generates `CLAUDE.md` from `gtl_spec/GENESIS_BOOTLOADER.md`
+- AC-6: Generates `CLAUDE.md` from `.genesis/gtl_spec/GENESIS_BOOTLOADER.md`
 - AC-7: Idempotent — re-running updates engine files and standards, preserves workspace state and local specs
 - AC-8: Emits `genesis_sdlc_installed` event on completion with version, spec_hash, and migration outcome
 
@@ -43,23 +43,35 @@ The three-layer install architecture separates immutable methodology spec from m
 - AC-2: The installed spec is versioned: `.genesis/workflows/genesis_sdlc/standard/v{VERSION}/` contains the release snapshot
 - AC-3: The frozen spec is never modified after install — it represents the methodology version that was installed
 
-### REQ-F-BOOT-004 — Installer generates starter local spec in gtl_spec/packages/{slug}.py
+### REQ-F-BOOT-004 — Installer generates Layer 3 wrapper in .genesis/gtl_spec/packages/{slug}.py
 
-Projects get a local spec that imports from the installed methodology and can be customised.
+Projects get a generated wrapper that imports from the installed methodology release. The wrapper is system-owned and rewritten on every redeploy.
 
 **Acceptance Criteria**:
-- AC-1: If `gtl_spec/packages/{slug}.py` does not exist, installer generates a starter file that imports the standard Package
-- AC-2: If the file already exists, installer never overwrites it — local spec is project-owned
-- AC-3: Generated starter is a minimal wrapper that can be extended with project-specific edges and evaluators
+- AC-1: Installer generates `.genesis/gtl_spec/packages/{slug}.py` importing from the versioned workflow release
+- AC-2: If the file carries the `genesis_sdlc-generated` marker, it is replaced on reinstall
+- AC-3: If the file has been customised (no marker), installer does not overwrite — use `--migrate-full-copy` to opt in
 
-### REQ-F-BOOT-005 — Reinstall replaces .genesis/spec/ atomically; never overwrites local gtl_spec/
+### REQ-F-BOOT-005 — Reinstall replaces .genesis/spec/ atomically; never overwrites customised specs
 
-Upgrade safety: the methodology layer is replaceable, the project layer is sacred.
+Upgrade safety: the methodology layer is replaceable, project customisations are sacred.
 
 **Acceptance Criteria**:
 - AC-1: `install()` replaces `.genesis/spec/` and `.genesis/workflows/` atomically on reinstall
-- AC-2: `gtl_spec/packages/{slug}.py` is never overwritten if it exists
+- AC-2: System-owned wrappers (with marker) are replaced; customised specs are never overwritten
 - AC-3: One-time provenance migration runs on upgrade: re-emits old events with new schema and workflow version
+
+### REQ-F-BOOT-006 — --audit validates installed artifacts match the release
+
+The installer can verify that a deployment is consistent with the version it claims to be. This is the GCC bootstrap boundary validator.
+
+**Acceptance Criteria**:
+- AC-1: `install(target, audit_only=True)` returns structured JSON with per-component findings (ok, drifted, missing, error)
+- AC-2: Checks content hashes of workflow release, commands, operating standards, bootloader block, and immutable spec shim against build source
+- AC-3: Checks version consistency across active-workflow.json, manifest.json, and commands stamp
+- AC-4: Verifies genesis.yml package/worker references resolve via import (not just exist as files)
+- AC-5: Verifies Layer 3 wrapper content matches expected template for the installed version
+- AC-6: Returns `status: "ok"` only when all checks pass; `status: "drift_detected"` otherwise
 
 ---
 
@@ -74,7 +86,7 @@ The Package declares a typed asset graph with admissible transitions.
 - AC-2: Nine edges with the topology: `intent→requirements→feature_decomp→design→module_decomp→code↔unit_tests→integration_tests→user_guide→uat_tests`
 - AC-3: Each edge has at least one evaluator
 - AC-4: The `code↔unit_tests` edge is co-evolving (`co_evolve=True`)
-- AC-5: Package is loadable: `python gtl_spec/packages/genesis_sdlc.py` produces valid JSON describing the graph
+- AC-5: Package is loadable: `python builds/python/src/genesis_sdlc/sdlc_graph.py` produces valid JSON describing the graph
 
 ### REQ-F-GRAPH-002 — Asset.markov conditions are acceptance criteria
 
@@ -324,7 +336,7 @@ Version sandboxing ensures tests run against the release candidate source, not s
 
 | Category | REQ Keys |
 |----------|----------|
-| Bootstrap | REQ-F-BOOT-001 through 005 (5) |
+| Bootstrap | REQ-F-BOOT-001 through 006 (6) |
 | SDLC Graph | REQ-F-GRAPH-001, 002 (2) |
 | Commands | REQ-F-CMD-001 through 003 (3) |
 | Human Gates | REQ-F-GATE-001 (1) |
@@ -334,4 +346,4 @@ Version sandboxing ensures tests run against the release candidate source, not s
 | UAT | REQ-F-UAT-001 through 003 (3) |
 | Backlog | REQ-F-BACKLOG-001 through 004 (4) |
 | Module Decomposition | REQ-F-MDECOMP-001 through 005 (5) |
-| **Total** | **31 keys** |
+| **Total** | **32 keys** |

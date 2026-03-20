@@ -78,7 +78,7 @@ What the installer deploys:
 | Path | What it is |
 |------|-----------|
 | `.genesis/` | abiogenesis engine (via the abiogenesis installer) |
-| `gtl_spec/packages/<slug>.py` | Generated wrapper — rewritten on every redeploy while system-owned marker is present |
+| `.genesis/gtl_spec/packages/<slug>.py` | Generated wrapper — rewritten on every redeploy while system-owned marker is present |
 | `builds/python/` | `src/`, `tests/`, `design/adrs/` scaffold |
 | `.claude/commands/gen-*.md` | All genesis slash commands |
 | `CLAUDE.md` | Project orientation + Genesis Bootloader |
@@ -86,8 +86,14 @@ What the installer deploys:
 ### Verify an existing install
 
 ```bash
+# Quick check — do the expected files exist?
 python -m genesis_sdlc.install --target /path/to/project --verify
+
+# Deep audit — does installed content match the release?
+python -m genesis_sdlc.install --target /path/to/project --audit
 ```
+
+`--verify` checks file existence. `--audit` compares content hashes, version consistency, and import resolution across all installed artifacts. Use `--audit` to confirm a deployment is intact after upgrades, manual edits, or when diagnosing engine errors.
 
 ### Reinstall (idempotent)
 
@@ -95,7 +101,7 @@ python -m genesis_sdlc.install --target /path/to/project --verify
 python -m genesis_sdlc.install --target /path/to/project
 ```
 
-Engine files are always replaced. The generated wrapper (`gtl_spec/packages/<slug>.py`) is replaced on every redeploy as long as the `# genesis_sdlc-generated` marker is present on line 1 — it is a two-line system-owned file that calls `instantiate(slug="...")` from the versioned release. Remove the marker line if you need a fully customised spec; the installer will then treat the file as user-owned and never overwrite it. The config file (`.genesis/genesis.yml`) is always replaced — it is engine metadata, not user data.
+Engine files are always replaced. The generated wrapper (`.genesis/gtl_spec/packages/<slug>.py`) is replaced on every redeploy as long as the `# genesis_sdlc-generated` marker is present on line 1 — it is a two-line system-owned file that calls `instantiate(slug="...")` from the versioned release. Remove the marker line if you need a fully customised spec; the installer will then treat the file as user-owned and never overwrite it. The config file (`.genesis/genesis.yml`) is always replaced — it is engine metadata, not user data.
 
 ### Platform scaffolding
 
@@ -144,7 +150,7 @@ Expected output (abbreviated):
 
 ### What `PYTHONPATH=.genesis` does
 
-The self-hosting spec lives at `gtl_spec/packages/genesis_sdlc.py`. Python needs to find `gtl_spec` as a package. `PYTHONPATH=.genesis` adds the engine directory to the module search path so `from gtl_spec.packages.genesis_sdlc import ...` resolves correctly.
+The build source for the Package lives at `builds/python/src/genesis_sdlc/sdlc_graph.py`. The running engine uses the installed Package via `.genesis/gtl_spec/packages/project_package.py`, which imports from the released version at `.genesis/workflows/`. `PYTHONPATH=.genesis` adds the engine directory to the module search path so `gtl_spec` and `genesis` resolve correctly — both live under `.genesis/`.
 
 When genesis_sdlc is installed into another project, the spec lives inside the target project and PYTHONPATH is managed by the bootstrap contract (see §2).
 
@@ -387,7 +393,7 @@ The workspace is done when `gen gaps` reports `converged: true` and `total_delta
 
 ### Responding to each stop reason
 
-**`fd_gap`** — a deterministic test failed. Read the failing evaluator name in the output, find the command in the spec (`gtl_spec/packages/genesis_sdlc.py`), run it manually to see the error, fix the artifact, and re-run.
+**`fd_gap`** — a deterministic test failed. Read the failing evaluator name in the output, find the command in the spec (`builds/python/src/genesis_sdlc/sdlc_graph.py`), run it manually to see the error, fix the artifact, and re-run.
 
 **`fp_dispatched`** — an agent assessment evaluator fired. The engine emitted an `fp_dispatched` event and stopped. An agent (Claude, Codex) reads this event, does the work, and records the result. `gen iterate` does not invoke the agent directly — the agent invokes the engine. This separation keeps the engine deterministic.
 
@@ -452,14 +458,14 @@ Move from `active/` to `completed/` when the edge for that feature converges.
 
 ## 8. Writing Your Own Spec
 
-<!-- Covers: REQ-F-BOOT-001, REQ-F-BOOT-002, REQ-F-BOOT-003, REQ-F-BOOT-004, REQ-F-BOOT-005, REQ-F-DOCS-001 -->
+<!-- Covers: REQ-F-BOOT-001, REQ-F-BOOT-002, REQ-F-BOOT-003, REQ-F-BOOT-004, REQ-F-BOOT-005, REQ-F-BOOT-006, REQ-F-DOCS-001 -->
 
-genesis_sdlc installs a starter spec at `gtl_spec/packages/<slug>.py`. The starter spec is a thin wrapper that imports the standard SDLC graph from Layer 2 (`.genesis/spec/genesis_sdlc.py`) and overrides only the `req_coverage` evaluator to point at your project's package. Edit it to match your domain.
+genesis_sdlc installs a starter spec at `.genesis/gtl_spec/packages/<slug>.py`. The starter spec is a thin wrapper that imports the standard SDLC graph from Layer 2 (`.genesis/workflows/.../spec.py`) and overrides only the `req_coverage` evaluator to point at your project's package. Edit it to match your domain.
 
-**Three-layer architecture**:
+**Three-layer architecture** (all inside `.genesis/` — the installed compiler territory):
 - **Layer 1** (`.genesis/genesis/`): The abiogenesis engine — replaced on every reinstall
 - **Layer 2** (`.genesis/workflows/genesis_sdlc/standard/v{VERSION}/spec.py`): Immutable versioned release — written once, never overwritten; new versions add a new versioned directory alongside old ones
-- **Layer 3** (`gtl_spec/packages/<slug>.py`): System-owned generated wrapper — replaced on every redeploy while the `# genesis_sdlc-generated` marker is present
+- **Layer 3** (`.genesis/gtl_spec/packages/<slug>.py`): System-owned generated wrapper — replaced on every redeploy while the `# genesis_sdlc-generated` marker is present
 
 <!-- Covers: REQ-F-VAR-001 -->
 
@@ -528,9 +534,9 @@ package = Package(
 
 ## 9. Understanding the Self-Hosting Spec
 
-`gtl_spec/packages/genesis_sdlc.py` is the V1 specification written as GTL. It defines genesis_sdlc itself.
+`builds/python/src/genesis_sdlc/sdlc_graph.py` is the build source for the Package (GCC 2.0). It defines genesis_sdlc's typed asset graph.
 
-The spec is also the template installed into target projects. When a team installs genesis_sdlc, they receive a copy of this spec as their starting point. The engine that checks their project is the same engine that was used to build genesis_sdlc.
+The installer copies this into `.genesis/workflows/` as the released Package (GCC 1.0). The running engine reads from the installed version via `project_package.py` — never from the build source directly. This enforces the GCC bootstrap boundary: the compiler being built does not rewrite the compiler that is running.
 
 ### The self-hosting workspace
 
@@ -542,8 +548,8 @@ Each edge loads specific context documents into the agent prompt:
 
 | Context | Locator | Loaded on |
 |---------|---------|----------|
-| `bootloader` | `gtl_spec/GENESIS_BOOTLOADER.md` | All edges |
-| `sdlc_spec` | `gtl_spec/packages/<slug>.py` (your spec) | All edges |
+| `bootloader` | `.genesis/gtl_spec/GENESIS_BOOTLOADER.md` | All edges |
+| `sdlc_spec` | `.genesis/gtl_spec/packages/<slug>.py` (your spec) | All edges |
 | `intent` | `INTENT.md` | requirements, feature_decomp, design edges |
 | `design_adrs` | `builds/python/design/adrs/` | design, code, TDD, UAT edges |
 

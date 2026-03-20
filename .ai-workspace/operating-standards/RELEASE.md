@@ -18,7 +18,7 @@ MAJOR.MINOR.PATCH
 | `MINOR` | New feature — new REQ keys, new commands, new public behaviour. Backward compatible. |
 | `MAJOR` | Breaking change — removed commands, changed interfaces, incompatible workspace format |
 
-**Rule**: Adding REQ keys is always at least a MINOR bump. The spec_hash changes, which invalidates all prior fp_assessment events in dependent projects — that is a breaking change to the convergence state.
+**Rule**: Adding REQ keys is always at least a MINOR bump. The spec_hash changes, which invalidates all prior `assessed{kind: fp}` events in dependent projects — that is a breaking change to the convergence state.
 
 **Rule**: Any change to installer assets (bootloader, operating standards, commands) requires at least a MINOR bump. These assets are deployed by the installer — a version bump signals to dependent projects that re-running the installer will update their workspace.
 
@@ -64,7 +64,7 @@ File location: `builds/python/CHANGELOG.md` — newest entry at the top.
 ```
 
 `spec_hash` allows downstream operators and automation to determine whether upgrading
-genesis_sdlc will invalidate their existing fp_assessment events (a changed spec_hash
+genesis_sdlc will invalidate their existing `assessed{kind: fp}` events (a changed spec_hash
 means all F_P assessments are stale and will be re-dispatched on next `gen-start`).
 
 `Bootloader` version lets operators know which bootloader their installed CLAUDE.md carries
@@ -85,7 +85,7 @@ All must pass. Do not proceed with failures.
 ### 1b. Check bootloader for changes
 
 ```bash
-git diff HEAD gtl_spec/GENESIS_BOOTLOADER.md
+git diff HEAD .genesis/gtl_spec/GENESIS_BOOTLOADER.md
 ```
 
 If changed:
@@ -107,7 +107,7 @@ Compute spec_hash (must match the engine's `req_hash()` — JSON-sorted):
 ```bash
 PYTHONPATH=.genesis python -c "
 import json, hashlib, importlib.util
-spec = importlib.util.spec_from_file_location('s', 'gtl_spec/packages/genesis_sdlc.py')
+spec = importlib.util.spec_from_file_location('s', 'builds/python/src/genesis_sdlc/sdlc_graph.py')
 mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
 print(hashlib.sha256(json.dumps(sorted(mod.package.requirements)).encode()).hexdigest()[:16])
 "
@@ -194,4 +194,4 @@ Run the cascade installer against all of these on every release, starting with `
 - Editing comment posts in `.ai-workspace/comments/` — these are workspace artifacts, not versioned artifacts
 - Editing ADRs in `builds/python/design/adrs/` — ADRs are immutable; supersede with a new ADR
 
-**Note**: Editing `standards/` files (operating standards) DOES require a release — they are installer assets deployed to dependent projects. Update the source, bump the version (MINOR), cascade, commit.
+**Note**: Editing `specification/standards/` files (operating standards) DOES require a release — they are installer assets deployed to dependent projects. Update the source, bump the version (MINOR), cascade, commit.

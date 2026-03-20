@@ -2,7 +2,7 @@
 
 **Traces to**: INT-001, INT-002, INT-003
 **Requirements**: specification/requirements.md
-**REQ key registry**: gtl_spec/packages/genesis_sdlc.py
+**REQ key registry**: builds/python/src/genesis_sdlc/sdlc_graph.py
 **Status**: Approved
 **Date**: 2026-03-20
 
@@ -14,7 +14,7 @@
 |---------|-------|-----------|------------|-----|
 | REQ-F-GRAPH | SDLC Graph Definition | GRAPH-001, GRAPH-002 | — | Y |
 | REQ-F-BOOT | Project Bootstrap | BOOT-001, BOOT-002 | GRAPH | Y |
-| REQ-F-BOOT-V2 | Three-Layer Install Architecture | BOOT-003, BOOT-004, BOOT-005 | BOOT, GRAPH | Y |
+| REQ-F-BOOT-V2 | Three-Layer Install Architecture | BOOT-003, BOOT-004, BOOT-005, BOOT-006 | BOOT, GRAPH | Y |
 | REQ-F-CMD | Engine Commands | CMD-001, CMD-002, CMD-003 | BOOT | Y |
 | REQ-F-GATE | Human Approval Gates | GATE-001 | CMD | Y |
 | REQ-F-TAG | Code and Test Traceability Tags | TAG-001, TAG-002 | CMD | Y |
@@ -95,7 +95,7 @@ The genesis_sdlc implementation consists of a single Python package. Features ma
 
 ### REQ-F-GRAPH — SDLC Graph Definition
 
-The GTL Package at `gtl_spec/packages/genesis_sdlc.py` defines the typed asset graph. This is the constitutional source — all other features implement or enforce what the Package declares.
+The GTL Package at `builds/python/src/genesis_sdlc/sdlc_graph.py` defines the typed asset graph. This is the constitutional source — all other features implement or enforce what the Package declares.
 
 **Key artifacts**: 10 assets with markov conditions, 9 edges with evaluators, 6 operators (1 F_P, 1 F_H, 4 F_D), 5 contexts.
 
@@ -105,7 +105,7 @@ The installer (`install.py`) copies the engine, generates config, creates worksp
 
 ### REQ-F-BOOT-V2 — Three-Layer Install Architecture
 
-Separates immutable methodology spec (Layer 1: `.genesis/spec/`), versioned release snapshot (Layer 2: `.genesis/workflows/genesis_sdlc/standard/v{VERSION}/`), and mutable local spec (Layer 3: `gtl_spec/packages/`). ADR-005 records the design.
+Separates immutable methodology spec (Layer 1: `.genesis/spec/`), versioned release snapshot (Layer 2: `.genesis/workflows/genesis_sdlc/standard/v{VERSION}/`), and mutable local spec (Layer 3: `.genesis/gtl_spec/packages/`). ADR-008 records the four-territory model.
 
 ### REQ-F-CMD — Engine Commands
 

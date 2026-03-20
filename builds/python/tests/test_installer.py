@@ -3,6 +3,7 @@
 # Validates: REQ-F-BOOT-003
 # Validates: REQ-F-BOOT-004
 # Validates: REQ-F-BOOT-005
+# Validates: REQ-F-BOOT-006
 """Tests for genesis_sdlc.install — the product installer."""
 import json
 import subprocess
@@ -47,8 +48,8 @@ class TestSourceRootDetection:
         try:
             from genesis_sdlc.install import _source_root_from_script
             root = _source_root_from_script()
-            assert (root / "gtl_spec").exists(), f"gtl_spec not found under {root}"
             assert (root / ".genesis").exists(), f".genesis not found under {root}"
+            assert (root / ".genesis" / "gtl_spec").exists(), f"gtl_spec not found under {root}/.genesis"
         finally:
             sys.path.pop(0)
 
@@ -87,13 +88,13 @@ class TestSdlcStarterSpec:
     def test_starter_spec_imports_layer2(self, tmp_path):
         """Layer 3 spec must call instantiate() from the versioned workflow release."""
         _install(tmp_path, ["--project-slug", "my_proj"])
-        spec = (tmp_path / "gtl_spec" / "packages" / "my_proj.py").read_text()
+        spec = (tmp_path / ".genesis" / "gtl_spec" / "packages" / "my_proj.py").read_text()
         assert f"from workflows.genesis_sdlc.standard.v{VERSION_UNDERSCORED}.spec import instantiate" in spec
         assert "spec→output" not in spec
 
     def test_slug_substituted(self, tmp_path):
         _install(tmp_path, ["--project-slug", "acme_corp"])
-        spec = (tmp_path / "gtl_spec" / "packages" / "acme_corp.py").read_text()
+        spec = (tmp_path / ".genesis" / "gtl_spec" / "packages" / "acme_corp.py").read_text()
         assert 'slug="acme_corp"' in spec
 
     def test_req_coverage_references_slug(self, tmp_path):
@@ -104,7 +105,6 @@ class TestSdlcStarterSpec:
         env["PYTHONPATH"] = str(tmp_path / ".genesis")
         result = subprocess.run(
             [sys.executable, "-c",
-             "import sys; sys.path.insert(0, 'gtl_spec'); "
              "from workflows.genesis_sdlc.standard.v{ver}.spec import instantiate; "
              "pkg, _ = instantiate(slug='acme_corp'); "
              "evs = [ev for j in [next(j for j in _.can_execute if j.edge.name == 'requirements\u2192feature_decomp')] for ev in j.evaluators if ev.name == 'req_coverage']; "
@@ -134,7 +134,7 @@ class TestSdlcStarterSpec:
     def test_platform_paths_in_layer2_not_layer3(self, tmp_path):
         """Platform-specific evaluator paths live in Layer 2; Layer 3 is platform-agnostic."""
         _install(tmp_path, ["--project-slug", "my_proj"])
-        layer3 = (tmp_path / "gtl_spec" / "packages" / "my_proj.py").read_text()
+        layer3 = (tmp_path / ".genesis" / "gtl_spec" / "packages" / "my_proj.py").read_text()
         layer2 = (
             tmp_path / ".genesis" / "workflows" / "genesis_sdlc"
             / "standard" / f"v{VERSION_UNDERSCORED}" / "spec.py"
@@ -165,7 +165,7 @@ class TestSdlcStarterSpec:
     def test_reinstall_does_not_clobber_customised_spec(self, tmp_path):
         """Once user has edited their spec (no stub marker), reinstall must not overwrite."""
         _install(tmp_path, ["--project-slug", "my_proj"])
-        spec_path = tmp_path / "gtl_spec" / "packages" / "my_proj.py"
+        spec_path = tmp_path / ".genesis" / "gtl_spec" / "packages" / "my_proj.py"
         spec_path.write_text("# user customisation\n")
         result = _install(tmp_path, ["--project-slug", "my_proj"])
         assert result["sdlc_starter_spec"] == "already_customised"
@@ -174,7 +174,7 @@ class TestSdlcStarterSpec:
     def test_reinstall_upgrades_genesis_sdlc_stub(self, tmp_path):
         """A genesis_sdlc-stub spec (auto-generated, not yet customised) is replaced on reinstall."""
         _install(tmp_path, ["--project-slug", "my_proj"])
-        spec_path = tmp_path / "gtl_spec" / "packages" / "my_proj.py"
+        spec_path = tmp_path / ".genesis" / "gtl_spec" / "packages" / "my_proj.py"
         # Simulate an old install that still carries the genesis_sdlc-stub marker
         spec_path.write_text("# genesis_sdlc-stub — old generated content\npackage = None\n")
         result = _install(tmp_path, ["--project-slug", "my_proj"])
@@ -185,7 +185,7 @@ class TestSdlcStarterSpec:
     def test_generated_wrapper_always_replaced(self, tmp_path):
         """A wrapper carrying genesis_sdlc-generated is always replaced on reinstall."""
         _install(tmp_path, ["--project-slug", "my_proj"])
-        spec_path = tmp_path / "gtl_spec" / "packages" / "my_proj.py"
+        spec_path = tmp_path / ".genesis" / "gtl_spec" / "packages" / "my_proj.py"
         original = spec_path.read_text()
         assert "genesis_sdlc-generated" in original
         # Simulate drift (e.g. old version) — still carries the marker
@@ -197,7 +197,7 @@ class TestSdlcStarterSpec:
     def test_reinstall_does_not_clobber_old_full_copy_spec(self, tmp_path):
         """A pre-0.2.0 full-copy spec without a stub marker is treated as user-owned."""
         _install(tmp_path, ["--project-slug", "my_proj"])
-        spec_path = tmp_path / "gtl_spec" / "packages" / "my_proj.py"
+        spec_path = tmp_path / ".genesis" / "gtl_spec" / "packages" / "my_proj.py"
         # Simulate an old full-copy install: genesis_sdlc.py copied verbatim, no stub marker.
         # Ownership is ambiguous — the user may have edited it. Conservative policy: do not touch.
         # The only safe migration path is explicit: delete the file and reinstall.
@@ -288,13 +288,13 @@ class TestMigration:
     def test_migrate_full_copy_moves_legacy_spec(self, tmp_path):
         """--migrate-full-copy must rename the old file and write a new generated wrapper."""
         _install(tmp_path, ["--project-slug", "my_proj"])
-        spec_path = tmp_path / "gtl_spec" / "packages" / "my_proj.py"
+        spec_path = tmp_path / ".genesis" / "gtl_spec" / "packages" / "my_proj.py"
         # Simulate pre-0.2.0 full-copy (no marker)
         spec_path.write_text("# user spec — no marker\npackage = None\n")
         result = _install(tmp_path, ["--project-slug", "my_proj", "--migrate-full-copy"])
         assert result["status"] == "migrated"
         assert "legacy_path" in result
-        legacy = tmp_path / "gtl_spec" / "packages" / Path(result["legacy_path"]).name
+        legacy = tmp_path / ".genesis" / "gtl_spec" / "packages" / Path(result["legacy_path"]).name
         assert legacy.exists()
         assert "user spec" in legacy.read_text()
         # New wrapper must be in place
@@ -339,14 +339,22 @@ class TestCommandsInstall:
 class TestClaudeMd:
     def test_claude_md_created(self, tmp_path):
         result = _install(tmp_path, ["--project-slug", "test_proj"])
-        assert result["claude_md"] == "created"
+        # abg creates CLAUDE.md with GTL bootloader first; gsdlc appends SDLC bootloader
+        assert result["claude_md"] in ("created", "appended")
         assert (tmp_path / "CLAUDE.md").exists()
 
-    def test_bootloader_injected(self, tmp_path):
+    def test_sdlc_bootloader_injected(self, tmp_path):
         _install(tmp_path, ["--project-slug", "test_proj"])
         text = (tmp_path / "CLAUDE.md").read_text()
-        assert "<!-- GENESIS_BOOTLOADER_START -->" in text
-        assert "<!-- GENESIS_BOOTLOADER_END -->" in text
+        assert "<!-- SDLC_BOOTLOADER_START -->" in text
+        assert "<!-- SDLC_BOOTLOADER_END -->" in text
+
+    def test_gtl_bootloader_injected_by_abg(self, tmp_path):
+        """abiogenesis installer appends the GTL bootloader independently."""
+        _install(tmp_path, ["--project-slug", "test_proj"])
+        text = (tmp_path / "CLAUDE.md").read_text()
+        assert "<!-- GTL_BOOTLOADER_START -->" in text
+        assert "<!-- GTL_BOOTLOADER_END -->" in text
 
     def test_reinstall_updates_bootloader(self, tmp_path):
         """Bootloader section is always replaced on reinstall."""
@@ -363,6 +371,59 @@ class TestClaudeMd:
         claude_md.write_text(existing + "\n# My project notes\n")
         _install(tmp_path, ["--project-slug", "test_proj"])
         assert "My project notes" in claude_md.read_text()
+
+    def test_gtl_bootloader_contains_formal_system(self, tmp_path):
+        """GTL block contains the universal formal system content (not just markers)."""
+        _install(tmp_path, ["--project-slug", "test_proj"])
+        text = (tmp_path / "CLAUDE.md").read_text()
+        assert "Four Primitives, One Operation" in text
+        assert "Event Stream as Model Substrate" in text
+
+    def test_sdlc_bootloader_contains_sdlc_content(self, tmp_path):
+        """SDLC block contains SDLC-specific content."""
+        _install(tmp_path, ["--project-slug", "test_proj"])
+        text = (tmp_path / "CLAUDE.md").read_text()
+        assert "Feature Vectors: Trajectories Through the Graph" in text
+        assert "The SDLC Graph" in text
+
+    def test_gtl_block_precedes_sdlc_block(self, tmp_path):
+        """GTL bootloader must appear before SDLC bootloader in CLAUDE.md."""
+        _install(tmp_path, ["--project-slug", "test_proj"])
+        text = (tmp_path / "CLAUDE.md").read_text()
+        gtl_pos = text.index("<!-- GTL_BOOTLOADER_START -->")
+        sdlc_pos = text.index("<!-- SDLC_BOOTLOADER_START -->")
+        assert gtl_pos < sdlc_pos
+
+    def test_legacy_markers_removed_on_install(self, tmp_path):
+        """Legacy GENESIS_BOOTLOADER markers are cleaned up by install."""
+        _install(tmp_path, ["--project-slug", "test_proj"])
+        claude_md = tmp_path / "CLAUDE.md"
+        # Inject legacy markers
+        text = claude_md.read_text()
+        claude_md.write_text(
+            "<!-- GENESIS_BOOTLOADER_START -->\nold\n<!-- GENESIS_BOOTLOADER_END -->\n" + text
+        )
+        _install(tmp_path, ["--project-slug", "test_proj"])
+        text = claude_md.read_text()
+        assert "GENESIS_BOOTLOADER_START" not in text
+        assert "<!-- GTL_BOOTLOADER_START -->" in text
+        assert "<!-- SDLC_BOOTLOADER_START -->" in text
+
+    def test_verify_fails_when_gtl_block_missing(self, tmp_path):
+        """--verify reports incomplete when GTL bootloader block is absent."""
+        _install(tmp_path, ["--project-slug", "test_proj"])
+        claude_md = tmp_path / "CLAUDE.md"
+        # Strip GTL markers
+        text = claude_md.read_text()
+        import re
+        text = re.sub(
+            r"<!-- GTL_BOOTLOADER_START -->.*?<!-- GTL_BOOTLOADER_END -->",
+            "", text, flags=re.DOTALL,
+        )
+        claude_md.write_text(text)
+        result = _install(tmp_path, ["--project-slug", "test_proj", "--verify"])
+        assert result["status"] == "incomplete"
+        assert "gtl_bootloader" in result.get("missing", [])
 
 
 # ── Verify ────────────────────────────────────────────────────────────────────
@@ -385,6 +446,78 @@ class TestVerify:
         data = json.loads(result.stdout)
         assert data["status"] == "incomplete"
         assert len(data["missing"]) > 0
+
+
+# ── Audit ─────────────────────────────────────────────────────────────────────
+
+class TestAudit:
+    def test_audit_ok_after_install(self, tmp_path):
+        """Audit immediately after install should report ok for all components."""
+        _install(tmp_path, ["--project-slug", "test_proj"])
+        result = _install(tmp_path, ["--project-slug", "test_proj", "--audit"])
+        assert result["status"] == "ok", (
+            f"Audit found issues: {result['audit'].get('drifted', [])} "
+            f"{result['audit'].get('missing', [])}"
+        )
+        assert result["audit"]["summary"]["drifted"] == 0
+        assert result["audit"]["summary"]["missing"] == 0
+
+    def test_audit_detects_command_drift(self, tmp_path):
+        """Audit detects when an installed command is modified."""
+        _install(tmp_path, ["--project-slug", "test_proj"])
+        cmd = tmp_path / ".claude" / "commands" / "gen-iterate.md"
+        cmd.write_text("tampered content")
+        result = _install(tmp_path, ["--project-slug", "test_proj", "--audit"])
+        assert result["status"] == "drift_detected"
+        assert "command:gen-iterate" in result["audit"].get("drifted", [])
+
+    def test_audit_detects_standard_drift(self, tmp_path):
+        """Audit detects when an operating standard is modified."""
+        _install(tmp_path, ["--project-slug", "test_proj"])
+        std = tmp_path / ".ai-workspace" / "operating-standards" / "CONVENTIONS.md"
+        std.write_text("tampered content")
+        result = _install(tmp_path, ["--project-slug", "test_proj", "--audit"])
+        assert result["status"] == "drift_detected"
+        assert "standard:CONVENTIONS.md" in result["audit"].get("drifted", [])
+
+    def test_audit_detects_missing_workflow(self, tmp_path):
+        """Audit reports missing workflow release."""
+        result = subprocess.run(
+            [sys.executable, str(INSTALL_MODULE),
+             "--target", str(tmp_path),
+             "--source", str(PROJECT_ROOT),
+             "--audit"],
+            capture_output=True, text=True,
+        )
+        data = json.loads(result.stdout)
+        assert data["status"] == "drift_detected"
+        assert "workflow_release" in data["audit"].get("missing", [])
+
+    def test_audit_checks_genesis_yml_package(self, tmp_path):
+        """Audit verifies genesis.yml package reference resolves."""
+        _install(tmp_path, ["--project-slug", "test_proj"])
+        result = _install(tmp_path, ["--project-slug", "test_proj", "--audit"])
+        pkg_findings = [f for f in result["audit"]["findings"]
+                        if f["component"] == "genesis_yml_package"]
+        assert len(pkg_findings) == 1
+        assert pkg_findings[0]["status"] == "ok"
+
+    def test_audit_checks_layer3_wrapper(self, tmp_path):
+        """Audit verifies Layer 3 wrapper matches expected template."""
+        _install(tmp_path, ["--project-slug", "test_proj"])
+        result = _install(tmp_path, ["--project-slug", "test_proj", "--audit"])
+        wrapper_findings = [f for f in result["audit"]["findings"]
+                            if f["component"] == "layer3_wrapper"]
+        assert len(wrapper_findings) == 1
+        assert wrapper_findings[0]["status"] == "ok"
+
+    def test_audit_detects_wrapper_drift(self, tmp_path):
+        """Audit detects when Layer 3 wrapper is tampered."""
+        _install(tmp_path, ["--project-slug", "test_proj"])
+        wrapper = tmp_path / ".genesis" / "gtl_spec" / "packages" / "test_proj.py"
+        wrapper.write_text("# genesis_sdlc-generated\nimport wrong_version\n")
+        result = _install(tmp_path, ["--project-slug", "test_proj", "--audit"])
+        assert "layer3_wrapper" in result["audit"].get("drifted", [])
 
 
 # ── End-to-end: engine boots after install ────────────────────────────────────

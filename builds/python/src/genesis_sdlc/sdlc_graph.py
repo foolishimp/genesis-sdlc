@@ -58,13 +58,13 @@ from gtl.core import (
 
 bootloader = Context(
     name="bootloader",
-    locator="workspace://gtl_spec/GENESIS_BOOTLOADER.md",
+    locator="workspace://.genesis/gtl_spec/GENESIS_BOOTLOADER.md",
     digest="sha256:" + "0" * 64,
 )
 
 this_spec = Context(
     name="sdlc_spec",
-    locator="workspace://gtl_spec/packages/genesis_sdlc.py",
+    locator="workspace://builds/python/src/genesis_sdlc/sdlc_graph.py",
     digest="sha256:" + "0" * 64,
 )
 
@@ -441,7 +441,7 @@ package = Package(
     contexts=[bootloader, this_spec, intent_doc, design_adrs, modules_dir],
     requirements=[
         "REQ-F-BOOT-001", "REQ-F-BOOT-002",
-        "REQ-F-BOOT-003", "REQ-F-BOOT-004", "REQ-F-BOOT-005",
+        "REQ-F-BOOT-003", "REQ-F-BOOT-004", "REQ-F-BOOT-005", "REQ-F-BOOT-006",
         "REQ-F-GRAPH-001", "REQ-F-GRAPH-002",
         "REQ-F-CMD-001", "REQ-F-CMD-002", "REQ-F-CMD-003",
         "REQ-F-GATE-001",
@@ -481,7 +481,7 @@ def instantiate(slug: str):
 
     _this_spec = Context(
         name="sdlc_spec",
-        locator=f"workspace://gtl_spec/packages/{slug}.py",
+        locator=f"workspace://.genesis/gtl_spec/packages/{slug}.py",
         digest="sha256:" + "0" * 64,
     )
 

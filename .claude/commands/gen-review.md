@@ -47,16 +47,16 @@ F_D STATUS:
 
 Ask the user: approve or reject?
 
-On **approve**: emit `review_approved` via the engine and go to Step 1:
+On **approve**: emit `approved` via the engine and go to Step 1:
 ```bash
 PYTHONPATH=.genesis python -m genesis emit-event \
-  --type review_approved \
-  --data '{"feature": "{F}", "edge": "{E}", "actor": "human"}'
+  --type approved \
+  --data '{"kind": "fh_review", "feature": "{F}", "edge": "{E}", "actor": "human"}'
 ```
 
-On **reject**: emit `review_rejected`, stop. Report to user.
+On **reject**: emit `assessed` with rejection, stop. Report to user.
 ```bash
 PYTHONPATH=.genesis python -m genesis emit-event \
-  --type review_rejected \
-  --data '{"feature": "{F}", "edge": "{E}", "actor": "human", "reason": "{reason}"}'
+  --type assessed \
+  --data '{"kind": "fh_review", "result": "reject", "feature": "{F}", "edge": "{E}", "actor": "human", "reason": "{reason}"}'
 ```

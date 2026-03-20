@@ -16,7 +16,7 @@ PYTHONPATH=.genesis python -m genesis gaps --workspace .
 
 ```
 genesis_sdlc/
-├── gtl_spec/packages/genesis_sdlc.py   ← GTL spec — the construction contract
+├── specification/                ← axiomatic ontology (intent, requirements, standards)
 ├── builds/python/
 │   ├── src/                      ← implementation source
 │   ├── tests/                    ← test suite
@@ -44,26 +44,11 @@ PYTHONPATH=.genesis python -m genesis gaps  --workspace .
 
 ---
 
-<!-- GENESIS_BOOTLOADER_START -->
-## Operating protocol
+<!-- GTL_BOOTLOADER_START -->
+# GTL Bootloader: Universal Constraint Context for the Graph-Type-Language Formal System
 
-**Always route user intent through commands — never do work directly.**
-When the user asks to build, fix, or iterate anything, that is `/gen-start` or
-`/gen-iterate`. Direct edits bypass the F_D evaluation chain and nothing is traced.
-
-| Intent | Command |
-|--------|---------|
-| "go" / "next" / "build X" / "fix Y" | `/gen-start --auto --human-proxy` |
-| "one step" / "iterate edge E" | `/gen-iterate --feature F --edge E` |
-| "what's broken" / "gaps" / "coverage" | `/gen-gaps` |
-| "status" / "where am I" | `/gen-status` |
-| "review" / "approve" | `/gen-review --feature F` |
-
-
-# Genesis Bootloader: LLM Constraint Context for the AI SDLC
-
-**Version**: 3.0.2
-**Purpose**: Minimal sufficient context to constrain an LLM to operate within the AI SDLC Asset Graph Model. Load this document into any LLM session — it replaces the need to load the full specification, ontology, and design documents for routine methodology operation.
+**Version**: 1.0.0
+**Purpose**: Minimal sufficient context to constrain an LLM to operate within the GTL formal system. This document defines the universal axioms — four primitives, one operation, event stream substrate. It is domain-agnostic: any GTL Package (SDLC, data pipeline, infrastructure, chatbot) operates within these constraints. Domain-specific instantiations extend this bootloader, they do not replace it.
 
 ---
 
@@ -107,7 +92,7 @@ Constraints restrict which transformations exist, limit composability, induce st
 
 Everything else — stages, agents, TDD, BDD, commands, configurations, event schemas — is parameterisation of these four for specific graph edges. They are emergence, not the methodology.
 
-**The graph is not universal.** The SDLC graph is one domain-specific instantiation. The four primitives are universal; the graph is parameterised.
+**The graph is not universal.** Any particular graph is one domain-specific instantiation. The four primitives are universal; the graph is parameterised.
 
 **The formal system is a generator of valid methodologies.** What it generates depends on which projection is applied, which encoding is chosen, and which technology binds the functional units.
 
@@ -269,8 +254,6 @@ The `requires_spec_change` field on `intent_raised` routes to one of three outpu
 | **composition_dispatched** | Bounded ambiguity; `requires_spec_change: false` | Named composition dispatched to execution layer — no spec change needed, F_H gate not required |
 | **feature_proposal** | Persistent ambiguity; `requires_spec_change: true` | Enters Draft Features Queue — F_H gate required; spec change, spawning, or human judgment needed |
 
-> **ADR-S-026 (2026-03-08)**: The `composition_dispatched` event carries a **typed composition expression** (`{macro, version, bindings}`) drawn from the named composition library. The gap evaluator calls `emit_event('composition_dispatched', {macro, version, bindings})` via the F_D event logger — it does not write events directly. A dispatch table maps `gap_type` to named composition. `reflex.log` is unchanged. See [ADR-S-026](../adrs/ADR-S-026-named-compositions-and-intent-vectors.md) §3 for the execution contract (macro registry required before zero-interpretation claim holds).
-
 ### Homeostasis: Intent Is Computed
 
 ```
@@ -306,6 +289,58 @@ An asset achieves stable status (Markov object) when:
 An asset that fails its evaluators is a **candidate**. It stays in iteration.
 
 **Path-independence invariant**: A stable asset must be reconstructable from the event stream alone, independent of the execution path that produced it. Two conformant implementations that process equivalent event streams must produce equivalent stable assets.
+
+---
+
+## Universal Invariants
+
+| Invariant | What it means | What breaks if absent |
+|-----------|--------------|----------------------|
+| **Graph** | Topology of typed assets with admissible transitions | No structure — ad hoc work |
+| **Iterate** | Convergence loop producing events, deriving assets | No quality signal — one-shot |
+| **Evaluators** | At least one evaluator per active edge | No stopping condition |
+| **Spec + Context** | Constraint surface bounds construction | Degeneracy, hallucination |
+| **Event stream** | State derived from stream; all writes via F_D event logger function — no direct mutation, no timestamp override | No replay, no recovery, no projection equivalence; timestamp integrity unenforceable |
+| **Completeness visibility** | Every convergence transition produces a human-readable summary before downstream proceeds | Silent convergence — system cannot be trusted |
+
+**Projection validity**: `valid(P) ⟺ ∃ G ⊆ G_full ∧ ∀ edge ∈ G: iterate(edge) defined ∧ evaluators(edge) ≠ ∅ ∧ convergence(edge) defined ∧ context(P) ≠ ∅`
+
+**IntentEngine invariant**: Every edge traversal is an IntentEngine invocation. No unobserved computation.
+
+**Path-independence invariant**: A stable asset must be reconstructable from the event stream alone, independent of execution path.
+
+**Observability is constitutive.** The event log, sensory monitors, and feedback loop are methodology constraints, not tooling features. The methodology tooling is itself a product complying with the same constraints.
+
+---
+
+*Foundation: [Constraint-Emergence Ontology](https://github.com/foolishimp/constraint_emergence_ontology)*
+*Formal system: [AI SDLC Asset Graph Model v2.8](AI_SDLC_ASSET_GRAPH_MODEL.md) — four primitives, one operation, event stream substrate*
+*Projections: [Projections and Invariants v1.2](PROJECTIONS_AND_INVARIANTS.md)*
+
+<!-- GTL_BOOTLOADER_END -->
+
+<!-- SDLC_BOOTLOADER_START -->
+## Operating protocol
+
+**Always route user intent through commands — never do work directly.**
+When the user asks to build, fix, or iterate anything, that is `/gen-start` or
+`/gen-iterate`. Direct edits bypass the F_D evaluation chain and nothing is traced.
+
+| Intent | Command |
+|--------|---------|
+| "go" / "next" / "build X" / "fix Y" | `/gen-start --auto --human-proxy` |
+| "one step" / "iterate edge E" | `/gen-iterate --feature F --edge E` |
+| "what's broken" / "gaps" / "coverage" | `/gen-gaps` |
+| "status" / "where am I" | `/gen-status` |
+| "review" / "approve" | `/gen-review --feature F` |
+
+
+# SDLC Bootloader: AI SDLC Instantiation of the GTL Formal System
+
+**Version**: 1.0.0
+**Purpose**: Domain-specific instantiation of the GTL formal system for software development lifecycle projects. This bootloader extends the universal GTL Bootloader (sections I–XI) with SDLC-specific graph topology, feature vectors, profiles, workspace territory, and bug triage. It is loaded by the genesis_sdlc installer — a non-SDLC GTL Package would use its own domain bootloader instead.
+
+**Requires**: GTL Bootloader (universal axioms — four primitives, event stream, gradient, evaluators)
 
 ---
 
@@ -558,12 +593,11 @@ No feature vector. No iterate() cycle. No human gate. No REQ key traceability. O
 
 ---
 
-*Foundation: [Constraint-Emergence Ontology](https://github.com/foolishimp/constraint_emergence_ontology)*
+*Foundation: [GTL Bootloader](GTL_BOOTLOADER.md) — universal formal system (four primitives, event stream, gradient, evaluators)*
 *Formal system: [AI SDLC Asset Graph Model v2.8](AI_SDLC_ASSET_GRAPH_MODEL.md) — four primitives, one operation, event stream substrate*
 *Projections: [Projections and Invariants v1.2](PROJECTIONS_AND_INVARIANTS.md)*
 *Key ADRs: [ADR-S-012](../adrs/ADR-S-012-event-stream-as-formal-model-medium.md) event stream · [ADR-S-013](../adrs/ADR-S-013-completeness-visibility.md) completeness visibility · [ADR-S-016](../adrs/ADR-S-016-invocation-contract.md) invocation contract · [ADR-S-039](../adrs/ADR-S-039-bug-triage-and-post-mortem-escalation.md) bug triage*
 
----
 
 ## XXI. Abiogenesis Project — Local Write Territory Amendment
 
@@ -587,5 +621,4 @@ No feature vector. No iterate() cycle. No human gate. No REQ key traceability. O
 **V1 single-tenant constraint**: Only the `claude_code` build exists in V1. Do not create `comments/codex/`, `comments/gemini/`, or `comments/bedrock/` directories — they are V2+ concerns. See `V1_DOCTRINE.md` for the complete non-goals list.
 
 **Bootstrap compiler**: The `.genesis/` directory contains the installed bootstrap compiler (genesis_sdlc). It is not committed — it is installed. Do not modify files under `.genesis/`.
-
-<!-- GENESIS_BOOTLOADER_END -->
+<!-- SDLC_BOOTLOADER_END -->

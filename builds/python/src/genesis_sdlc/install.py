@@ -3,6 +3,7 @@
 # Implements: REQ-F-BOOT-003
 # Implements: REQ-F-BOOT-004
 # Implements: REQ-F-BOOT-005
+# Implements: REQ-F-BOOT-006
 #!/usr/bin/env python3
 """
 genesis_sdlc installer — deploys the full SDLC code builder into a target project.
@@ -16,13 +17,14 @@ Usage:
     python -m genesis_sdlc.install --target .
     python -m genesis_sdlc.install --target . --platform java
     python -m genesis_sdlc.install --target . --verify
+    python -m genesis_sdlc.install --target . --audit
     python -m genesis_sdlc.install --target . --migrate-full-copy
 
 Three-layer model
 ─────────────────
 Layer 1  .genesis/genesis/                                  abiogenesis engine — replaced on reinstall
 Layer 2  .genesis/workflows/genesis_sdlc/standard/vX_Y_Z/  immutable versioned release — written once
-Layer 3  gtl_spec/packages/<slug>.py                        system-owned generated wrapper — replaced on redeploy
+Layer 3  .genesis/gtl_spec/packages/<slug>.py               system-owned generated wrapper — replaced on redeploy
 
 The generated wrapper calls instantiate(slug) from the versioned release. Redeploy updates
 active-workflow.json and rewrites the wrapper; versioned releases are never modified.
@@ -38,7 +40,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 VERSION = "0.4.0"
-BOOTLOADER_VERSION = "3.1.0"  # matches **Version**: in gtl_spec/GENESIS_BOOTLOADER.md
+SDLC_BOOTLOADER_VERSION = "1.0.0"  # matches **Version**: in SDLC_BOOTLOADER.md
 
 # Commands inherited from the abiogenesis engine plugin.
 ABIOGENESIS_COMMANDS = [
@@ -53,9 +55,15 @@ GENESIS_SDLC_COMMANDS = [
     "gen-review",
 ]
 
-# CLAUDE.md markers for idempotent bootloader injection
-_BOOTLOADER_START = "<!-- GENESIS_BOOTLOADER_START -->"
-_BOOTLOADER_END = "<!-- GENESIS_BOOTLOADER_END -->"
+# CLAUDE.md markers for idempotent SDLC bootloader injection.
+# The GTL bootloader uses its own markers (<!-- GTL_BOOTLOADER_START/END -->)
+# and is appended by the abiogenesis installer — not by genesis_sdlc.
+_BOOTLOADER_START = "<!-- SDLC_BOOTLOADER_START -->"
+_BOOTLOADER_END = "<!-- SDLC_BOOTLOADER_END -->"
+
+# Legacy markers from the monolithic bootloader — used for migration only.
+_LEGACY_BOOTLOADER_START = "<!-- GENESIS_BOOTLOADER_START -->"
+_LEGACY_BOOTLOADER_END = "<!-- GENESIS_BOOTLOADER_END -->"
 
 _OPERATING_PROTOCOL = """\
 ## Operating protocol
@@ -93,13 +101,16 @@ PYTHONPATH=.genesis python -m genesis gaps --workspace .
 
 ```
 {project_name}/
-├── gtl_spec/packages/{slug}.py        ← generated workflow wrapper (system-owned)
-├── gtl_spec/packages/{slug}_local.py  ← local overlay (user-owned, optional)
+├── specification/                     ← axiomatic ontology (intent, requirements, standards)
 ├── builds/{platform}/
 │   ├── src/                           ← implementation source
 │   ├── tests/                         ← test suite
 │   └── design/adrs/                   ← architecture decision records
-├── .genesis/                          ← engine + versioned workflow releases
+├── .genesis/                          ← installed compiler (write-once)
+│   ├── genesis/                       ← abiogenesis engine
+│   ├── gtl/                           ← GTL type system
+│   ├── gtl_spec/packages/{slug}.py    ← generated workflow wrapper (system-owned)
+│   └── workflows/genesis_sdlc/        ← versioned release
 └── .ai-workspace/                     ← runtime state (events, features, reviews)
 ```
 
@@ -135,7 +146,7 @@ def _source_root_from_package() -> Path | None:
             pkg_path.parent.parent.parent,
             pkg_path.parent.parent.parent.parent,
         ]:
-            if (parent / "gtl_spec").exists() and (parent / ".genesis").exists():
+            if (parent / ".genesis" / "gtl_spec").exists() and (parent / ".genesis").exists():
                 return parent
     except ImportError:
         pass
@@ -349,7 +360,7 @@ def _render_wrapper(slug: str) -> str:
 def install_sdlc_starter_spec(source: Path, target: Path, slug: str,
                                platform: str = "python") -> str | None:
     """
-    Write the generated wrapper (Layer 3) into gtl_spec/packages/{slug}.py.
+    Write the generated wrapper (Layer 3) into .genesis/gtl_spec/packages/{slug}.py.
 
     The wrapper is rewritten whenever it carries an explicit system-ownership marker:
       - genesis_sdlc-generated  (new model — always replaced)
@@ -359,7 +370,7 @@ def install_sdlc_starter_spec(source: Path, target: Path, slug: str,
     Any other content is treated as user-owned and not touched. Legacy full-copy specs
     from pre-0.2.0 installs fall into this category; use --migrate-full-copy to opt in.
     """
-    wrapper_path = target / "gtl_spec" / "packages" / f"{slug}.py"
+    wrapper_path = target / ".genesis" / "gtl_spec" / "packages" / f"{slug}.py"
     if not wrapper_path.exists():
         return None  # abiogenesis installer should have written it
 
@@ -387,7 +398,7 @@ def migrate_full_copy(target: Path, slug: str) -> dict:
       3. Creates {slug}_local.py if absent
       4. Returns a report of what was moved and what must be ported manually.
     """
-    wrapper_path = target / "gtl_spec" / "packages" / f"{slug}.py"
+    wrapper_path = target / ".genesis" / "gtl_spec" / "packages" / f"{slug}.py"
     if not wrapper_path.exists():
         return {"status": "no_spec_found"}
 
@@ -401,7 +412,7 @@ def migrate_full_copy(target: Path, slug: str) -> dict:
         return {"status": "already_migrated", "message": "Spec is the old thin-wrapper stub; regular install will upgrade it."}
 
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
-    legacy_path = target / "gtl_spec" / "packages" / f"{slug}_legacy_{ts}.py"
+    legacy_path = target / ".genesis" / "gtl_spec" / "packages" / f"{slug}_legacy_{ts}.py"
     shutil.move(str(wrapper_path), str(legacy_path))
 
     wrapper_path.write_text(_render_wrapper(slug), encoding="utf-8")
@@ -464,20 +475,35 @@ def install_commands(source: Path, target: Path) -> list[str]:
     return installed
 
 
+def _sdlc_bootloader_source(source: Path) -> Path | None:
+    """Locate SDLC_BOOTLOADER.md from genesis_sdlc source."""
+    candidates = [
+        source / "builds" / "python" / "src" / "genesis_sdlc" / "SDLC_BOOTLOADER.md",
+        Path(__file__).resolve().parent / "SDLC_BOOTLOADER.md",
+    ]
+    return next((p for p in candidates if p.exists()), None)
+
+
 def install_claude_md(source: Path, target: Path, slug: str, platform: str,
                       project_name: str) -> str:
-    bootloader_path = source / "gtl_spec" / "GENESIS_BOOTLOADER.md"
-    if not bootloader_path.exists():
-        bootloader_path = (
-            source.parent / "abiogenesis" / "gtl_spec" / "GENESIS_BOOTLOADER.md"
-        ).resolve()
+    """Append the SDLC bootloader to CLAUDE.md between SDLC markers.
 
-    if not bootloader_path.exists():
-        raise FileNotFoundError(f"GENESIS_BOOTLOADER.md not found at {bootloader_path}")
+    Each GTL Package appends its own bootloader section:
+    - abiogenesis appends GTL_BOOTLOADER (universal axioms) between GTL markers
+    - genesis_sdlc appends SDLC_BOOTLOADER (SDLC instantiation) between SDLC markers
 
-    bootloader = bootloader_path.read_text(encoding="utf-8")
+    If a legacy monolithic GENESIS_BOOTLOADER block is found, it is removed —
+    the split bootloaders supersede it.
+    """
+    bl_path = _sdlc_bootloader_source(source)
+    if bl_path is None:
+        raise FileNotFoundError(
+            "SDLC_BOOTLOADER.md not found in genesis_sdlc source"
+        )
+
+    bootloader = bl_path.read_text(encoding="utf-8")
     operating_protocol = _OPERATING_PROTOCOL.format(slug=slug, platform=platform)
-    bootloader_section = f"{_BOOTLOADER_START}\n{operating_protocol}\n{bootloader}\n{_BOOTLOADER_END}\n"
+    bootloader_section = f"{_BOOTLOADER_START}\n{operating_protocol}\n{bootloader}\n{_BOOTLOADER_END}"
 
     header = _CLAUDE_MD_HEADER.format(
         project_name=project_name, slug=slug, platform=platform
@@ -485,22 +511,31 @@ def install_claude_md(source: Path, target: Path, slug: str, platform: str,
 
     claude_md = target / "CLAUDE.md"
     if claude_md.exists():
+        import re
         existing = claude_md.read_text(encoding="utf-8")
+
+        # Remove legacy monolithic bootloader if present
+        if _LEGACY_BOOTLOADER_START in existing:
+            legacy_pattern = re.compile(
+                re.escape(_LEGACY_BOOTLOADER_START) + r".*?" + re.escape(_LEGACY_BOOTLOADER_END),
+                re.DOTALL,
+            )
+            existing = legacy_pattern.sub("", existing)
+
         if _BOOTLOADER_START in existing:
-            import re
             pattern = re.compile(
                 re.escape(_BOOTLOADER_START) + r".*?" + re.escape(_BOOTLOADER_END),
                 re.DOTALL,
             )
-            updated = pattern.sub(bootloader_section.rstrip(), existing)
+            updated = pattern.sub(bootloader_section, existing)
             claude_md.write_text(updated, encoding="utf-8")
             return "updated"
         else:
-            with claude_md.open("a", encoding="utf-8") as f:
-                f.write(f"\n\n---\n\n{bootloader_section}")
+            with open(claude_md, "w", encoding="utf-8") as f:
+                f.write(existing.rstrip() + f"\n\n---\n\n{bootloader_section}\n")
             return "appended"
     else:
-        claude_md.write_text(header + bootloader_section, encoding="utf-8")
+        claude_md.write_text(header + bootloader_section + "\n", encoding="utf-8")
         return "created"
 
 
@@ -740,6 +775,7 @@ def install(
     slug: str = "project_package",
     platform: str = "python",
     verify_only: bool = False,
+    audit_only: bool = False,
     do_migrate: bool = False,
 ) -> dict:
     target = target.resolve()
@@ -772,12 +808,18 @@ def install(
     if verify_only:
         return _verify(target, result, platform=platform)
 
-    # 1. Engine + gtl_spec + builds/<platform>/ scaffold via abiogenesis
+    if audit_only:
+        return _audit(target, result, src, slug, platform=platform)
+
+    # 1. Engine + .genesis/gtl_spec + builds/<platform>/ scaffold via abiogenesis
     try:
         engine_result = _run_abiogenesis_installer(src, target, slug, platform)
         result["engine"] = engine_result.get("status")
         if engine_result.get("errors"):
             result["errors"].extend(engine_result["errors"])
+        # Verify abg installed the GTL bootloader into CLAUDE.md
+        if engine_result.get("claude_md") == "source_missing":
+            result["errors"].append("engine: GTL bootloader not installed into CLAUDE.md")
     except (FileNotFoundError, RuntimeError) as exc:
         result["errors"].append(f"engine: {exc}")
 
@@ -871,12 +913,16 @@ def _verify(target: Path, result: dict, platform: str = "python") -> dict:
         "workflow_release": ver_spec.exists(),
         "active_workflow": (target / ".genesis" / "active-workflow.json").exists(),
         "immutable_spec": (target / ".genesis" / "spec" / "genesis_sdlc.py").exists(),
-        "gtl_spec": (target / "gtl_spec" / "packages").is_dir(),
+        "gtl_spec": (target / ".genesis" / "gtl_spec" / "packages").is_dir(),
         "builds_src": (target / "builds" / platform / "src").is_dir(),
         "builds_tests": (target / "builds" / platform / "tests").is_dir(),
         "commands": (target / ".claude" / "commands" / "gen-start.md").exists(),
         "claude_md": (target / "CLAUDE.md").exists(),
-        "bootloader": (
+        "gtl_bootloader": (
+            "<!-- GTL_BOOTLOADER_START -->" in (target / "CLAUDE.md").read_text(encoding="utf-8")
+            if (target / "CLAUDE.md").exists() else False
+        ),
+        "sdlc_bootloader": (
             _BOOTLOADER_START in (target / "CLAUDE.md").read_text(encoding="utf-8")
             if (target / "CLAUDE.md").exists() else False
         ),
@@ -887,6 +933,329 @@ def _verify(target: Path, result: dict, platform: str = "python") -> dict:
     result["checks"] = checks
     result["status"] = "ok" if all(checks.values()) else "incomplete"
     result["missing"] = [k for k, v in checks.items() if not v]
+    return result
+
+
+def _file_hash(path: Path) -> str:
+    """SHA-256 hex digest of a file's content, or empty string if missing."""
+    import hashlib
+    if not path.exists():
+        return ""
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _file_hash_str(text: str) -> str:
+    """SHA-256 hex digest of a string."""
+    import hashlib
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _audit(target: Path, result: dict, source: Path, slug: str,
+           platform: str = "python") -> dict:
+    """
+    Content-integrity audit: verify installed artifacts match what this
+    version of the installer would produce.  Unlike --verify (file existence),
+    --audit compares content hashes, version strings, package wiring, and
+    the generated Layer 3 wrapper.
+
+    Checks: workflow release, active-workflow pointer, commands, command stamp,
+    operating standards, CLAUDE.md bootloader block, genesis.yml package/worker
+    contract (including import resolution), Layer 3 wrapper template, manifest,
+    and immutable spec shim.
+    """
+    import hashlib
+    import re
+
+    findings: list[dict] = []
+    ver_tag = f"v{VERSION.replace('.', '_')}"
+
+    def _finding(component: str, status: str, detail: str = "",
+                 expected: str = "", actual: str = "") -> None:
+        f: dict = {"component": component, "status": status}
+        if detail:
+            f["detail"] = detail
+        if expected:
+            f["expected"] = expected
+        if actual:
+            f["actual"] = actual
+        findings.append(f)
+
+    # ── 1. Workflow release (Layer 2) — immutable spec.py content hash ──
+    spec_src = _sdlc_graph_source(source)
+    spec_installed = (
+        target / ".genesis" / "workflows" / "genesis_sdlc"
+        / "standard" / ver_tag / "spec.py"
+    )
+    if not spec_installed.exists():
+        _finding("workflow_release", "missing",
+                 f".genesis/workflows/genesis_sdlc/standard/{ver_tag}/spec.py not found")
+    elif spec_src and _file_hash(spec_src) != _file_hash(spec_installed):
+        _finding("workflow_release", "drifted",
+                 "Installed spec.py content differs from build source",
+                 expected=_file_hash(spec_src)[:16],
+                 actual=_file_hash(spec_installed)[:16])
+    else:
+        _finding("workflow_release", "ok")
+
+    # ── 2. Active workflow pointer — version and module path ──
+    active_path = target / ".genesis" / "active-workflow.json"
+    if not active_path.exists():
+        _finding("active_workflow", "missing")
+    else:
+        try:
+            active = json.loads(active_path.read_text(encoding="utf-8"))
+            expected_module = f"workflows.genesis_sdlc.standard.{ver_tag}.spec"
+            if active.get("version") != VERSION:
+                _finding("active_workflow", "version_mismatch",
+                         expected=VERSION, actual=active.get("version", ""))
+            elif active.get("spec_module") != expected_module:
+                _finding("active_workflow", "module_mismatch",
+                         expected=expected_module,
+                         actual=active.get("spec_module", ""))
+            else:
+                _finding("active_workflow", "ok")
+        except Exception as exc:
+            _finding("active_workflow", "error", str(exc))
+
+    # ── 3. Commands — content hash of each installed command vs source ──
+    abiogenesis_cmd_src = (
+        source.parent / "abiogenesis" / "builds" / "claude_code"
+        / ".claude-plugin" / "plugins" / "genesis" / "commands"
+    ).resolve()
+    genesis_sdlc_cmd_src = (
+        source / "builds" / "claude_code" / ".claude-plugin"
+        / "plugins" / "genesis" / "commands"
+    ).resolve()
+    commands_dir = target / ".claude" / "commands"
+
+    for cmd, cmd_src_dir in [
+        *[(c, abiogenesis_cmd_src) for c in ABIOGENESIS_COMMANDS],
+        *[(c, genesis_sdlc_cmd_src) for c in GENESIS_SDLC_COMMANDS],
+    ]:
+        src_file = cmd_src_dir / f"{cmd}.md"
+        installed_file = commands_dir / f"{cmd}.md"
+        if not installed_file.exists():
+            _finding(f"command:{cmd}", "missing")
+        elif not src_file.exists():
+            _finding(f"command:{cmd}", "source_missing",
+                     f"Source not found at {src_file}")
+        elif _file_hash(src_file) != _file_hash(installed_file):
+            _finding(f"command:{cmd}", "drifted",
+                     f"Installed {cmd}.md differs from source")
+        else:
+            _finding(f"command:{cmd}", "ok")
+
+    # ── 4. Commands stamp — version in .genesis-installed ──
+    stamp = commands_dir / ".genesis-installed"
+    if stamp.exists():
+        try:
+            stamp_data = json.loads(stamp.read_text(encoding="utf-8"))
+            if stamp_data.get("version") != VERSION:
+                _finding("commands_stamp", "version_mismatch",
+                         expected=VERSION, actual=stamp_data.get("version", ""))
+            else:
+                _finding("commands_stamp", "ok")
+        except Exception as exc:
+            _finding("commands_stamp", "error", str(exc))
+    else:
+        _finding("commands_stamp", "missing")
+
+    # ── 5. Operating standards — content hash per file ──
+    src_standards = source / "specification" / "standards"
+    dest_standards = target / ".ai-workspace" / "operating-standards"
+    if src_standards.is_dir():
+        for src_file in sorted(src_standards.glob("*.md")):
+            installed = dest_standards / src_file.name
+            if not installed.exists():
+                _finding(f"standard:{src_file.name}", "missing")
+            elif _file_hash(src_file) != _file_hash(installed):
+                _finding(f"standard:{src_file.name}", "drifted",
+                         "Installed standard differs from source")
+            else:
+                _finding(f"standard:{src_file.name}", "ok")
+
+    # ── 6. CLAUDE.md bootloader content (both GTL and SDLC blocks) ──
+    _GTL_START = "<!-- GTL_BOOTLOADER_START -->"
+    _GTL_END = "<!-- GTL_BOOTLOADER_END -->"
+    claude_md = target / "CLAUDE.md"
+    if claude_md.exists():
+        text = claude_md.read_text(encoding="utf-8")
+
+        # 6a. GTL bootloader (installed by abiogenesis)
+        if _GTL_START in text and _GTL_END in text:
+            gtl_start = text.index(_GTL_START)
+            gtl_end = text.index(_GTL_END) + len(_GTL_END)
+            installed_gtl = text[gtl_start:gtl_end]
+            # Verify against the installed copy in .genesis/gtl_spec/
+            gtl_source = target / ".genesis" / "gtl_spec" / "GTL_BOOTLOADER.md"
+            if gtl_source.exists():
+                gtl_content = gtl_source.read_text(encoding="utf-8")
+                expected_gtl = f"{_GTL_START}\n{gtl_content}\n{_GTL_END}"
+                if _file_hash_str(installed_gtl) != _file_hash_str(expected_gtl):
+                    _finding("gtl_bootloader_content", "drifted",
+                             "CLAUDE.md GTL bootloader block differs from .genesis/gtl_spec/GTL_BOOTLOADER.md")
+                else:
+                    _finding("gtl_bootloader_content", "ok")
+            else:
+                _finding("gtl_bootloader_content", "source_missing",
+                         "GTL_BOOTLOADER.md not found in .genesis/gtl_spec/")
+        else:
+            _finding("gtl_bootloader_content", "missing",
+                     "GTL bootloader markers not found in CLAUDE.md — abiogenesis install may have failed")
+
+        # 6b. SDLC bootloader (installed by genesis_sdlc)
+        if _BOOTLOADER_START in text and _BOOTLOADER_END in text:
+            bl_start = text.index(_BOOTLOADER_START)
+            bl_end = text.index(_BOOTLOADER_END) + len(_BOOTLOADER_END)
+            installed_block = text[bl_start:bl_end]
+            bl_source = _sdlc_bootloader_source(source)
+            if bl_source:
+                bl_content = bl_source.read_text(encoding="utf-8")
+                op = _OPERATING_PROTOCOL.format(slug=slug, platform=platform)
+                expected_block = (
+                    f"{_BOOTLOADER_START}\n{op}\n{bl_content}\n{_BOOTLOADER_END}"
+                )
+                if _file_hash_str(installed_block) != _file_hash_str(expected_block):
+                    _finding("sdlc_bootloader_content", "drifted",
+                             "CLAUDE.md SDLC bootloader block differs from source")
+                else:
+                    _finding("sdlc_bootloader_content", "ok")
+            else:
+                _finding("sdlc_bootloader_content", "source_missing",
+                         "SDLC_BOOTLOADER.md not found in genesis_sdlc source")
+        else:
+            _finding("sdlc_bootloader_content", "missing",
+                     "SDLC bootloader markers not found in CLAUDE.md")
+
+        # 6c. Block ordering: GTL must precede SDLC
+        if _GTL_START in text and _BOOTLOADER_START in text:
+            if text.index(_GTL_START) > text.index(_BOOTLOADER_START):
+                _finding("bootloader_order", "invalid",
+                         "GTL bootloader must appear before SDLC bootloader in CLAUDE.md")
+
+        # 6d. Legacy monolithic bootloader (should have been migrated)
+        if _LEGACY_BOOTLOADER_START in text:
+            _finding("legacy_bootloader", "stale",
+                     "Legacy GENESIS_BOOTLOADER markers still present — reinstall to migrate")
+    else:
+        _finding("gtl_bootloader_content", "missing", "CLAUDE.md not found")
+        _finding("sdlc_bootloader_content", "missing", "CLAUDE.md not found")
+
+    # ── 7. genesis.yml package/worker contract ──
+    genesis_yml = target / ".genesis" / "genesis.yml"
+    if genesis_yml.exists():
+        yml_text = genesis_yml.read_text(encoding="utf-8")
+        pkg_match = re.search(r"^package:\s+(\S+)", yml_text, re.MULTILINE)
+        worker_match = re.search(r"^worker:\s+(\S+)", yml_text, re.MULTILINE)
+        if pkg_match:
+            pkg_ref = pkg_match.group(1)
+            # Verify the module:attr reference is importable
+            mod_path, _, attr = pkg_ref.rpartition(":")
+            try:
+                import importlib
+                _old_path = sys.path[:]
+                if str(target / ".genesis") not in sys.path:
+                    sys.path.insert(0, str(target / ".genesis"))
+                if str(target) not in sys.path:
+                    sys.path.insert(0, str(target))
+                mod = importlib.import_module(mod_path)
+                if hasattr(mod, attr):
+                    _finding("genesis_yml_package", "ok",
+                             detail=f"Package {pkg_ref} resolves")
+                else:
+                    _finding("genesis_yml_package", "broken",
+                             f"Module {mod_path} loaded but {attr!r} not found")
+            except ImportError as exc:
+                _finding("genesis_yml_package", "broken",
+                         f"Package {pkg_ref} cannot be imported: {exc}")
+            finally:
+                sys.path[:] = _old_path
+        else:
+            _finding("genesis_yml_package", "missing",
+                     "No package: line in genesis.yml")
+
+        if worker_match:
+            _finding("genesis_yml_worker", "ok",
+                     detail=f"Worker ref: {worker_match.group(1)}")
+        else:
+            _finding("genesis_yml_worker", "missing",
+                     "No worker: line in genesis.yml")
+    else:
+        _finding("genesis_yml", "missing", "genesis.yml not found")
+
+    # ── 8. Layer 3 generated wrapper — content matches expected template ──
+    wrapper_path = target / ".genesis" / "gtl_spec" / "packages" / f"{slug}.py"
+    if wrapper_path.exists():
+        wrapper_text = wrapper_path.read_text(encoding="utf-8")
+        if "genesis_sdlc-generated" in wrapper_text:
+            expected_wrapper = _render_wrapper(slug)
+            if wrapper_text.strip() != expected_wrapper.strip():
+                _finding("layer3_wrapper", "drifted",
+                         f"Generated wrapper at {wrapper_path.name} differs from "
+                         f"expected template for v{VERSION}")
+            else:
+                _finding("layer3_wrapper", "ok")
+        else:
+            _finding("layer3_wrapper", "customised",
+                     "Wrapper is user-owned (no genesis_sdlc-generated marker)")
+    else:
+        _finding("layer3_wrapper", "missing",
+                 f"No wrapper found for slug {slug!r}")
+
+    # ── 10. Manifest version consistency ──
+    manifest_path = (
+        target / ".genesis" / "workflows" / "genesis_sdlc"
+        / "standard" / ver_tag / "manifest.json"
+    )
+    if manifest_path.exists():
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            if manifest.get("version") != VERSION:
+                _finding("manifest", "version_mismatch",
+                         expected=VERSION, actual=manifest.get("version", ""))
+            else:
+                _finding("manifest", "ok")
+        except Exception as exc:
+            _finding("manifest", "error", str(exc))
+    else:
+        _finding("manifest", "missing")
+
+    # ── 11. Immutable spec shim ──
+    shim = target / ".genesis" / "spec" / "genesis_sdlc.py"
+    if spec_src and shim.exists():
+        if _file_hash(spec_src) != _file_hash(shim):
+            _finding("immutable_spec_shim", "drifted",
+                     "Backwards-compat shim differs from build source")
+        else:
+            _finding("immutable_spec_shim", "ok")
+    elif not shim.exists():
+        _finding("immutable_spec_shim", "missing")
+
+    # ── Build result ──
+    ok_count = sum(1 for f in findings if f["status"] == "ok")
+    total = len(findings)
+    drifted = [f for f in findings if f["status"] == "drifted"]
+    missing = [f for f in findings if f["status"] == "missing"]
+    errors = [f for f in findings if f["status"] not in ("ok", "drifted", "missing")]
+
+    result["audit"] = {
+        "version": VERSION,
+        "sdlc_bootloader_version": SDLC_BOOTLOADER_VERSION,
+        "findings": findings,
+        "summary": {
+            "total": total,
+            "ok": ok_count,
+            "drifted": len(drifted),
+            "missing": len(missing),
+            "errors": len(errors),
+        },
+    }
+    if drifted:
+        result["audit"]["drifted"] = [f["component"] for f in drifted]
+    if missing:
+        result["audit"]["missing"] = [f["component"] for f in missing]
+
+    result["status"] = "ok" if ok_count == total else "drift_detected"
     return result
 
 
@@ -925,7 +1294,9 @@ def main() -> None:
     parser.add_argument("--platform", metavar="PLATFORM", default="python",
                         help="Build platform name for builds/<platform>/ (default: python)")
     parser.add_argument("--verify", action="store_true",
-                        help="Verify installation only — do not install")
+                        help="Verify installation only — do not install (file existence)")
+    parser.add_argument("--audit", action="store_true",
+                        help="Deep content-integrity audit — verify installed content matches release")
     parser.add_argument("--migrate-full-copy", action="store_true",
                         help="Migrate a legacy full-copy local spec to the 4-layer model")
     args = parser.parse_args()
@@ -948,6 +1319,7 @@ def main() -> None:
             slug=slug,
             platform=args.platform,
             verify_only=args.verify,
+            audit_only=args.audit,
             do_migrate=args.migrate_full_copy,
         )
     except FileNotFoundError as exc:

@@ -150,11 +150,11 @@ class TestInstallStructure:
             assert (commands_dir / cmd).exists(), f"Missing command: {cmd}"
 
     def test_starter_spec_installed(self, sandbox):
-        spec = sandbox / "gtl_spec" / "packages" / f"{PROJECT_SLUG}.py"
+        spec = sandbox / ".genesis" / "gtl_spec" / "packages" / f"{PROJECT_SLUG}.py"
         assert spec.exists(), "Starter spec not written"
 
     def test_starter_spec_has_correct_slug(self, sandbox):
-        spec = sandbox / "gtl_spec" / "packages" / f"{PROJECT_SLUG}.py"
+        spec = sandbox / ".genesis" / "gtl_spec" / "packages" / f"{PROJECT_SLUG}.py"
         content = spec.read_text()
         assert "instantiate" in content, "Generated wrapper must call instantiate()"
         assert f'slug="{PROJECT_SLUG}"' in content, "Generated wrapper must pass correct slug"
@@ -171,7 +171,8 @@ class TestInstallStructure:
         claude_md = sandbox / "CLAUDE.md"
         assert claude_md.exists()
         content = claude_md.read_text()
-        assert "GENESIS_BOOTLOADER_START" in content
+        assert "GTL_BOOTLOADER_START" in content
+        assert "SDLC_BOOTLOADER_START" in content
         assert "ai_sdlc_method" not in content, (
             "CLAUDE.md must not reference dead ai_sdlc_method project"
         )

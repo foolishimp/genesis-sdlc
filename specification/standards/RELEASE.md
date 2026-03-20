@@ -85,7 +85,7 @@ All must pass. Do not proceed with failures.
 ### 1b. Check bootloader for changes
 
 ```bash
-git diff HEAD gtl_spec/GENESIS_BOOTLOADER.md
+git diff HEAD .genesis/gtl_spec/GENESIS_BOOTLOADER.md
 ```
 
 If changed:
@@ -107,7 +107,7 @@ Compute spec_hash (must match the engine's `req_hash()` — JSON-sorted):
 ```bash
 PYTHONPATH=.genesis python -c "
 import json, hashlib, importlib.util
-spec = importlib.util.spec_from_file_location('s', 'gtl_spec/packages/genesis_sdlc.py')
+spec = importlib.util.spec_from_file_location('s', 'builds/python/src/genesis_sdlc/sdlc_graph.py')
 mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
 print(hashlib.sha256(json.dumps(sorted(mod.package.requirements)).encode()).hexdigest()[:16])
 "

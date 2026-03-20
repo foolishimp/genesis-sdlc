@@ -10,7 +10,7 @@
 - **Ambiguity Handling**: If the request is ambiguous, stay in review-only mode and ask for clarification.
 
 ## SDLC Methodology Compliance
-- **Axioms**: Adhere strictly to the **Genesis Bootloader** (found in `CLAUDE.md` or `gtl_spec/GENESIS_BOOTLOADER.md`).
+- **Axioms**: Adhere strictly to the **Genesis Bootloader** (found in `CLAUDE.md` or `.genesis/gtl_spec/GENESIS_BOOTLOADER.md`).
 - **Territory**: Respect the Agent Write Territory defined in the Bootloader.
 - **Proxy Mode**: If `--human-proxy` is requested, follow the **Proxy Evaluation Protocol** (§XIX of the Bootloader) without exception.
 

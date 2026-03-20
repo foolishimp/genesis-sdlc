@@ -5,6 +5,7 @@ satisfies:
   - REQ-F-BOOT-003
   - REQ-F-BOOT-004
   - REQ-F-BOOT-005
+  - REQ-F-BOOT-006
 description: |
   Extend the installer to produce a three-layer structure in every target project:
 

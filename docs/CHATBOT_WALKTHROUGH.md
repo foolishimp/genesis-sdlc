@@ -82,15 +82,18 @@ After install, the project layout is:
 
 ```
 nexus/
-├── gtl_spec/
-│   ├── GENESIS_BOOTLOADER.md         ← LLM constraint context (do not edit)
-│   └── packages/
-│       └── nexus.py                  ← Your spec (edit this)
 ├── builds/python/
 │   ├── src/nexus/                    ← Implementation source
 │   ├── tests/                        ← Test suite
 │   └── design/adrs/                  ← Architecture decision records
-├── .genesis/                         ← abiogenesis engine (do not edit)
+├── .genesis/                         ← installed compiler (do not edit)
+│   ├── genesis/                      ← abiogenesis engine
+│   ├── gtl/                          ← GTL type system
+│   ├── gtl_spec/
+│   │   ├── GENESIS_BOOTLOADER.md     ← LLM constraint context
+│   │   └── packages/
+│   │       └── nexus.py              ← Generated spec wrapper
+│   └── workflows/genesis_sdlc/       ← versioned release
 ├── .ai-workspace/
 │   ├── events/events.jsonl           ← Append-only event log
 │   └── features/active/              ← Feature vectors in progress
@@ -224,7 +227,7 @@ The requirements for Nexus:
 | `REQ-NFR-001` | F_D responses return in under 100ms (no network calls) |
 | `REQ-NFR-002` | F_P responses return in under 10s (LLM call with assembled context) |
 
-These requirements are written into `builds/python/design/requirements.md` and the REQ keys are registered in `Package.requirements` in `gtl_spec/packages/nexus.py`.
+These requirements are written into `builds/python/design/requirements.md` and the REQ keys are registered in `Package.requirements` in `.genesis/gtl_spec/packages/nexus.py`.
 
 The F_D coverage check (`req_coverage`) passes when every key in `Package.requirements` appears in at least one feature vector. Feature vectors are written at the next edge.
 
@@ -1041,7 +1044,7 @@ The natural V2 additions:
 
 ## Appendix A: Complete GTL Spec
 
-This is the complete `gtl_spec/packages/nexus.py` for the Nexus project. Every REQ key from §4 is registered. The evaluator commands are wired to real subprocesses. This file governs the build.
+This is the complete `.genesis/gtl_spec/packages/nexus.py` for the Nexus project. Every REQ key from §4 is registered. The evaluator commands are wired to real subprocesses. This file governs the build.
 
 ```python
 """
@@ -1074,13 +1077,13 @@ from gtl.core import (
 
 bootloader = Context(
     name="bootloader",
-    locator="workspace://gtl_spec/GENESIS_BOOTLOADER.md",
+    locator="workspace://.genesis/gtl_spec/GENESIS_BOOTLOADER.md",
     digest="sha256:" + "0" * 64,
 )
 
 this_spec = Context(
     name="nexus_spec",
-    locator="workspace://gtl_spec/packages/nexus.py",
+    locator="workspace://.genesis/gtl_spec/packages/nexus.py",
     digest="sha256:" + "0" * 64,
 )
 
