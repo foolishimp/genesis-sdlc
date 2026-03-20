@@ -19,7 +19,7 @@ The installer copies the genesis engine and methodology into a target project so
 - AC-1: `install(target, source)` creates `.genesis/genesis/` with engine modules copied from the abiogenesis engine
 - AC-2: Creates `.genesis/genesis.yml` pointing to `gtl_spec/packages/<slug>:package` and `gtl_spec/packages/<slug>:worker`
 - AC-3: Creates `.ai-workspace/` directory structure (events/, features/active/, features/completed/, comments/, reviews/)
-- AC-4: Installs operating standards from `standards/` into `.ai-workspace/operating-standards/`
+- AC-4: Installs operating standards from `specification/standards/` into `.ai-workspace/operating-standards/`
 - AC-5: Installs command files from plugin sources into `.claude/commands/`
 - AC-6: Generates `CLAUDE.md` from `gtl_spec/GENESIS_BOOTLOADER.md`
 - AC-7: Idempotent — re-running updates engine files and standards, preserves workspace state and local specs

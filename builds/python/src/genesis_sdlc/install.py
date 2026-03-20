@@ -505,7 +505,7 @@ def install_claude_md(source: Path, target: Path, slug: str, platform: str,
 
 
 def install_operating_standards(source: Path, target: Path) -> str:
-    src_standards = source / "standards"
+    src_standards = source / "specification" / "standards"
     if not src_standards.exists():
         return "source_missing"
 
@@ -859,7 +859,7 @@ def _verify(target: Path, result: dict, platform: str = "python") -> dict:
         / "standard" / f"v{VERSION.replace('.', '_')}" / "spec.py"
     )
     _standards_dir = target / ".ai-workspace" / "operating-standards"
-    _src_standards = resolve_source(None) / "standards"
+    _src_standards = resolve_source(None) / "specification" / "standards"
     _installed_files = set(p.name for p in _standards_dir.glob("*.md")) if _standards_dir.is_dir() else set()
     _source_files = set(p.name for p in _src_standards.glob("*.md")) if _src_standards.is_dir() else set()
     _standards_ok = _source_files.issubset(_installed_files) and bool(_source_files)

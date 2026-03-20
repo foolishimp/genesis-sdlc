@@ -194,4 +194,4 @@ Run the cascade installer against all of these on every release, starting with `
 - Editing comment posts in `.ai-workspace/comments/` — these are workspace artifacts, not versioned artifacts
 - Editing ADRs in `builds/python/design/adrs/` — ADRs are immutable; supersede with a new ADR
 
-**Note**: Editing `standards/` files (operating standards) DOES require a release — they are installer assets deployed to dependent projects. Update the source, bump the version (MINOR), cascade, commit.
+**Note**: Editing `specification/standards/` files (operating standards) DOES require a release — they are installer assets deployed to dependent projects. Update the source, bump the version (MINOR), cascade, commit.
