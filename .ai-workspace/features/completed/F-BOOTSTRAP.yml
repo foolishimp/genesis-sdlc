@@ -1,0 +1,16 @@
+id: F-BOOTSTRAP
+name: Installer and Bootstrap
+description: >
+  gen-install bootstraps .genesis/ into a target project with engine, workflow,
+  spec layers, commands, bootloader, and operating standards. Idempotent.
+  Audit mode validates installed artifacts match the release.
+satisfies:
+  - REQ-F-BOOT-001
+  - REQ-F-BOOT-002
+  - REQ-F-BOOT-003
+  - REQ-F-BOOT-004
+  - REQ-F-BOOT-005
+  - REQ-F-BOOT-006
+dependencies: [F-GRAPH]
+status: completed
+mvp: true

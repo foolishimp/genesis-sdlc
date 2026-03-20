@@ -1,0 +1,13 @@
+id: F-TESTING
+name: Test Strategy and Evaluator Hygiene
+description: >
+  Integration and e2e tests are the primary surface. At least one @pytest.mark.e2e
+  test must exist. F_D evaluator commands pin PYTHONPATH for version sandboxing.
+  F_D evaluators must be acyclic — never invoke genesis subcommands.
+satisfies:
+  - REQ-F-TEST-001
+  - REQ-F-TEST-002
+  - REQ-F-TEST-003
+dependencies: [F-TRACEABILITY, F-COMMANDS]
+status: completed
+mvp: true

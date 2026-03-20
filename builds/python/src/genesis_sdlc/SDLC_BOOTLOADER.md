@@ -1,6 +1,6 @@
 # SDLC Bootloader: AI SDLC Instantiation of the GTL Formal System
 
-**Version**: 1.0.0
+**Version**: 1.1.0
 **Purpose**: Domain-specific instantiation of the GTL formal system for software development lifecycle projects. This bootloader extends the universal GTL Bootloader (sections I–XI) with SDLC-specific graph topology, feature vectors, profiles, workspace territory, and bug triage. It is loaded by the genesis_sdlc installer — a non-SDLC GTL Package would use its own domain bootloader instead.
 
 **Requires**: GTL Bootloader (universal axioms — four primitives, event stream, gradient, evaluators)
@@ -49,7 +49,7 @@ A convergence event not made visible before the next downstream iteration starts
 A **feature** is a trajectory through the graph:
 
 ```
-Feature F = |req⟩ + |feature_decomp⟩ + |design⟩ + |module_decomp⟩ + |basis_proj⟩ + |code⟩ + |unit_tests⟩ + |uat_tests⟩ + |cicd⟩ + |telemetry⟩
+Feature F = |req⟩ + |feature_decomp⟩ + |design⟩ + |module_decomp⟩ + |code⟩ + |unit_tests⟩ + |integration_tests⟩ + |user_guide⟩ + |uat_tests⟩
 ```
 
 The **REQ key** threads from spec to runtime:
@@ -69,13 +69,10 @@ Feature vectors have a required `satisfies:` field listing covered REQ-* keys �
 ## XIV. The SDLC Graph (Default Instantiation)
 
 ```
-Intent → Requirements → Feature Decomp → Design → Module Decomp → Basis Projections → Code ↔ Unit Tests
-                                │              │                                              │
-                                │              └──→ Test Cases → UAT Tests                   ↓
-                                │                                              CI/CD → Running System → Telemetry
-                                └──────────────────────────────── Observer/Evaluator ◄────────────────┘
+intent → requirements → feature_decomp → design → module_decomp → code ↔ unit_tests
                                                                           │
-                                                                     New Intent
+                                                                          ↓
+                                                   uat_tests ← user_guide ← integration_tests
 ```
 
 **Feature Decomposition is a first-class graph node.** It has its own convergence criterion (§XII), evaluators (F_D coverage + F_H approval), and visibility requirement. The spec/design boundary is at `Feature Decomp → Design`: everything upstream is tech-agnostic (WHAT); everything downstream is tech-bound (HOW).
@@ -85,14 +82,14 @@ Intent → Requirements → Feature Decomp → Design → Module Decomp → Basi
 **The graph is zoomable.** Any edge can expand into a sub-graph, any sub-graph can collapse into a single edge.
 
 ```
-Full:      Intent → Req → Feat Decomp → Design → Mod Decomp → Basis Proj → Code ↔ Tests → UAT
-Standard:  Intent → Req → Feat Decomp → Design → Mod Decomp → Basis Proj → Code ↔ Tests
+Full:      Intent → Req → Feat Decomp → Design → Mod Decomp → Code ↔ Tests → Integration → Guide → UAT
+Standard:  Intent → Req → Feat Decomp → Design → Mod Decomp → Code ↔ Tests
 PoC:       Intent → Req → Feat Decomp → Design → Code ↔ Tests
 Hotfix:                                         → Code ↔ Tests
 ```
 
-**Standard profile v2.9 edge chain**:
-`intent → requirements → feature_decomposition → design_recommendations → design → module_decomposition → basis_projections → code ↔ unit_tests`
+**Standard profile edge chain**:
+`intent → requirements → feature_decomp → design → module_decomp → code ↔ unit_tests → integration_tests → user_guide → uat_tests`
 
 ---
 

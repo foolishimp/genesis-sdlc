@@ -7,6 +7,7 @@ description: |
 implements_features:
   - REQ-F-BOOT
   - REQ-F-DOCS
+  - F-USER-GUIDE
 dependencies:
   - MOD-001
   - MOD-002

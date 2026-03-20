@@ -1,0 +1,13 @@
+id: F-COMMANDS
+name: Engine Commands
+description: >
+  gen-gaps reports delta per edge, gen-iterate runs one bind-and-iterate pass,
+  gen-start --auto loops until blocked. The three commands are the operator
+  interface to the convergence engine.
+satisfies:
+  - REQ-F-CMD-001
+  - REQ-F-CMD-002
+  - REQ-F-CMD-003
+dependencies: [F-GRAPH]
+status: completed
+mvp: true

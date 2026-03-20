@@ -39,8 +39,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-VERSION = "0.4.0"
-SDLC_BOOTLOADER_VERSION = "1.0.0"  # matches **Version**: in SDLC_BOOTLOADER.md
+VERSION = "0.5.0"
+SDLC_BOOTLOADER_VERSION = "1.1.0"  # matches **Version**: in SDLC_BOOTLOADER.md
 
 # Commands inherited from the abiogenesis engine plugin.
 ABIOGENESIS_COMMANDS = [

@@ -6,6 +6,7 @@ description: |
   ready backlog items in gen gaps/status output.
 implements_features:
   - REQ-F-BACKLOG
+  - F-BACKLOG
 dependencies: []
 rank: 1
 interfaces:

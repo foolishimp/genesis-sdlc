@@ -1,7 +1,7 @@
 # genesis_sdlc User Guide
 
 **Author**: Dimitar Popov
-**Version**: 0.4.0
+**Version**: 0.5.0
 **GTL version**: 0.3.0
 
 ---

@@ -2,6 +2,27 @@
 
 ---
 
+## v0.5.0 — 2026-03-21
+
+**Bootloader**: v1.1.0
+**Spec hash**: `1553416a00f568f1`
+**Test results**: 120 passed, 33 deselected, 0 failed
+
+### Fixed
+- SDLC_BOOTLOADER.md §XIII–XIV: removed phantom assets (`basis_projections`, `design_recommendations`, `cicd`, `telemetry`) that never existed in `sdlc_graph.py`
+- Graph diagram, zoom profiles, and standard profile edge chain now match actual 10-asset topology
+
+### Added
+- ADR-009: Engine Commands (REQ-F-CMD-001/002/003)
+- ADR-010: Test Structure and Coverage (REQ-F-TEST-001/002, REQ-F-GATE-001)
+- ADR-011: Backlog Schema and Commands (REQ-F-BACKLOG-001/002/003/004)
+- ADR-012: Variant and Projection Support (REQ-F-VAR-001)
+- 10 feature vectors for full REQ key decomposition (33/33 covered)
+
+**REQ keys added**: none
+
+---
+
 ## v0.4.0 — 2026-03-20
 
 **Bootloader**: v3.1.0

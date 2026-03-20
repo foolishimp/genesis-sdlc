@@ -1,0 +1,13 @@
+id: F-GRAPH
+name: SDLC Graph and Human Gates
+description: >
+  GTL Package defines the 10-asset SDLC graph with 9 edges, evaluators at every
+  edge, and F_H gates at spec/design boundaries. The graph is the structural
+  foundation — all other features operate within it.
+satisfies:
+  - REQ-F-GRAPH-001
+  - REQ-F-GRAPH-002
+  - REQ-F-GATE-001
+dependencies: []
+status: completed
+mvp: true

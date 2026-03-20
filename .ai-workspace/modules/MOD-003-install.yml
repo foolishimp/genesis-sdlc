@@ -8,6 +8,7 @@ description: |
 implements_features:
   - REQ-F-BOOT
   - REQ-F-BOOT-V2
+  - F-BOOTSTRAP
 dependencies:
   - MOD-001
 rank: 2

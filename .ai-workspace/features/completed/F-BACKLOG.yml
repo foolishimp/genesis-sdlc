@@ -1,0 +1,14 @@
+id: F-BACKLOG
+name: Backlog Management
+description: >
+  .ai-workspace/backlog/ with YAML schema, gen-gaps surfaces ready items,
+  gen backlog list/promote commands. Pre-intent holding area for ideas
+  in gestation before formal intent.
+satisfies:
+  - REQ-F-BACKLOG-001
+  - REQ-F-BACKLOG-002
+  - REQ-F-BACKLOG-003
+  - REQ-F-BACKLOG-004
+dependencies: [F-COMMANDS]
+status: completed
+mvp: true

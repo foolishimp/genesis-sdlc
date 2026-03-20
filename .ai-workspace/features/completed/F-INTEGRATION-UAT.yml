@@ -1,0 +1,13 @@
+id: F-INTEGRATION-UAT
+name: Integration Tests and UAT Gate
+description: >
+  integration_tests asset produces structured sandbox report (F_D checks report,
+  F_P runs sandbox install + e2e). uat_tests is a pure F_H gate — human reviews
+  sandbox proof and guide before approving release.
+satisfies:
+  - REQ-F-UAT-001
+  - REQ-F-UAT-002
+  - REQ-F-UAT-003
+dependencies: [F-TESTING]
+status: completed
+mvp: true

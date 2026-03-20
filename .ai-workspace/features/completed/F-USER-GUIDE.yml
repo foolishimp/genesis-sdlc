@@ -1,0 +1,12 @@
+id: F-USER-GUIDE
+name: User Guide as Graph Asset
+description: >
+  user_guide is a blocking graph asset with F_D enforcement: version string
+  matches install.py, REQ coverage tags present. F_P certifies content covers
+  install, first session, commands, operating loop, and recovery paths.
+satisfies:
+  - REQ-F-DOCS-001
+  - REQ-F-DOCS-002
+dependencies: [F-INTEGRATION-UAT]
+status: completed
+mvp: true

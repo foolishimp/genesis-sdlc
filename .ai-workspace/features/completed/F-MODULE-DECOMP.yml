@@ -1,0 +1,15 @@
+id: F-MODULE-DECOMP
+name: Module Decomposition and Build Scheduling
+description: >
+  design→module_decomp edge decomposes design ADRs into a ranked module
+  dependency graph before code is written. F_D checks coverage, F_P
+  decomposes, F_H approves the schedule. Leaf-to-root build order.
+satisfies:
+  - REQ-F-MDECOMP-001
+  - REQ-F-MDECOMP-002
+  - REQ-F-MDECOMP-003
+  - REQ-F-MDECOMP-004
+  - REQ-F-MDECOMP-005
+dependencies: [F-GRAPH]
+status: completed
+mvp: true

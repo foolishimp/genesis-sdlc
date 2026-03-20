@@ -16,6 +16,13 @@ implements_features:
   - REQ-F-MDECOMP
   - REQ-F-INT-003
   - REQ-F-VAR-001
+  - F-GRAPH
+  - F-COMMANDS
+  - F-TRACEABILITY
+  - F-MODULE-DECOMP
+  - F-TESTING
+  - F-INTEGRATION-UAT
+  - F-VARIANT
 dependencies: []
 rank: 1
 interfaces:

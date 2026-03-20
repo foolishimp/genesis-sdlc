@@ -1,0 +1,13 @@
+id: F-TRACEABILITY
+name: REQ Key Traceability
+description: >
+  Implements: tags on all source files, Validates: tags on all test files,
+  REQ key coverage check across feature vectors. Pure F_D enforcement —
+  no LLM required.
+satisfies:
+  - REQ-F-TAG-001
+  - REQ-F-TAG-002
+  - REQ-F-COV-001
+dependencies: [F-GRAPH]
+status: completed
+mvp: true

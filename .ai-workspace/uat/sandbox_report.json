@@ -1,11 +1,1 @@
-{
-  "install_success": true,
-  "sandbox_path": "builds/python/uat_sandbox",
-  "test_count": 33,
-  "pass_count": 31,
-  "fail_count": 0,
-  "skipped_count": 2,
-  "all_pass": true,
-  "timestamp": "2026-03-19T16:09:58.239901Z",
-  "notes": "31 passed, 2 skipped (backlog CLI not in sandbox \u2014 expected). All graph, install, coverage, tag, UAT evaluator, and e2e tests pass. Re-run after v0.2.1 changes: sdlc_graph.py guide evaluators fixed, USER_GUIDE.md 32/32 REQ coverage, instantiate(slug) wrapper model."
-}
+{"install_success": true, "sandbox_path": "/tmp/uat_sandbox_20260321", "test_count": 33, "pass_count": 31, "fail_count": 0, "skip_count": 2, "all_pass": true, "timestamp": "2026-03-21T12:05:00Z"}

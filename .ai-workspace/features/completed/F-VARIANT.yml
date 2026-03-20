@@ -1,0 +1,10 @@
+id: F-VARIANT
+name: Variant Support
+description: >
+  Graph variant/projection support — selecting subsets of the full graph
+  for different work profiles (full, standard, poc, spike, hotfix, minimal).
+satisfies:
+  - REQ-F-VAR-001
+dependencies: [F-GRAPH]
+status: completed
+mvp: true
