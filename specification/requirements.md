@@ -40,7 +40,7 @@ The three-layer install architecture separates immutable methodology spec from m
 
 **Acceptance Criteria**:
 - AC-1: `install()` copies `sdlc_graph.py` into `.genesis/spec/genesis_sdlc.py` as the frozen methodology layer
-- AC-2: The installed spec is versioned: `.genesis/releases/genesis_sdlc/standard/v{VERSION}/` contains the release snapshot
+- AC-2: The installed spec is versioned: `.genesis/workflows/genesis_sdlc/standard/v{VERSION}/` contains the release snapshot
 - AC-3: The frozen spec is never modified after install — it represents the methodology version that was installed
 
 ### REQ-F-BOOT-004 — Installer generates starter local spec in gtl_spec/packages/{slug}.py
@@ -57,7 +57,7 @@ Projects get a local spec that imports from the installed methodology and can be
 Upgrade safety: the methodology layer is replaceable, the project layer is sacred.
 
 **Acceptance Criteria**:
-- AC-1: `install()` replaces `.genesis/spec/` and `.genesis/releases/` atomically on reinstall
+- AC-1: `install()` replaces `.genesis/spec/` and `.genesis/workflows/` atomically on reinstall
 - AC-2: `gtl_spec/packages/{slug}.py` is never overwritten if it exists
 - AC-3: One-time provenance migration runs on upgrade: re-emits old events with new schema and workflow version
 

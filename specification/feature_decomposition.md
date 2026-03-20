@@ -105,7 +105,7 @@ The installer (`install.py`) copies the engine, generates config, creates worksp
 
 ### REQ-F-BOOT-V2 — Three-Layer Install Architecture
 
-Separates immutable methodology spec (Layer 1: `.genesis/spec/`), versioned release snapshot (Layer 2: `.genesis/releases/`), and mutable local spec (Layer 3: `gtl_spec/packages/`). ADR-005 records the design.
+Separates immutable methodology spec (Layer 1: `.genesis/spec/`), versioned release snapshot (Layer 2: `.genesis/workflows/genesis_sdlc/standard/v{VERSION}/`), and mutable local spec (Layer 3: `gtl_spec/packages/`). ADR-005 records the design.
 
 ### REQ-F-CMD — Engine Commands
 
