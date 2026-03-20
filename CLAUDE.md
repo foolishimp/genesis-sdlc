@@ -598,27 +598,4 @@ No feature vector. No iterate() cycle. No human gate. No REQ key traceability. O
 *Projections: [Projections and Invariants v1.2](PROJECTIONS_AND_INVARIANTS.md)*
 *Key ADRs: [ADR-S-012](../adrs/ADR-S-012-event-stream-as-formal-model-medium.md) event stream · [ADR-S-013](../adrs/ADR-S-013-completeness-visibility.md) completeness visibility · [ADR-S-016](../adrs/ADR-S-016-invocation-contract.md) invocation contract · [ADR-S-039](../adrs/ADR-S-039-bug-triage-and-post-mortem-escalation.md) bug triage*
 
-
-## XXI. Abiogenesis Project — Local Write Territory Amendment
-
-*This section amends §XIX for the abiogenesis project structure. It does not modify the general invariants — it instantiates them for this build.*
-
-**Build territory** (abiogenesis-specific, V1 single-tenant):
-
-| Territory | Who writes | Rule |
-|-----------|-----------|------|
-| `builds/claude_code/code/` | Claude Code | Genesis engine implementation |
-| `builds/claude_code/tests/` | Claude Code | Engine tests |
-| `builds/claude_code/design/adrs/` | Claude Code | Architectural decisions |
-| `builds/claude_code/.workspace/` | Claude Code | Build-local trace surface (not committed) |
-| `.ai-workspace/events/events.jsonl` | All agents via `emit()` only | Never write directly |
-| `.ai-workspace/comments/claude/` | Claude Code only | Design marketplace posts |
-| `.ai-workspace/features/` | Claude Code | Feature vectors |
-| `.ai-workspace/reviews/` | All agents | Proposals; human gate resolves |
-
-**Spec is read-only**: `gtl_spec/` is the constitutional source of truth. `genesis_core.py` IS the spec. Claude Code reads `gtl_spec/` but never writes to it — writes go to `builds/claude_code/` only.
-
-**V1 single-tenant constraint**: Only the `claude_code` build exists in V1. Do not create `comments/codex/`, `comments/gemini/`, or `comments/bedrock/` directories — they are V2+ concerns. See `V1_DOCTRINE.md` for the complete non-goals list.
-
-**Bootstrap compiler**: The `.genesis/` directory contains the installed bootstrap compiler (genesis_sdlc). It is not committed — it is installed. Do not modify files under `.genesis/`.
 <!-- SDLC_BOOTLOADER_END -->
