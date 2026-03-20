@@ -48,7 +48,7 @@ def delta(
     0.0 = converged. > 0.0 = work needed.
 
     F_D evaluators: run deterministic check. 0.0 if passes, 1.0 if fails.
-    F_H evaluators: 0.0 if review_approved event exists for this edge, 1.0 otherwise.
+    F_H evaluators: 0.0 if holdsAt(operative(edge, wv)), 1.0 otherwise.
     F_P evaluators: 1.0 unless all required F_D checks have passed (proxy signal).
 
     Returns: fraction of failing evaluators (0.0 to 1.0).
@@ -78,10 +78,11 @@ def delta(
                 failing += 1
 
         elif ev.category is F_P:
-            # Resolved if fp_assessment with result=pass recorded against current spec.
+            # EC: holdsAt(certified(edge, evaluator, spec_hash, wv), now)
             # spec_hash=None means caller opted out of snapshot check (tests, legacy).
             resolved = any(
-                e.get("event_type") == "fp_assessment"
+                e.get("event_type") == "assessed"
+                and e.get("data", {}).get("kind") == "fp"
                 and e.get("data", {}).get("edge") == job.edge.name
                 and e.get("data", {}).get("evaluator") == ev.name
                 and e.get("data", {}).get("result") == "pass"
@@ -154,8 +155,9 @@ def iterate(
     fd_failing = [ev for ev in pre.failing_evaluators if ev.category is F_D]
     if fd_failing:
         surface.events.append({
-            "event_type": "fd_gap_found",
+            "event_type": "found",
             "data": {
+                "kind": "fd_gap",
                 "edge": job.edge.name,
                 "failing": [ev.name for ev in fd_failing],
                 "delta_summary": pre.delta_summary,

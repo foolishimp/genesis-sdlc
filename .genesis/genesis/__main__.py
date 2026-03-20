@@ -80,7 +80,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p_emit = sub.add_parser("emit-event",
                             help="Append one event to .ai-workspace/events/events.jsonl")
     p_emit.add_argument("--type", required=True, metavar="TYPE",
-                        help="Event type (e.g. review_approved, fp_assessment)")
+                        help="Event type (e.g. approved, assessed, revoked)")
     p_emit.add_argument("--data", default="{}", metavar="JSON",
                         help="Event data as a JSON object (default: {})")
     p_emit.add_argument("--workspace", metavar="W", default=".",
@@ -299,10 +299,12 @@ def _emit_event_cmd(event_type: str, data_json: str, workspace: Path) -> int:
     never by F_P actors directly. F_P actors write to result_path; the skill reads
     the result and calls emit-event. See GENESIS_BOOTLOADER §V (event-time invariant).
 
-    Governance: required fields validated per event type.
-      review_approved — requires: edge, actor (human | human-proxy)
+    Governance: required fields validated per event type (prime operators).
+      approved  — requires: kind (fh_review | fh_intent), edge, actor (human | human-proxy)
         human-proxy actor additionally requires: proxy_log
-      fp_assessment   — requires: edge, evaluator, result (pass | fail)
+      assessed  — requires: kind, edge, evaluator, result (pass | fail)
+        kind=fp additionally requires: spec_hash
+      revoked   — requires: kind (fh_approval), edge, actor, reason
     """
     import json as _json
     from datetime import datetime, timezone
@@ -315,24 +317,42 @@ def _emit_event_cmd(event_type: str, data_json: str, workspace: Path) -> int:
         print(f"ERROR: --data is not valid JSON: {exc}", file=sys.stderr)
         return 1
 
-    # Governance validation — required fields per known event types
+    # Governance validation — required fields per prime event types
     errors: list[str] = []
-    if event_type == "review_approved":
+    if event_type == "approved":
+        if "kind" not in data:
+            errors.append("approved requires 'kind' field (fh_review | fh_intent)")
         if "edge" not in data:
-            errors.append("review_approved requires 'edge' field")
+            errors.append("approved requires 'edge' field")
         if "actor" not in data:
-            errors.append("review_approved requires 'actor' field (human | human-proxy)")
+            errors.append("approved requires 'actor' field (human | human-proxy)")
         elif data["actor"] == "human-proxy" and "proxy_log" not in data:
             errors.append("human-proxy actor requires 'proxy_log' path field")
-    elif event_type == "fp_assessment":
-        # REQ-F-EVAL-004: spec_hash is required so that bind_fd() can validate snapshot
-        # binding. Assessments without a matching hash are stale and will not converge;
-        # requiring it at the emit boundary surfaces the error early rather than silently.
-        for field in ("edge", "evaluator", "result", "spec_hash"):
-            if field not in data:
-                errors.append(f"fp_assessment requires '{field}' field")
-        if data.get("result") not in (None, "pass", "fail"):
-            errors.append("fp_assessment 'result' must be 'pass' or 'fail'")
+    elif event_type == "assessed":
+        # Assessed has two schemas split by kind:
+        #   kind=fp       — F_P agent assessment: requires evaluator, spec_hash
+        #   kind=fh_review — F_H human rejection: requires actor, reason
+        for fld in ("kind", "edge", "result"):
+            if fld not in data:
+                errors.append(f"assessed requires '{fld}' field")
+        kind = data.get("kind")
+        if kind == "fp":
+            # REQ-F-EVAL-004: spec_hash required so bind_fd() can validate snapshot.
+            for fld in ("evaluator", "spec_hash"):
+                if fld not in data:
+                    errors.append(f"assessed{{kind: fp}} requires '{fld}' field")
+            if data.get("result") not in (None, "pass", "fail"):
+                errors.append("assessed{kind: fp} 'result' must be 'pass' or 'fail'")
+        elif kind == "fh_review":
+            for fld in ("actor", "reason"):
+                if fld not in data:
+                    errors.append(f"assessed{{kind: fh_review}} requires '{fld}' field")
+            if data.get("result") not in (None, "reject"):
+                errors.append("assessed{kind: fh_review} 'result' must be 'reject'")
+    elif event_type == "revoked":
+        for fld in ("kind", "edge", "actor", "reason"):
+            if fld not in data:
+                errors.append(f"revoked requires '{fld}' field")
 
     if errors:
         for msg in errors:

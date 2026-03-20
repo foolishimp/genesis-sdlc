@@ -37,8 +37,8 @@ def req_hash(requirements: list[str]) -> str:
     Compute a stable hash of Package.requirements.
 
     Deprecated: used only when scope.workflow_version == "unknown" (no active-workflow.json).
-    New code should use job_evaluator_hash(job) instead. Kept for backward compatibility
-    with workspaces that have not yet activated workflow provenance.
+    New code should use job_evaluator_hash(job) instead. Retained as fallback for
+    workspaces without active-workflow.json.
     """
     return hashlib.sha256(
         _json.dumps(sorted(requirements)).encode()
@@ -70,44 +70,86 @@ def bind_fh(
     carry_forward: list[dict] | None = None,
 ) -> bool:
     """
-    Evaluate whether the F_H gate for this job's edge is satisfied.
+    Evaluate holdsAt(operative(edge, wv), now) for the F_H gate.
+
+    Event Calculus semantics:
+      approved{kind: fh_review}  initiates  operative(edge, wv)
+      approved{kind: fh_intent}  initiates  operative(edge, wv)
+      revoked{kind: fh_approval} terminates operative(edge, wv)
+
+    operative(edge, wv) holdsAt now iff:
+      an approved event initiates it AND no later revoked event terminates it.
 
     When current_workflow_version == "unknown":
-      Accept any review_approved matching edge name alone (full backward compat).
+      Accept any approved matching edge name alone (no provenance file present).
 
     When current_workflow_version != "unknown":
       Accept only if:
         Condition A — event.data.workflow_version == current_workflow_version, OR
         Condition B — edge in carry_forward with event.data.workflow_version == from_version
 
-    Pre-provenance events (no workflow_version field) return None from
-    event.data.get("workflow_version"), which satisfies neither condition.
-
     Default arguments preserve all existing call sites without modification.
     """
     if carry_forward is None:
         carry_forward = []
 
-    for e in all_events:
-        if (
-            e.get("event_type") == "review_approved"
-            and e.get("data", {}).get("edge") == job.edge.name
-        ):
-            if current_workflow_version == "unknown":
-                return True
+    # Find the latest approved event for this edge (last-writer-wins for timestamp)
+    latest_approved_time = None
+    found_approved = False
 
-            ev_wv = e.get("data", {}).get("workflow_version")
+    for e in all_events:
+        etype = e.get("event_type")
+        edata = e.get("data", {})
+
+        # Match: approved{kind: fh_review | fh_intent}
+        is_approved = (
+            etype == "approved" and edata.get("kind") in ("fh_review", "fh_intent")
+        )
+
+        if is_approved and edata.get("edge") == job.edge.name:
+            if current_workflow_version == "unknown":
+                found_approved = True
+                latest_approved_time = e.get("event_time")
+                continue
+
+            ev_wv = edata.get("workflow_version")
 
             # Condition A: exact version match
             if ev_wv == current_workflow_version:
-                return True
+                found_approved = True
+                latest_approved_time = e.get("event_time")
+                continue
 
-            # Condition B: carry-forward — edge declared, from_version matches event
+            # Condition B: carry-forward
             for cf in carry_forward:
                 if cf.get("edge") == job.edge.name and cf.get("from_version") == ev_wv:
-                    return True
+                    found_approved = True
+                    latest_approved_time = e.get("event_time")
+                    break
 
-    return False
+    if not found_approved:
+        return False
+
+    # Check for terminates: revoked{kind: fh_approval} postdating the approved event.
+    # Revocation is scoped by workflow_version — a revocation from one lens cannot
+    # cancel approvals from another. When current_workflow_version == "unknown",
+    # revocations match by edge alone (same unversioned fallback as approvals).
+    for e in all_events:
+        etype = e.get("event_type")
+        edata = e.get("data", {})
+        if etype == "revoked" and edata.get("kind") == "fh_approval":
+            revoked_edge = edata.get("edge")
+            if revoked_edge == job.edge.name or revoked_edge == "*":
+                # Workflow version scoping (symmetric with approval matching)
+                if current_workflow_version != "unknown":
+                    rev_wv = edata.get("workflow_version")
+                    if rev_wv != current_workflow_version:
+                        continue  # Different lens — does not terminate this fluent
+                # Revocation must postdate the approval
+                if latest_approved_time is None or e.get("event_time", "") > latest_approved_time:
+                    return False
+
+    return True
 
 
 # ── F_D evaluator runner ──────────────────────────────────────────────────────
@@ -209,12 +251,12 @@ def bind_fd(
         if ev.category is F_H:
             return bind_fh(job, all_events, current_workflow_version, carry_forward)
         if ev.category is F_P:
-            # Resolved if fp_assessment with result=pass exists for this evaluator+edge
-            # AND the assessment was emitted against the current spec (spec_hash match).
-            # Assessments with no spec_hash or a different hash are stale — the spec
-            # evolved after they were emitted and they must not contribute to convergence.
+            # EC: holdsAt(certified(edge, evaluator, spec_hash, wv), now)
+            # Initiated by assessed{kind: fp, result: pass, spec_hash: H}.
+            # Terminated by spec_hash mismatch (new spec = different fluent identity).
             return any(
-                e.get("event_type") == "fp_assessment"
+                e.get("event_type") == "assessed"
+                and e.get("data", {}).get("kind") == "fp"
                 and e.get("data", {}).get("edge") == job.edge.name
                 and e.get("data", {}).get("evaluator") == ev.name
                 and e.get("data", {}).get("result") == "pass"
@@ -328,7 +370,7 @@ def _assemble_prompt(pre: PrecomputedManifest, job: Job, result_path: str = "") 
     # [OUTPUT CONTRACT]
     # Constitutional constraint: F_P does NOT call the event logger.
     # The actor writes its assessment to result_path. The skill (F_D layer)
-    # reads it and emits fp_assessment via emit-event CLI. See GENESIS_BOOTLOADER §V.
+    # reads it and emits assessed{kind: fp} via emit-event CLI. See GENESIS_BOOTLOADER §V.
     target = job.edge.target
     fp_failing = [ev for ev in pre.failing_evaluators if ev.category is F_P]
     assessment_contract = ""
@@ -340,7 +382,7 @@ def _assemble_prompt(pre: PrecomputedManifest, job: Job, result_path: str = "") 
         assessment_contract = (
             f"\n\nWrite assessment JSON to: {result_path}\n"
             f"Format: {{{{'edge': '{job.edge.name}', 'assessments': [{', '.join(ev_assessments)}]}}}}\n"
-            "The skill reads this file and emits fp_assessment events — do NOT call emit-event yourself."
+            "The skill reads this file and emits assessed events — do NOT call emit-event yourself."
         )
 
     sections.append(
@@ -365,7 +407,7 @@ def select_relevant_contexts(
 
     Domain-blind: contexts are only needed when F_P work is required.
     F_D and F_H failures do not need prompt context — F_D re-runs its command,
-    F_H waits for a review_approved event. Only F_P dispatch consumes context.
+    F_H waits for an approved event. Only F_P dispatch consumes context.
     """
     if not failing:
         return []

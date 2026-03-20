@@ -116,22 +116,30 @@ def emit(event_type: str, data: dict) -> None:
     event_time is assigned from the system clock — no caller can pass it.
     F_P constructs content; the F_D engine calls emit(). Never the reverse.
 
-    REQ-F-EVAL-005: fp_assessment events must carry spec_hash. The contract is
-    enforced at the write primitive — not only at the CLI layer — so in-process
+    REQ-F-EVAL-005: assessed{kind: fp} events must carry spec_hash. The contract
+    is enforced at the write primitive — not only at the CLI layer — so in-process
     callers cannot write stale assessments that bypass bind_fd() snapshot validation.
 
+    Prime event validation: approved and revoked must carry kind. This prevents
+    malformed events that would be silently ignored by the projection layer.
+
     Raises RuntimeError if workspace_bootstrap() has not been called.
-    Raises ValueError if an fp_assessment payload lacks spec_hash.
+    Raises ValueError if a prime event payload fails validation.
     """
     if _stream is None:
         raise RuntimeError(
             "emit() called before workspace_bootstrap(). "
             "Call workspace_bootstrap(path) first to initialise the stream."
         )
-    if event_type == "fp_assessment" and "spec_hash" not in data:
+    if event_type == "assessed" and data.get("kind") == "fp" and "spec_hash" not in data:
         raise ValueError(
-            "fp_assessment events must include 'spec_hash'. "
+            "assessed{kind: fp} events must include 'spec_hash'. "
             "Use bind.req_hash(package.requirements) to compute it."
+        )
+    if event_type in ("approved", "revoked") and "kind" not in data:
+        raise ValueError(
+            f"{event_type} events must include 'kind' field. "
+            "Without kind, the event is silently ignored by the projection layer."
         )
     _stream.append(event_type, data)
 
