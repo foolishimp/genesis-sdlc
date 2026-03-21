@@ -959,7 +959,8 @@ def install(
     project_name = target.name
 
     existing_slug = _read_existing_slug(target)
-    if existing_slug and existing_slug != slug:
+    if existing_slug and slug == "project_package":
+        # Caller didn't pass an explicit slug — honour the installed one.
         slug = existing_slug
 
     if do_migrate:
