@@ -1111,9 +1111,6 @@ def _verify(target: Path, result: dict, platform: str = "python") -> dict:
         "active_workflow": (target / ".gsdlc" / "release" / "active-workflow.json").exists(),
         "immutable_spec": (target / ".gsdlc" / "release" / "spec" / "genesis_sdlc.py").exists(),
         "gtl_spec": (target / ".gsdlc" / "release" / "gtl_spec" / "packages").is_dir(),
-        # Build territory
-        "builds_src": (target / "builds" / platform / "src").is_dir(),
-        "builds_tests": (target / "builds" / platform / "tests").is_dir(),
         # Commands and documentation
         "commands": (target / ".claude" / "commands" / "gen-start.md").exists(),
         "claude_md": (target / "CLAUDE.md").exists(),
