@@ -383,7 +383,7 @@ class TestInstantiate:
         """Explicit requirements override workflow keys.  # Validates: REQ-F-CUSTODY-001"""
         from genesis_sdlc.sdlc_graph import instantiate
         project_reqs = ["REQ-PROJ-001", "REQ-PROJ-002"]
-        pkg, _ = instantiate(slug="some_slug", requirements=project_reqs)
+        pkg, _ = instantiate(slug="some_slug", req_keys=project_reqs)
         assert pkg.requirements == project_reqs
 
     def test_different_slugs_produce_different_hashes(self):

@@ -355,6 +355,12 @@ def install_immutable_spec(source: Path, target: Path) -> str:
     return "installed"
 
 
+def _src_dir_for_platform(platform: str) -> str:
+    """Map platform to source subdirectory convention."""
+    # ABG uses builds/claude_code/code/, everything else uses src/
+    return "code" if platform == "claude_code" else "src"
+
+
 # ── Generated wrapper template (Layer 3 — system-owned) ───────────────────────
 #
 # This file is always rewritten on redeploy as long as the genesis_sdlc-generated
@@ -383,16 +389,20 @@ def _load_reqs():
     return reqs
 
 
-package, worker = instantiate(slug="{slug}", requirements=_load_reqs())
+package, worker = instantiate(slug="{slug}", req_keys=_load_reqs(),
+                             platform="{platform}", src_dir="{src_dir}")
 '''
 
 
-def _render_wrapper(slug: str) -> str:
-    """Render the generated wrapper template for a given slug."""
+def _render_wrapper(slug: str, platform: str = "python",
+                    src_dir: str = "src") -> str:
+    """Render the generated wrapper template for a given slug and platform."""
     return (
         _GENERATED_WRAPPER_TEMPLATE
         .replace("{VERSION_UNDERSCORED}", VERSION.replace(".", "_"))
         .replace("{slug}", slug)
+        .replace("{platform}", platform)
+        .replace("{src_dir}", src_dir)
     )
 
 
@@ -443,7 +453,9 @@ def install_sdlc_starter_spec(source: Path, target: Path, slug: str,
         if not init_py.exists():
             init_py.touch()
 
-    wrapper_path.write_text(_render_wrapper(slug), encoding="utf-8")
+    wrapper_path.write_text(_render_wrapper(slug, platform=platform,
+                                               src_dir=_src_dir_for_platform(platform)),
+                           encoding="utf-8")
     return "installed"
 
 
@@ -511,7 +523,9 @@ def migrate_full_copy(target: Path, slug: str) -> dict:
     shutil.move(str(source_path), str(legacy_path))
 
     wrapper_path.parent.mkdir(parents=True, exist_ok=True)
-    wrapper_path.write_text(_render_wrapper(slug), encoding="utf-8")
+    wrapper_path.write_text(_render_wrapper(slug, platform="python",
+                                            src_dir="src"),
+                           encoding="utf-8")
 
     return {
         "status": "migrated",
@@ -1386,7 +1400,8 @@ def _audit(target: Path, result: dict, source: Path, slug: str,
     if wrapper_path.exists():
         wrapper_text = wrapper_path.read_text(encoding="utf-8")
         if "genesis_sdlc-generated" in wrapper_text:
-            expected_wrapper = _render_wrapper(slug)
+            expected_wrapper = _render_wrapper(slug, platform=platform,
+                                                   src_dir=_src_dir_for_platform(platform))
             if wrapper_text.strip() != expected_wrapper.strip():
                 _finding("layer3_wrapper", "drifted",
                          f"Generated wrapper at {wrapper_path.name} differs from "
