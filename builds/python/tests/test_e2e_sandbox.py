@@ -15,6 +15,9 @@
 # Validates: REQ-F-BOOT-003
 # Validates: REQ-F-BOOT-004
 # Validates: REQ-F-BOOT-005
+# Validates: REQ-F-CUSTODY-001
+# Validates: REQ-F-CUSTODY-002
+# Validates: REQ-F-CUSTODY-003
 # Validates: REQ-F-MDECOMP-001
 # Validates: REQ-F-MDECOMP-002
 # Validates: REQ-F-MDECOMP-003
@@ -108,7 +111,11 @@ def run_genesis(sandbox, *args, check=False):
 
 def run_genesis_cmd(sandbox, *args, check=False):
     """Run an engine command that does NOT accept --workspace (check-tags, check-req-coverage)."""
-    env = {**os.environ, "PYTHONPATH": str(sandbox / ".genesis")}
+    # .gsdlc/release MUST be first — it overrides ABG's gtl_spec stub with the real wrapper
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join([
+        str(sandbox / ".gsdlc" / "release"),
+        str(sandbox / ".genesis"),
+    ])}
     result = subprocess.run(
         [sys.executable, "-m", "genesis", *args],
         capture_output=True, text=True, cwd=str(sandbox), env=env,
@@ -150,14 +157,41 @@ class TestInstallStructure:
             assert (commands_dir / cmd).exists(), f"Missing command: {cmd}"
 
     def test_starter_spec_installed(self, sandbox):
-        spec = sandbox / ".genesis" / "gtl_spec" / "packages" / f"{PROJECT_SLUG}.py"
-        assert spec.exists(), "Starter spec not written"
+        spec = sandbox / ".gsdlc" / "release" / "gtl_spec" / "packages" / f"{PROJECT_SLUG}.py"
+        assert spec.exists(), "Starter spec not written to .gsdlc/release/"
 
     def test_starter_spec_has_correct_slug(self, sandbox):
-        spec = sandbox / ".genesis" / "gtl_spec" / "packages" / f"{PROJECT_SLUG}.py"
+        spec = sandbox / ".gsdlc" / "release" / "gtl_spec" / "packages" / f"{PROJECT_SLUG}.py"
         content = spec.read_text()
         assert "instantiate" in content, "Generated wrapper must call instantiate()"
         assert f'slug="{PROJECT_SLUG}"' in content, "Generated wrapper must pass correct slug"
+
+    def test_no_gsdlc_artifacts_in_genesis(self, sandbox):
+        """# Validates: REQ-F-TERRITORY-001 — .genesis/ must contain only ABG kernel."""
+        assert not (sandbox / ".genesis" / "workflows").exists(), \
+            "gsdlc workflows must not be in .genesis/"
+        assert not (sandbox / ".genesis" / "active-workflow.json").exists(), \
+            "active-workflow.json must not be in .genesis/"
+        # ABG-created gtl_spec stub may exist, but no genesis_sdlc-generated wrappers
+        abg_spec = sandbox / ".genesis" / "gtl_spec" / "packages" / f"{PROJECT_SLUG}.py"
+        if abg_spec.exists():
+            content = abg_spec.read_text()
+            assert "genesis_sdlc-generated" not in content, \
+                "ABG stub must not contain genesis_sdlc-generated marker"
+
+    def test_gsdlc_release_territory(self, sandbox):
+        """# Validates: REQ-F-TERRITORY-001 — gsdlc artifacts live in .gsdlc/release/."""
+        from genesis_sdlc.install import VERSION
+        ver_tag = f"v{VERSION.replace('.', '_')}"
+        assert (sandbox / ".gsdlc" / "release" / "active-workflow.json").exists()
+        assert (sandbox / ".gsdlc" / "release" / "workflows" / "genesis_sdlc" / "standard" / ver_tag / "spec.py").exists()
+        assert (sandbox / ".gsdlc" / "release" / "gtl_spec" / "packages" / f"{PROJECT_SLUG}.py").exists()
+
+    def test_genesis_yml_pythonpath_points_to_gsdlc_release(self, sandbox):
+        """# Validates: REQ-F-TERRITORY-002 — runtime resolves from .gsdlc/release."""
+        yml = (sandbox / ".genesis" / "genesis.yml").read_text()
+        assert ".gsdlc/release" in yml, "genesis.yml pythonpath must include .gsdlc/release"
+        assert "builds/python/src" not in yml, "genesis.yml pythonpath must not include builds/python/src"
 
     def test_build_scaffold_created(self, sandbox):
         assert (sandbox / "builds" / "python" / "src").exists()
@@ -178,10 +212,15 @@ class TestInstallStructure:
         )
 
     def test_operating_standards_installed(self, sandbox):
-        standards_dir = sandbox / ".ai-workspace" / "operating-standards"
+        standards_dir = sandbox / ".gsdlc" / "release" / "operating-standards"
         assert standards_dir.exists()
         for std in ["BACKLOG.md", "CONVENTIONS.md", "RELEASE.md"]:
             assert (standards_dir / std).exists(), f"Missing standard: {std}"
+
+    def test_sdlc_bootloader_release_installed(self, sandbox):
+        """# Validates: REQ-F-TERRITORY-001 — SDLC bootloader is a release artifact."""
+        bl = sandbox / ".gsdlc" / "release" / "SDLC_BOOTLOADER.md"
+        assert bl.exists(), "SDLC_BOOTLOADER.md must be in .gsdlc/release/"
 
 
 # ── Engine commands ────────────────────────────────────────────────────────────
@@ -372,7 +411,10 @@ class TestReqCoverage:
 
     def test_coverage_passes_when_all_keys_covered(self, sandbox):
         """Write feature vectors covering all REQ keys in the starter spec."""
-        env = {**os.environ, "PYTHONPATH": str(sandbox / ".genesis")}
+        env = {**os.environ, "PYTHONPATH": os.pathsep.join([
+            str(sandbox / ".gsdlc" / "release"),
+            str(sandbox / ".genesis"),
+        ])}
         result = subprocess.run(
             [sys.executable, "-c",
              f"from gtl_spec.packages.{PROJECT_SLUG} import package; "
@@ -483,7 +525,10 @@ class TestBacklogCommands:
 
     def test_backlog_list_shows_items(self, sandbox):
         self._write_backlog_item(sandbox, "BL-002", status="ready")
-        env = {**os.environ, "PYTHONPATH": str(sandbox / ".genesis")}
+        env = {**os.environ, "PYTHONPATH": os.pathsep.join([
+            str(sandbox / ".gsdlc" / "release"),
+            str(sandbox / ".genesis"),
+        ])}
         result = subprocess.run(
             [sys.executable, "-m", "genesis_sdlc", "backlog", "list",
              "--workspace", str(sandbox)],
@@ -496,7 +541,10 @@ class TestBacklogCommands:
 
     def test_backlog_promote_emits_intent_raised(self, sandbox):
         self._write_backlog_item(sandbox, "BL-003", status="ready")
-        env = {**os.environ, "PYTHONPATH": str(sandbox / ".genesis")}
+        env = {**os.environ, "PYTHONPATH": os.pathsep.join([
+            str(sandbox / ".gsdlc" / "release"),
+            str(sandbox / ".genesis"),
+        ])}
         result = subprocess.run(
             [sys.executable, "-m", "genesis_sdlc", "backlog", "promote", "BL-003",
              "--workspace", str(sandbox)],
@@ -508,6 +556,209 @@ class TestBacklogCommands:
         evts = events(sandbox)
         types = [e["event_type"] for e in evts]
         assert "intent_raised" in types
+
+
+# ── Requirements custody ──────────────────────────────────────────────────────
+
+
+CUSTODY_SANDBOX_DIR = BUILDS_DIR / "uat_custody_sandbox"
+
+
+@pytest.fixture(scope="module")
+def custody_sandbox():
+    """
+    A separate sandbox specifically for custody-chain testing.
+    Wiped and rebuilt fresh — tests verify project-specific requirements
+    flow through the install→wrapper→engine chain.
+    """
+    if CUSTODY_SANDBOX_DIR.exists():
+        shutil.rmtree(CUSTODY_SANDBOX_DIR)
+    CUSTODY_SANDBOX_DIR.mkdir(parents=True)
+
+    # Install into sandbox
+    result = subprocess.run(
+        [sys.executable, str(INSTALL_SCRIPT),
+         "--target", str(CUSTODY_SANDBOX_DIR),
+         "--project-slug", "custody_test"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, f"Custody sandbox install failed:\n{result.stderr}"
+    data = json.loads(result.stdout)
+    assert data["status"] == "installed", f"Unexpected install status: {data}"
+    return CUSTODY_SANDBOX_DIR
+
+
+@pytest.mark.e2e
+class TestCustodyInstall:
+    """Task 1.4: Verify install produces a complete custody chain."""
+
+    def test_wrapper_exists(self, custody_sandbox):
+        # Validates: REQ-F-CUSTODY-002
+        spec = custody_sandbox / ".gsdlc" / "release" / "gtl_spec" / "packages" / "custody_test.py"
+        assert spec.exists()
+
+    def test_wrapper_calls_load_reqs(self, custody_sandbox):
+        # Validates: REQ-F-CUSTODY-002
+        spec = custody_sandbox / ".gsdlc" / "release" / "gtl_spec" / "packages" / "custody_test.py"
+        content = spec.read_text()
+        assert "_load_reqs()" in content, "Wrapper must call _load_reqs()"
+        assert "requirements=_load_reqs()" in content, "Wrapper must pass requirements to instantiate()"
+
+    def test_requirements_md_scaffolded(self, custody_sandbox):
+        # Validates: REQ-F-CUSTODY-003
+        req_file = custody_sandbox / "specification" / "requirements.md"
+        assert req_file.exists(), "Installer must scaffold specification/requirements.md"
+
+    def test_scaffold_contains_example_req(self, custody_sandbox):
+        # Validates: REQ-F-CUSTODY-003
+        req_file = custody_sandbox / "specification" / "requirements.md"
+        content = req_file.read_text()
+        assert "REQ-F-EXAMPLE-001" in content
+
+
+@pytest.mark.e2e
+class TestCustodyRoundTrip:
+    """Task 1.5: Write custom REQ keys, verify engine sees them — not gsdlc's 33."""
+
+    def test_custom_reqs_visible_to_engine(self, custody_sandbox):
+        # Validates: REQ-F-CUSTODY-001
+        # Validates: REQ-F-CUSTODY-002
+        req_file = custody_sandbox / "specification" / "requirements.md"
+        req_file.write_text(textwrap.dedent("""\
+            # Custom Project Requirements
+
+            ## Auth (REQ-CUST-AUTH-*)
+
+            ### REQ-CUST-AUTH-001 — Login
+
+            Must support login.
+
+            ### REQ-CUST-AUTH-002 — Logout
+
+            Must support logout.
+
+            ## Data (REQ-CUST-DATA-*)
+
+            ### REQ-CUST-DATA-001 — Export
+
+            Must export data.
+        """))
+
+        # Run gen-gaps as subprocess — the real proof
+        result = run_genesis(custody_sandbox, "gaps")
+        assert result.returncode == 0, (
+            f"gen-gaps failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+        )
+        data = json.loads(result.stdout)
+
+        # Read the package requirements via subprocess
+        env = {**os.environ, "PYTHONPATH": os.pathsep.join([
+            str(custody_sandbox / ".gsdlc" / "release"),
+            str(custody_sandbox / ".genesis"),
+        ])}
+        pkg_result = subprocess.run(
+            [sys.executable, "-c",
+             "from gtl_spec.packages.custody_test import package; "
+             "import json; print(json.dumps(package.requirements))"],
+            capture_output=True, text=True,
+            cwd=str(custody_sandbox), env=env, timeout=15,
+        )
+        assert pkg_result.returncode == 0, (
+            f"Failed to read package requirements:\n{pkg_result.stderr}"
+        )
+        reqs = json.loads(pkg_result.stdout)
+
+        # The critical assertion: these are OUR keys, not gsdlc's 33
+        assert sorted(reqs) == ["REQ-CUST-AUTH-001", "REQ-CUST-AUTH-002", "REQ-CUST-DATA-001"], (
+            f"Expected 3 custom REQ keys, got {len(reqs)}: {reqs}"
+        )
+
+    def test_no_gsdlc_keys_leak(self, custody_sandbox):
+        # Validates: REQ-F-CUSTODY-001
+        env = {**os.environ, "PYTHONPATH": os.pathsep.join([
+            str(custody_sandbox / ".gsdlc" / "release"),
+            str(custody_sandbox / ".genesis"),
+        ])}
+        pkg_result = subprocess.run(
+            [sys.executable, "-c",
+             "from gtl_spec.packages.custody_test import package; "
+             "import json; print(json.dumps(package.requirements))"],
+            capture_output=True, text=True,
+            cwd=str(custody_sandbox), env=env, timeout=15,
+        )
+        assert pkg_result.returncode == 0
+        reqs = json.loads(pkg_result.stdout)
+        gsdlc_keys = [r for r in reqs if r.startswith("REQ-F-")]
+        assert gsdlc_keys == [], (
+            f"gsdlc's own REQ-F-* keys leaked into project: {gsdlc_keys}"
+        )
+
+
+@pytest.mark.e2e
+class TestCustodyWrapperGeneration:
+    """Task 1.6: Verify wrapper structure and _load_reqs() parsing."""
+
+    def test_load_reqs_parses_headers(self, custody_sandbox):
+        # Validates: REQ-F-CUSTODY-002
+        env = {**os.environ, "PYTHONPATH": os.pathsep.join([
+            str(custody_sandbox / ".gsdlc" / "release"),
+            str(custody_sandbox / ".genesis"),
+        ])}
+        result = subprocess.run(
+            [sys.executable, "-c",
+             "from gtl_spec.packages.custody_test import _load_reqs; "
+             "import json; print(json.dumps(_load_reqs()))"],
+            capture_output=True, text=True,
+            cwd=str(custody_sandbox), env=env, timeout=15,
+        )
+        assert result.returncode == 0, (
+            f"_load_reqs() not importable:\n{result.stderr}"
+        )
+        reqs = json.loads(result.stdout)
+        assert isinstance(reqs, list)
+        assert len(reqs) > 0, "_load_reqs() returned empty despite requirements.md existing"
+
+    def test_wrapper_is_system_owned(self, custody_sandbox):
+        # Validates: REQ-F-CUSTODY-002
+        spec = custody_sandbox / ".gsdlc" / "release" / "gtl_spec" / "packages" / "custody_test.py"
+        content = spec.read_text()
+        assert "genesis_sdlc-generated" in content, "Wrapper must carry system-ownership marker"
+
+
+@pytest.mark.e2e
+class TestCustodyNoRequirementsFile:
+    """Task 1.7: No requirements.md → empty list, never gsdlc defaults."""
+
+    def test_missing_requirements_file_yields_empty(self, custody_sandbox):
+        # Validates: REQ-F-CUSTODY-001
+        # Validates: REQ-F-CUSTODY-002
+        req_file = custody_sandbox / "specification" / "requirements.md"
+        backup = req_file.read_text() if req_file.exists() else None
+        try:
+            if req_file.exists():
+                req_file.unlink()
+
+            env = {**os.environ, "PYTHONPATH": os.pathsep.join([
+                str(custody_sandbox / ".genesis"),
+                str(custody_sandbox / ".gsdlc" / "release"),
+            ])}
+            result = subprocess.run(
+                [sys.executable, "-c",
+                 "from gtl_spec.packages.custody_test import package; "
+                 "import json; print(json.dumps(package.requirements))"],
+                capture_output=True, text=True,
+                cwd=str(custody_sandbox), env=env, timeout=15,
+            )
+            assert result.returncode == 0, (
+                f"Package import failed:\n{result.stderr}"
+            )
+            reqs = json.loads(result.stdout)
+            assert reqs == [], (
+                f"No requirements.md should yield empty list, got: {reqs}"
+            )
+        finally:
+            if backup is not None:
+                req_file.write_text(backup)
 
 
 # ── Sandbox state is inspectable ───────────────────────────────────────────────

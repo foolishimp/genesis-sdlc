@@ -1,0 +1,15 @@
+feature_id: REQ-F-TERRITORY
+title: "Territory Model — Separate ABG/GSDLC Install Surfaces"
+status: iterating
+satisfies:
+  - REQ-F-TERRITORY-001
+  - REQ-F-TERRITORY-002
+edges:
+  requirements→feature_decomp: converged
+  feature_decomp→design: converged
+  design→module_decomp: converged
+  module_decomp→code: iterating
+  code↔unit_tests: pending
+  unit_tests→integration_tests: pending
+  integration_tests→user_guide: pending
+  user_guide→uat_tests: pending

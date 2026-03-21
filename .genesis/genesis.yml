@@ -3,4 +3,4 @@
 package: gtl_spec.packages.project_package:package
 worker:  gtl_spec.packages.project_package:worker
 pythonpath:
-  - builds/python/src
+  - .gsdlc/release

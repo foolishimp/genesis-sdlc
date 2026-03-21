@@ -1,0 +1,22 @@
+id: REQ-F-CUSTODY
+title: Requirements Custody — Project-Specific REQ Keys
+status: iterating
+satisfies:
+  - REQ-F-CUSTODY-001
+  - REQ-F-CUSTODY-002
+  - REQ-F-CUSTODY-003
+description: |
+  Fixes critical custody bug: instantiate() hardcodes gsdlc's 33 REQ keys into
+  every project. After this feature, instantiate(slug, requirements=...) accepts
+  project-specific keys, the Layer 3 wrapper parses them from
+  specification/requirements.md, and the installer scaffolds the file for new
+  projects. No requirements file = empty list, never fallback to gsdlc defaults.
+acceptance_criteria:
+  - instantiate(slug, requirements=[...]) sets Package.requirements to provided list
+  - instantiate(slug) with no requirements defaults to empty list
+  - Generated wrapper includes _load_reqs() parsing specification/requirements.md
+  - Installer scaffolds specification/requirements.md if absent
+  - Sandbox tests prove custom REQ keys visible to engine, gsdlc keys do not leak
+dependencies:
+  - REQ-F-BOOT-V2
+  - REQ-F-COV

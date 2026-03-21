@@ -16,7 +16,7 @@ BUILD_ROOT = Path(__file__).resolve().parents[1]   # builds/python/
 PROJECT_ROOT = BUILD_ROOT.parents[1]               # genesis_sdlc/
 INSTALL_MODULE = BUILD_ROOT / "src" / "genesis_sdlc" / "install.py"
 
-VERSION = "0.5.1"
+VERSION = "1.0.0b1"
 VERSION_UNDERSCORED = VERSION.replace(".", "_")
 
 # Installer requires abiogenesis as a sibling — skip if not present
@@ -79,22 +79,22 @@ class TestEngineInstall:
         assert "my_domain" in text
         assert "gtl_spec.packages.my_domain:package" in text
         assert "pythonpath" in text
-        assert "builds/python/src" in text
+        assert ".gsdlc/release" in text
 
 
 # ── SDLC starter spec ─────────────────────────────────────────────────────────
 
 class TestSdlcStarterSpec:
     def test_starter_spec_imports_layer2(self, tmp_path):
-        """Layer 3 spec must call instantiate() from the versioned workflow release."""
+        """Wrapper must call instantiate() from the versioned workflow release."""
         _install(tmp_path, ["--project-slug", "my_proj"])
-        spec = (tmp_path / ".genesis" / "gtl_spec" / "packages" / "my_proj.py").read_text()
+        spec = (tmp_path / ".gsdlc" / "release" / "gtl_spec" / "packages" / "my_proj.py").read_text()
         assert f"from workflows.genesis_sdlc.standard.v{VERSION_UNDERSCORED}.spec import instantiate" in spec
         assert "spec→output" not in spec
 
     def test_slug_substituted(self, tmp_path):
         _install(tmp_path, ["--project-slug", "acme_corp"])
-        spec = (tmp_path / ".genesis" / "gtl_spec" / "packages" / "acme_corp.py").read_text()
+        spec = (tmp_path / ".gsdlc" / "release" / "gtl_spec" / "packages" / "acme_corp.py").read_text()
         assert 'slug="acme_corp"' in spec
 
     def test_req_coverage_references_slug(self, tmp_path):
@@ -102,7 +102,10 @@ class TestSdlcStarterSpec:
         import os
         _install(tmp_path, ["--project-slug", "acme_corp"])
         env = os.environ.copy()
-        env["PYTHONPATH"] = str(tmp_path / ".genesis")
+        env["PYTHONPATH"] = os.pathsep.join([
+            str(tmp_path / ".gsdlc" / "release"),
+            str(tmp_path / ".genesis"),
+        ])
         result = subprocess.run(
             [sys.executable, "-c",
              "from workflows.genesis_sdlc.standard.v{ver}.spec import instantiate; "
@@ -116,11 +119,14 @@ class TestSdlcStarterSpec:
         assert "genesis_sdlc" not in result.stdout
 
     def test_layer3_imports_layer2_at_runtime(self, tmp_path):
-        """After install, the versioned Layer 2 spec must be importable from .genesis."""
+        """After install, the versioned spec must be importable from .gsdlc/release."""
         import os
         _install(tmp_path, ["--project-slug", "my_proj"])
         env = os.environ.copy()
-        env["PYTHONPATH"] = str(tmp_path / ".genesis")
+        env["PYTHONPATH"] = os.pathsep.join([
+            str(tmp_path / ".gsdlc" / "release"),
+            str(tmp_path / ".genesis"),
+        ])
         result = subprocess.run(
             [sys.executable, "-c",
              f"from workflows.genesis_sdlc.standard.v{VERSION_UNDERSCORED}.spec import package, worker; print('ok')"],
@@ -132,11 +138,11 @@ class TestSdlcStarterSpec:
         assert "ok" in result.stdout
 
     def test_platform_paths_in_layer2_not_layer3(self, tmp_path):
-        """Platform-specific evaluator paths live in Layer 2; Layer 3 is platform-agnostic."""
+        """Platform-specific evaluator paths live in workflow release; wrapper is platform-agnostic."""
         _install(tmp_path, ["--project-slug", "my_proj"])
-        layer3 = (tmp_path / ".genesis" / "gtl_spec" / "packages" / "my_proj.py").read_text()
+        layer3 = (tmp_path / ".gsdlc" / "release" / "gtl_spec" / "packages" / "my_proj.py").read_text()
         layer2 = (
-            tmp_path / ".genesis" / "workflows" / "genesis_sdlc"
+            tmp_path / ".gsdlc" / "release" / "workflows" / "genesis_sdlc"
             / "standard" / f"v{VERSION_UNDERSCORED}" / "spec.py"
         ).read_text()
         # Layer 3 is a two-line wrapper — no platform paths baked in
@@ -149,7 +155,10 @@ class TestSdlcStarterSpec:
         import os
         _install(tmp_path, ["--project-slug", "my_proj"])
         env = os.environ.copy()
-        env["PYTHONPATH"] = str(tmp_path / ".genesis")
+        env["PYTHONPATH"] = os.pathsep.join([
+            str(tmp_path / ".gsdlc" / "release"),
+            str(tmp_path / ".genesis"),
+        ])
         result = subprocess.run(
             [sys.executable, "-c",
              "from workflows.genesis_sdlc.standard.v{ver}.spec import instantiate; "
@@ -165,7 +174,7 @@ class TestSdlcStarterSpec:
     def test_reinstall_does_not_clobber_customised_spec(self, tmp_path):
         """Once user has edited their spec (no stub marker), reinstall must not overwrite."""
         _install(tmp_path, ["--project-slug", "my_proj"])
-        spec_path = tmp_path / ".genesis" / "gtl_spec" / "packages" / "my_proj.py"
+        spec_path = tmp_path / ".gsdlc" / "release" / "gtl_spec" / "packages" / "my_proj.py"
         spec_path.write_text("# user customisation\n")
         result = _install(tmp_path, ["--project-slug", "my_proj"])
         assert result["sdlc_starter_spec"] == "already_customised"
@@ -174,7 +183,7 @@ class TestSdlcStarterSpec:
     def test_reinstall_upgrades_genesis_sdlc_stub(self, tmp_path):
         """A genesis_sdlc-stub spec (auto-generated, not yet customised) is replaced on reinstall."""
         _install(tmp_path, ["--project-slug", "my_proj"])
-        spec_path = tmp_path / ".genesis" / "gtl_spec" / "packages" / "my_proj.py"
+        spec_path = tmp_path / ".gsdlc" / "release" / "gtl_spec" / "packages" / "my_proj.py"
         # Simulate an old install that still carries the genesis_sdlc-stub marker
         spec_path.write_text("# genesis_sdlc-stub — old generated content\npackage = None\n")
         result = _install(tmp_path, ["--project-slug", "my_proj"])
@@ -185,7 +194,7 @@ class TestSdlcStarterSpec:
     def test_generated_wrapper_always_replaced(self, tmp_path):
         """A wrapper carrying genesis_sdlc-generated is always replaced on reinstall."""
         _install(tmp_path, ["--project-slug", "my_proj"])
-        spec_path = tmp_path / ".genesis" / "gtl_spec" / "packages" / "my_proj.py"
+        spec_path = tmp_path / ".gsdlc" / "release" / "gtl_spec" / "packages" / "my_proj.py"
         original = spec_path.read_text()
         assert "genesis_sdlc-generated" in original
         # Simulate drift (e.g. old version) — still carries the marker
@@ -197,7 +206,7 @@ class TestSdlcStarterSpec:
     def test_reinstall_does_not_clobber_old_full_copy_spec(self, tmp_path):
         """A pre-0.2.0 full-copy spec without a stub marker is treated as user-owned."""
         _install(tmp_path, ["--project-slug", "my_proj"])
-        spec_path = tmp_path / ".genesis" / "gtl_spec" / "packages" / "my_proj.py"
+        spec_path = tmp_path / ".gsdlc" / "release" / "gtl_spec" / "packages" / "my_proj.py"
         # Simulate an old full-copy install: genesis_sdlc.py copied verbatim, no stub marker.
         # Ownership is ambiguous — the user may have edited it. Conservative policy: do not touch.
         # The only safe migration path is explicit: delete the file and reinstall.
@@ -223,7 +232,7 @@ class TestSdlcStarterSpec:
 
 class TestWorkflowRelease:
     def _ver_dir(self, tmp_path):
-        return tmp_path / ".genesis" / "workflows" / "genesis_sdlc" / "standard" / f"v{VERSION_UNDERSCORED}"
+        return tmp_path / ".gsdlc" / "release" / "workflows" / "genesis_sdlc" / "standard" / f"v{VERSION_UNDERSCORED}"
 
     def test_versioned_spec_written(self, tmp_path):
         """install_workflow_release must write spec.py into the versioned directory."""
@@ -257,17 +266,17 @@ class TestWorkflowRelease:
     def test_init_py_files_created(self, tmp_path):
         """Workflow directories must have __init__.py so the package is importable."""
         _install(tmp_path, ["--project-slug", "test_proj"])
-        genesis_root = tmp_path / ".genesis"
-        assert (genesis_root / "workflows" / "__init__.py").exists()
-        assert (genesis_root / "workflows" / "genesis_sdlc" / "__init__.py").exists()
-        assert (genesis_root / "workflows" / "genesis_sdlc" / "standard" / "__init__.py").exists()
+        release_root = tmp_path / ".gsdlc" / "release"
+        assert (release_root / "workflows" / "__init__.py").exists()
+        assert (release_root / "workflows" / "genesis_sdlc" / "__init__.py").exists()
+        assert (release_root / "workflows" / "genesis_sdlc" / "standard" / "__init__.py").exists()
         assert (self._ver_dir(tmp_path) / "__init__.py").exists()
 
     def test_active_workflow_json_written(self, tmp_path):
-        """install_active_workflow must write .genesis/active-workflow.json."""
+        """install_active_workflow must write .gsdlc/release/active-workflow.json."""
         result = _install(tmp_path, ["--project-slug", "test_proj"])
         assert result["active_workflow"] == "installed"
-        active_path = tmp_path / ".genesis" / "active-workflow.json"
+        active_path = tmp_path / ".gsdlc" / "release" / "active-workflow.json"
         assert active_path.exists()
         data = json.loads(active_path.read_text())
         assert data["workflow"] == "genesis_sdlc.standard"
@@ -288,13 +297,13 @@ class TestMigration:
     def test_migrate_full_copy_moves_legacy_spec(self, tmp_path):
         """--migrate-full-copy must rename the old file and write a new generated wrapper."""
         _install(tmp_path, ["--project-slug", "my_proj"])
-        spec_path = tmp_path / ".genesis" / "gtl_spec" / "packages" / "my_proj.py"
+        spec_path = tmp_path / ".gsdlc" / "release" / "gtl_spec" / "packages" / "my_proj.py"
         # Simulate pre-0.2.0 full-copy (no marker)
         spec_path.write_text("# user spec — no marker\npackage = None\n")
         result = _install(tmp_path, ["--project-slug", "my_proj", "--migrate-full-copy"])
         assert result["status"] == "migrated"
         assert "legacy_path" in result
-        legacy = tmp_path / ".genesis" / "gtl_spec" / "packages" / Path(result["legacy_path"]).name
+        legacy = tmp_path / ".gsdlc" / "release" / "gtl_spec" / "packages" / Path(result["legacy_path"]).name
         assert legacy.exists()
         assert "user spec" in legacy.read_text()
         # New wrapper must be in place
@@ -474,7 +483,7 @@ class TestAudit:
     def test_audit_detects_standard_drift(self, tmp_path):
         """Audit detects when an operating standard is modified."""
         _install(tmp_path, ["--project-slug", "test_proj"])
-        std = tmp_path / ".ai-workspace" / "operating-standards" / "CONVENTIONS.md"
+        std = tmp_path / ".gsdlc" / "release" / "operating-standards" / "CONVENTIONS.md"
         std.write_text("tampered content")
         result = _install(tmp_path, ["--project-slug", "test_proj", "--audit"])
         assert result["status"] == "drift_detected"
@@ -512,9 +521,9 @@ class TestAudit:
         assert wrapper_findings[0]["status"] == "ok"
 
     def test_audit_detects_wrapper_drift(self, tmp_path):
-        """Audit detects when Layer 3 wrapper is tampered."""
+        """Audit detects when wrapper is tampered."""
         _install(tmp_path, ["--project-slug", "test_proj"])
-        wrapper = tmp_path / ".genesis" / "gtl_spec" / "packages" / "test_proj.py"
+        wrapper = tmp_path / ".gsdlc" / "release" / "gtl_spec" / "packages" / "test_proj.py"
         wrapper.write_text("# genesis_sdlc-generated\nimport wrong_version\n")
         result = _install(tmp_path, ["--project-slug", "test_proj", "--audit"])
         assert "layer3_wrapper" in result["audit"].get("drifted", [])

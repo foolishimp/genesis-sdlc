@@ -331,7 +331,7 @@ class TestPublicAPI:
 
     def test_version(self):
         import genesis_sdlc
-        assert genesis_sdlc.__version__ == "0.5.1"
+        assert genesis_sdlc.__version__ == "1.0.0b1"
 
     def test_all_exports(self):
         import genesis_sdlc
@@ -373,10 +373,18 @@ class TestInstantiate:
         _, wkr = instantiate(slug="some_slug")
         assert len(wkr.can_execute) == len(worker.can_execute)
 
-    def test_instantiate_preserves_requirements_list(self):
-        from genesis_sdlc.sdlc_graph import instantiate, package
+    def test_instantiate_defaults_to_empty_requirements(self):
+        """No requirements arg → empty list (not workflow's keys).  # Validates: REQ-F-CUSTODY-001"""
+        from genesis_sdlc.sdlc_graph import instantiate
         pkg, _ = instantiate(slug="some_slug")
-        assert pkg.requirements == package.requirements
+        assert pkg.requirements == []
+
+    def test_instantiate_accepts_project_requirements(self):
+        """Explicit requirements override workflow keys.  # Validates: REQ-F-CUSTODY-001"""
+        from genesis_sdlc.sdlc_graph import instantiate
+        project_reqs = ["REQ-PROJ-001", "REQ-PROJ-002"]
+        pkg, _ = instantiate(slug="some_slug", requirements=project_reqs)
+        assert pkg.requirements == project_reqs
 
     def test_different_slugs_produce_different_hashes(self):
         """Two instantiations with different slugs produce different job_evaluator hashes."""

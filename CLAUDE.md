@@ -531,7 +531,7 @@ The `.ai-workspace/` directory is partitioned by agent identity. Violating these
 
 ### Operating Standards
 
-**`.ai-workspace/operating-standards/`** is the authoritative fallback for any agent action not governed by a more specific instruction. Before performing any of the following, load the relevant standard:
+**`.gsdlc/release/operating-standards/`** is the authoritative fallback for any agent action not governed by a more specific instruction. Before performing any of the following, load the relevant standard:
 
 | Action | Standard |
 |--------|----------|

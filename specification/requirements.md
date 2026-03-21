@@ -11,17 +11,17 @@ These REQ keys are the traceability thread. Every design ADR, every code file, e
 
 ## Bootstrap (REQ-F-BOOT-*)
 
-### REQ-F-BOOT-001 — gen-install bootstraps .genesis/ into target project
+### REQ-F-BOOT-001 — gen-install bootstraps target project with engine + methodology
 
-The installer copies the genesis engine and methodology into a target project so it can run without an installed package. It creates the four-territory structure: `.genesis/` (write-once), `.ai-workspace/` (read-write), `specification/` (read-only axioms), `builds/` (read-write source).
+The installer copies the genesis engine and methodology into a target project so it can run without an installed package. It creates the five-territory structure: `.genesis/` (ABG kernel, immutable), `.gsdlc/release/` (gsdlc methodology, immutable between releases), `.ai-workspace/` (runtime evidence), `specification/` (read-only axioms), `builds/` (read-write source).
 
 **Acceptance Criteria**:
 - AC-1: `install(target, source)` creates `.genesis/genesis/` with engine modules copied from the abiogenesis engine
-- AC-2: Creates `.genesis/genesis.yml` pointing to `.genesis/gtl_spec/packages/<slug>:package` and `.genesis/gtl_spec/packages/<slug>:worker`
+- AC-2: Creates `.genesis/genesis.yml` pointing to `gtl_spec.packages.<slug>:package` and `gtl_spec.packages.<slug>:worker` with `pythonpath: [.gsdlc/release]`
 - AC-3: Creates `.ai-workspace/` directory structure (events/, features/active/, features/completed/, comments/, reviews/)
-- AC-4: Installs operating standards from `specification/standards/` into `.ai-workspace/operating-standards/`
+- AC-4: Installs operating standards from `specification/standards/` into `.gsdlc/release/operating-standards/`
 - AC-5: Installs command files from plugin sources into `.claude/commands/`
-- AC-6: Generates `CLAUDE.md` from `.genesis/gtl_spec/GENESIS_BOOTLOADER.md`
+- AC-6: Appends SDLC bootloader to `CLAUDE.md` (GTL bootloader is appended by abiogenesis installer)
 - AC-7: Idempotent — re-running updates engine files and standards, preserves workspace state and local specs
 - AC-8: Emits `genesis_sdlc_installed` event on completion with version, spec_hash, and migration outcome
 
@@ -34,30 +34,30 @@ The engine reads its Package and Worker from a config file at startup.
 - AC-2: Missing `genesis.yml` produces an informative error, not a crash
 - AC-3: Engine resolves Package and Worker via `importlib` from the configured path
 
-### REQ-F-BOOT-003 — Installer copies released spec into .genesis/spec/ as immutable layer
+### REQ-F-BOOT-003 — Installer copies released spec into .gsdlc/release/spec/ as immutable layer
 
-The three-layer install architecture separates immutable methodology spec from mutable project spec.
+The install architecture separates immutable methodology spec from mutable project spec, with gsdlc artifacts in `.gsdlc/release/` (not `.genesis/`).
 
 **Acceptance Criteria**:
-- AC-1: `install()` copies `sdlc_graph.py` into `.genesis/spec/genesis_sdlc.py` as the frozen methodology layer
-- AC-2: The installed spec is versioned: `.genesis/workflows/genesis_sdlc/standard/v{VERSION}/` contains the release snapshot
+- AC-1: `install()` copies `sdlc_graph.py` into `.gsdlc/release/spec/genesis_sdlc.py` as the frozen methodology layer
+- AC-2: The installed spec is versioned: `.gsdlc/release/workflows/genesis_sdlc/standard/v{VERSION}/` contains the release snapshot
 - AC-3: The frozen spec is never modified after install — it represents the methodology version that was installed
 
-### REQ-F-BOOT-004 — Installer generates Layer 3 wrapper in .genesis/gtl_spec/packages/{slug}.py
+### REQ-F-BOOT-004 — Installer generates wrapper in .gsdlc/release/gtl_spec/packages/{slug}.py
 
 Projects get a generated wrapper that imports from the installed methodology release. The wrapper is system-owned and rewritten on every redeploy.
 
 **Acceptance Criteria**:
-- AC-1: Installer generates `.genesis/gtl_spec/packages/{slug}.py` importing from the versioned workflow release
+- AC-1: Installer generates `.gsdlc/release/gtl_spec/packages/{slug}.py` importing from the versioned workflow release
 - AC-2: If the file carries the `genesis_sdlc-generated` marker, it is replaced on reinstall
 - AC-3: If the file has been customised (no marker), installer does not overwrite — use `--migrate-full-copy` to opt in
 
-### REQ-F-BOOT-005 — Reinstall replaces .genesis/spec/ atomically; never overwrites customised specs
+### REQ-F-BOOT-005 — Reinstall replaces .gsdlc/release/ methodology atomically; never overwrites customised specs
 
 Upgrade safety: the methodology layer is replaceable, project customisations are sacred.
 
 **Acceptance Criteria**:
-- AC-1: `install()` replaces `.genesis/spec/` and `.genesis/workflows/` atomically on reinstall
+- AC-1: `install()` replaces `.gsdlc/release/spec/` and `.gsdlc/release/workflows/` atomically on reinstall
 - AC-2: System-owned wrappers (with marker) are replaced; customised specs are never overwritten
 - AC-3: One-time provenance migration runs on upgrade: re-emits old events with new schema and workflow version
 
@@ -332,6 +332,65 @@ Version sandboxing ensures tests run against the release candidate source, not s
 
 ---
 
+## Requirements Custody (REQ-F-CUSTODY-*)
+
+### REQ-F-CUSTODY-001 — instantiate() accepts project-specific requirements
+
+`instantiate(slug)` currently hardcodes gsdlc's own REQ keys into every project. This means F_D evaluates coverage against the wrong requirements for all non-gsdlc projects. The Package must accept project-specific requirements.
+
+**Acceptance Criteria**:
+- AC-1: `instantiate(slug, requirements=None)` accepts an optional `requirements` list
+- AC-2: When `requirements` is provided, `Package.requirements` is set to that list — not gsdlc's hardcoded keys
+- AC-3: When `requirements` is `None`, `Package.requirements` is an empty list — not gsdlc's keys. No requirements file = zero project requirements.
+- AC-4: gsdlc's own 33 REQ keys remain the default only when gsdlc is building itself (slug == "genesis_sdlc" or no override)
+
+### REQ-F-CUSTODY-002 — Layer 3 wrapper loads project requirements from specification/requirements.md
+
+The generated wrapper must read the project's own requirements file and pass them to `instantiate()`.
+
+**Acceptance Criteria**:
+- AC-1: Generated wrapper includes a `_load_reqs()` function that parses `### REQ-*` headers from `specification/requirements.md`
+- AC-2: Wrapper calls `instantiate(slug="{slug}", requirements=_load_reqs())`
+- AC-3: `_load_reqs()` returns an empty list if the file does not exist — never falls back to gsdlc's keys
+- AC-4: Parsing is deterministic: regex match on `### (REQ-[A-Z0-9-]+)` at start of line
+
+### REQ-F-CUSTODY-003 — Installer scaffolds specification/requirements.md
+
+New projects need a starter requirements file so the custody chain has something to read.
+
+**Acceptance Criteria**:
+- AC-1: `install()` creates `specification/requirements.md` if absent
+- AC-2: Scaffold contains a header and one example REQ key as a template
+- AC-3: Existing `specification/requirements.md` is never overwritten
+- AC-4: Scaffold is created before wrapper generation so the chain is complete on first install
+
+---
+
+## Territory Model (REQ-F-TERRITORY-*)
+
+### REQ-F-TERRITORY-001 — gsdlc installer writes release artifacts to .gsdlc/release/
+
+The gsdlc installer must produce its own territory separate from the ABG kernel.
+
+**Acceptance Criteria**:
+- AC-1: Workflow releases written to `.gsdlc/release/workflows/genesis_sdlc/standard/v{VERSION}/`
+- AC-2: Generated wrapper written to `.gsdlc/release/gtl_spec/packages/{slug}.py`
+- AC-3: Active workflow pointer written to `.gsdlc/release/active-workflow.json`
+- AC-4: `.genesis/` contains only ABG engine (`genesis/`) and GTL type system (`gtl/`) after install
+- AC-5: No gsdlc workflow, wrapper, or config artifacts are written to `.genesis/`
+
+### REQ-F-TERRITORY-002 — Runtime resolves from installed territories, not build source
+
+The deployed runtime path must not include `builds/`.
+
+**Acceptance Criteria**:
+- AC-1: `genesis.yml` pythonpath contains `.gsdlc/release`, not `builds/python/src`
+- AC-2: `PYTHONPATH=.genesis python -m genesis gaps --workspace .` resolves Package from `.gsdlc/release/gtl_spec/packages/{slug}.py`
+- AC-3: No import in the runtime chain requires `builds/` on sys.path
+- AC-4: Evaluator commands MAY reference `builds/` — they test source, not deploy it
+
+---
+
 ## Key Counts
 
 | Category | REQ Keys |
@@ -346,4 +405,6 @@ Version sandboxing ensures tests run against the release candidate source, not s
 | UAT | REQ-F-UAT-001 through 003 (3) |
 | Backlog | REQ-F-BACKLOG-001 through 004 (4) |
 | Module Decomposition | REQ-F-MDECOMP-001 through 005 (5) |
-| **Total** | **32 keys** |
+| Requirements Custody | REQ-F-CUSTODY-001 through 003 (3) |
+| Territory Model | REQ-F-TERRITORY-001, 002 (2) |
+| **Total** | **37 keys** |

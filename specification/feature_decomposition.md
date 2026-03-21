@@ -26,6 +26,8 @@
 | REQ-F-DOCS | User Documentation | DOCS-001 | CMD, GRAPH | Y |
 | REQ-F-BACKLOG | Backlog — Pre-Intent Holding Area | BACKLOG-001..004 | — | Y |
 | REQ-F-MDECOMP | Module Decomposition and Build Scheduling | MDECOMP-001..005 | GRAPH, GATE | Y |
+| REQ-F-CUSTODY | Requirements Custody — Project-Specific REQ Keys | CUSTODY-001, CUSTODY-002, CUSTODY-003 | BOOT-V2, COV | Y |
+| REQ-F-TERRITORY | Territory Model — Separate ABG/GSDLC Install Surfaces | TERRITORY-001, TERRITORY-002 | BOOT-V2, CUSTODY | Y |
 
 ---
 
@@ -47,6 +49,9 @@ REQ-F-GRAPH
          └── REQ-F-DOCS        (needs commands to document)
 
 REQ-F-BACKLOG                  (independent — pre-intent holding area)
+
+REQ-F-BOOT-V2 + REQ-F-COV
+    └── REQ-F-CUSTODY          (needs three-layer install for wrapper gen + COV for coverage chain)
 ```
 
 **Build order** (topological sort):
@@ -105,7 +110,7 @@ The installer (`install.py`) copies the engine, generates config, creates worksp
 
 ### REQ-F-BOOT-V2 — Three-Layer Install Architecture
 
-Separates immutable methodology spec (Layer 1: `.genesis/spec/`), versioned release snapshot (Layer 2: `.genesis/workflows/genesis_sdlc/standard/v{VERSION}/`), and mutable local spec (Layer 3: `.genesis/gtl_spec/packages/`). ADR-008 records the four-territory model.
+Separates immutable methodology spec (`.gsdlc/release/spec/`), versioned release snapshot (`.gsdlc/release/workflows/genesis_sdlc/standard/v{VERSION}/`), and generated wrapper (`.gsdlc/release/gtl_spec/packages/`). The `.genesis/` directory contains only the ABG kernel. ADR-008 records the territory model.
 
 ### REQ-F-CMD — Engine Commands
 
@@ -151,13 +156,19 @@ Inserts `integration_tests` and `user_guide` as first-class assets between `unit
 
 Inserts `module_decomp` between `design` and `code`. Decomposes design into modules with dependency DAG and build order. F_H gate ensures schedule is approved before construction.
 
+### REQ-F-CUSTODY — Requirements Custody
+
+Fixes the critical bug where `instantiate()` hardcodes gsdlc's 33 REQ keys into every project. After this feature: `instantiate(slug, requirements=...)` accepts project-specific keys, the Layer 3 wrapper parses them from `specification/requirements.md`, and the installer scaffolds the file for new projects. No-requirements-file = empty list (zero requirements), never fallback to gsdlc's keys.
+
+**Modules affected**: `sdlc_graph.py` (instantiate signature), `install.py` (wrapper template, scaffold)
+
 ---
 
 ## Coverage Summary
 
 ```
-Requirements: 31 REQ keys defined
-Covered:      31/31  [==========]  100%
+Requirements: 37 REQ keys defined
+Covered:      37/37  [==========]  100%
 Gaps:         (none)
-Features:     14 vectors — all completed
+Features:     16 vectors — 14 completed, 2 in progress (CUSTODY, TERRITORY)
 ```
