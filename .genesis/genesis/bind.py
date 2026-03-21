@@ -3,6 +3,11 @@
 # Implements: REQ-F-BIND-001
 # Implements: REQ-F-PROV-003
 # Implements: REQ-F-PROV-004
+# Implements: REQ-F-PROV-005
+# Implements: REQ-F-EC-002
+# Implements: REQ-F-EC-003
+# Implements: REQ-F-EC-004
+# Implements: REQ-F-EC-005
 """
 bind — F_D pre-computation: bind_fd, bind_fp, select_relevant_contexts,
        render_delta.
@@ -47,10 +52,12 @@ def req_hash(requirements: list[str]) -> str:
 
 def job_evaluator_hash(job: Job) -> str:
     """
-    Hash of all evaluator definitions on this job.
+    Hash of all evaluator definitions and bound context digests on this job.
 
-    Covers F_D (command), F_P/F_H (description), and name+category for all.
-    Changing any evaluator field on the job changes this hash.
+    Covers F_D (command), F_P/F_H (description), name+category for all
+    evaluators, plus every context digest on the edge. Changing any evaluator
+    field or any context's content (detected via digest) changes this hash,
+    automatically invalidating prior F_P certifications.
 
     Used as spec_hash when scope.workflow_version != "unknown". Replaces req_hash
     for workspaces with active-workflow.json present (REQ-F-PROV-003).
@@ -59,7 +66,13 @@ def job_evaluator_hash(job: Job) -> str:
         f"{ev.name}:{ev.category.__name__}:{ev.command}:{ev.description}"
         for ev in job.evaluators
     )
-    raw = "\n".join(re.sub(r'\s+', ' ', line.strip()) for line in lines)
+    # Include context digests so that context content changes invalidate
+    # prior assessed{fp, pass, spec_hash} certifications.
+    ctx_lines = sorted(
+        f"ctx:{ctx.name}:{ctx.digest}"
+        for ctx in (job.edge.context or [])
+    )
+    raw = "\n".join(re.sub(r'\s+', ' ', line.strip()) for line in lines + ctx_lines)
     return hashlib.sha256(raw.encode()).hexdigest()[:16]
 
 
@@ -147,6 +160,70 @@ def bind_fh(
                         continue  # Different lens — does not terminate this fluent
                 # Revocation must postdate the approval
                 if latest_approved_time is None or e.get("event_time", "") > latest_approved_time:
+                    return False
+
+    return True
+
+
+def bind_fp_certified(
+    job: Job,
+    ev: Evaluator,
+    all_events: list[dict],
+    spec_hash: str | None = None,
+    current_workflow_version: str = "unknown",
+) -> bool:
+    """
+    Evaluate holdsAt(certified(edge, evaluator, spec_hash, wv), now) for an F_P evaluator.
+
+    Event Calculus semantics (symmetric with bind_fh):
+      assessed{kind: fp, result: pass}  initiates  certified(edge, ev, spec_hash, wv)
+      revoked{kind: fp_assessment}      terminates certified(edge, ev, spec_hash, wv)
+
+    certified(edge, ev, spec_hash, wv) holdsAt now iff:
+      an assessed{pass} event initiates it AND no later revoked{fp_assessment} terminates it,
+      AND spec_hash matches (identity-based termination).
+    """
+    # Find the latest assessed{kind: fp, result: pass} for this edge+evaluator
+    latest_assessed_time = None
+    found_assessed = False
+
+    for e in all_events:
+        etype = e.get("event_type")
+        edata = e.get("data", {})
+
+        is_assessed = (
+            etype == "assessed"
+            and edata.get("kind") == "fp"
+            and edata.get("edge") == job.edge.name
+            and edata.get("evaluator") == ev.name
+            and edata.get("result") == "pass"
+        )
+
+        if is_assessed:
+            # spec_hash identity check
+            if spec_hash is not None and edata.get("spec_hash") != spec_hash:
+                continue  # Different fluent identity — does not initiate
+            found_assessed = True
+            latest_assessed_time = e.get("event_time")
+
+    if not found_assessed:
+        return False
+
+    # Check for terminates: revoked{kind: fp_assessment} postdating the assessed event.
+    # Symmetric with bind_fh revocation check.
+    for e in all_events:
+        etype = e.get("event_type")
+        edata = e.get("data", {})
+        if etype == "revoked" and edata.get("kind") == "fp_assessment":
+            revoked_edge = edata.get("edge")
+            if revoked_edge == job.edge.name or revoked_edge == "*":
+                # Workflow version scoping (symmetric with bind_fh)
+                if current_workflow_version != "unknown":
+                    rev_wv = edata.get("workflow_version")
+                    if rev_wv != current_workflow_version:
+                        continue  # Different lens — does not terminate this fluent
+                # Revocation must postdate the assessment
+                if latest_assessed_time is None or e.get("event_time", "") > latest_assessed_time:
                     return False
 
     return True
@@ -253,18 +330,9 @@ def bind_fd(
         if ev.category is F_P:
             # EC: holdsAt(certified(edge, evaluator, spec_hash, wv), now)
             # Initiated by assessed{kind: fp, result: pass, spec_hash: H}.
-            # Terminated by spec_hash mismatch (new spec = different fluent identity).
-            return any(
-                e.get("event_type") == "assessed"
-                and e.get("data", {}).get("kind") == "fp"
-                and e.get("data", {}).get("edge") == job.edge.name
-                and e.get("data", {}).get("evaluator") == ev.name
-                and e.get("data", {}).get("result") == "pass"
-                and (
-                    spec_hash is None  # caller opted out of snapshot check
-                    or e.get("data", {}).get("spec_hash") == spec_hash
-                )
-                for e in all_events
+            # Terminated by revoked{kind: fp_assessment} or spec_hash mismatch.
+            return bind_fp_certified(
+                job, ev, all_events, spec_hash, current_workflow_version
             )
         return False
 

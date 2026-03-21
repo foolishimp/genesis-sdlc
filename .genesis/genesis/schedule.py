@@ -128,13 +128,16 @@ def iterate(
     # Dispatch F_P evaluators — only when all F_D pass
     fp_failing = [ev for ev in pre.failing_evaluators if ev.category is F_P]
     if fp_failing and not fd_failing:
+        fp_dispatch_data: dict = {
+            "edge": job.edge.name,
+            "failing_evaluators": [ev.name for ev in fp_failing],
+            "prompt_length": len(bound_job.prompt.split()),
+        }
+        if bound_job.manifest_id:
+            fp_dispatch_data["manifest_id"] = bound_job.manifest_id
         surface.events.append({
             "event_type": "fp_dispatched",
-            "data": {
-                "edge": job.edge.name,
-                "failing_evaluators": [ev.name for ev in fp_failing],
-                "prompt_length": len(bound_job.prompt.split()),
-            },
+            "data": fp_dispatch_data,
         })
         if on_fp_dispatch is not None:
             on_fp_dispatch(bound_job)

@@ -427,6 +427,8 @@ def _emit_event_cmd(event_type: str, data_json: str, workspace: Path) -> int:
         for fld in ("kind", "edge", "actor", "reason"):
             if fld not in data:
                 errors.append(f"revoked requires '{fld}' field")
+        if data.get("kind") not in (None, "fh_approval", "fp_assessment"):
+            errors.append(f"revoked 'kind' must be 'fh_approval' or 'fp_assessment', got '{data.get('kind')!s}'")
 
     if errors:
         for msg in errors:
@@ -623,6 +625,11 @@ def main() -> None:
         edge=getattr(args, "edge", None),
         worker=worker,
     )
+
+    # Bind active snapshot so work events carry package_snapshot_id.
+    from .core import init_snapshot
+    snapshot_id = f"snap-{package.name}-{scope.workflow_version}"
+    init_snapshot(snapshot_id)
 
     if args.command == "start":
         human_proxy = getattr(args, "human_proxy", False)

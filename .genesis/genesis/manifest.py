@@ -60,3 +60,4 @@ class BoundJob:
     precomputed: PrecomputedManifest
     prompt: str                            # assembled F_P manifest text
     result_path: str = ""                  # where F_P writes its output
+    manifest_id: str = ""                  # unique dispatch ID for pending-fluent tracking

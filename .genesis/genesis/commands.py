@@ -286,15 +286,29 @@ def gen_iterate(
 
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
     edge_slug = selected_job.edge.name.replace("→", "_").replace("↔", "_")
+    manifest_id = f"{edge_slug}_{ts}"
+
+    # Check for pending F_P dispatch (fp_dispatched without matching assessed).
+    # Prevents duplicate dispatch while a prior F_P invocation is still in flight.
+    if fp_failing:
+        pending_id = _find_pending_dispatch(stream, selected_job.edge.name)
+        if pending_id is not None:
+            return {
+                "status": "pending",
+                "reason": f"F_P dispatch already in flight for edge {selected_job.edge.name!r}",
+                "pending_manifest_id": pending_id,
+                "edge": selected_job.edge.name,
+            }
 
     result_path = ""
     if fp_failing:
         fp_results_dir = scope.workspace_root / ".ai-workspace" / "fp_results"
         fp_results_dir.mkdir(parents=True, exist_ok=True)
-        result_path = str(fp_results_dir / f"{edge_slug}_{ts}.json")
+        result_path = str(fp_results_dir / f"{manifest_id}.json")
 
     # Bind + iterate
     bound = bind_fp(selected_pre, selected_job, result_path=result_path)
+    bound.manifest_id = manifest_id
     # REQ-F-CORE-001: include target so project() "current" projection can filter
     # edge_started to only the asset type being produced by this edge.
     stream.append("edge_started", {
@@ -323,8 +337,9 @@ def gen_iterate(
     if fp_failing:
         manifests_dir = scope.workspace_root / ".ai-workspace" / "fp_manifests"
         manifests_dir.mkdir(parents=True, exist_ok=True)
-        manifest_file = manifests_dir / f"{edge_slug}_{ts}.json"
+        manifest_file = manifests_dir / f"{manifest_id}.json"
         manifest = {
+            "manifest_id": manifest_id,
             "edge": selected_job.edge.name,
             "failing_evaluators": [
                 {"name": ev.name, "description": ev.description}
@@ -391,7 +406,7 @@ def gen_start(
         result = gen_iterate(scope, stream, on_fp_dispatch=on_fp_dispatch)
         result["auto"] = True
 
-        if result["status"] in ("converged", "nothing_to_do"):
+        if result["status"] in ("converged", "nothing_to_do", "pending"):
             return result
 
         # Inspect events emitted by this iteration
@@ -443,6 +458,49 @@ def _derive_state(scope: Scope, stream: EventStream) -> dict:
         return {"status": "converged"}
 
     return {"status": "in_progress", "delta": total_delta}
+
+
+# ── pending dispatch fluent ───────────────────────────────────────────────────
+
+def _find_pending_dispatch(stream: EventStream, edge_name: str) -> Optional[str]:
+    """
+    Check for an outstanding F_P dispatch on this edge.
+
+    Returns the manifest_id of the pending dispatch, or None if no dispatch
+    is in flight. A dispatch is pending when an fp_dispatched event exists
+    for this edge with a manifest_id that has no corresponding assessed event.
+
+    Event Calculus:
+      fp_dispatched{manifest_id: M}  initiates  pending(edge, M)
+      assessed{manifest_id: M}       terminates pending(edge, M)
+    """
+    all_events = stream.all_events()
+
+    # Collect all manifest_ids dispatched for this edge
+    dispatched_ids: set[str] = set()
+    for e in all_events:
+        if (
+            e.get("event_type") == "fp_dispatched"
+            and e.get("data", {}).get("edge") == edge_name
+            and e.get("data", {}).get("manifest_id")
+        ):
+            dispatched_ids.add(e["data"]["manifest_id"])
+
+    if not dispatched_ids:
+        return None
+
+    # Remove any that have a matching assessed event
+    for e in all_events:
+        if (
+            e.get("event_type") == "assessed"
+            and e.get("data", {}).get("manifest_id") in dispatched_ids
+        ):
+            dispatched_ids.discard(e["data"]["manifest_id"])
+
+    # Return the first remaining pending dispatch (if any)
+    if dispatched_ids:
+        return next(iter(dispatched_ids))
+    return None
 
 
 # ── internal helpers ──────────────────────────────────────────────────────────
