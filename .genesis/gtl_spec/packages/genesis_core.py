@@ -272,6 +272,12 @@ genesis_v1 = Package(
 )
 
 
+# ── Standard exports ─────────────────────────────────────────────────────────
+# Engine convention: genesis.yml binds to {module}:package and {module}:worker.
+package = genesis_v1
+worker = worker_claude_code
+
+
 if __name__ == "__main__":
     print(genesis_v1.describe())
     print()
