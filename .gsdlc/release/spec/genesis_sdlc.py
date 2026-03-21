@@ -491,7 +491,7 @@ def instantiate(slug: str, requirements=None):
 
     _this_spec = Context(
         name="sdlc_spec",
-        locator=f"workspace://.genesis/gtl_spec/packages/{slug}.py",
+        locator=f"workspace://.gsdlc/release/gtl_spec/packages/{slug}.py",
         digest="sha256:" + "0" * 64,
     )
 

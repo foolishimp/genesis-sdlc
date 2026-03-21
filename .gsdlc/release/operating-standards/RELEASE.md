@@ -160,7 +160,7 @@ Commit the updated artifacts in each project that is a git repo:
 
 ```bash
 cd /path/to/project
-git add .claude/ .genesis/ CLAUDE.md .ai-workspace/operating-standards/
+git add .claude/ .genesis/ .gsdlc/ CLAUDE.md
 git commit -m "chore: cascade genesis_sdlc v{VERSION}"
 git push origin main
 ```

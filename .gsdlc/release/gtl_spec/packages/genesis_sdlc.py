@@ -19,4 +19,4 @@ def _load_reqs():
     return reqs
 
 
-package, worker = instantiate(slug="project_package", requirements=_load_reqs())
+package, worker = instantiate(slug="genesis_sdlc", requirements=_load_reqs())
