@@ -193,9 +193,16 @@ def cmd_promote(workspace: Path, bl_id: str, reason: str | None,
 def _genesis_env(workspace: Path) -> dict:
     import os
     env = os.environ.copy()
-    genesis_path = workspace / ".genesis"
+    # Domain release shadows kernel: .gsdlc/release before .genesis
+    parts = []
+    domain_release = workspace / ".gsdlc" / "release"
+    if domain_release.is_dir():
+        parts.append(str(domain_release))
+    parts.append(str(workspace / ".genesis"))
     existing = env.get("PYTHONPATH", "")
-    env["PYTHONPATH"] = str(genesis_path) + (":" + existing if existing else "")
+    if existing:
+        parts.append(existing)
+    env["PYTHONPATH"] = ":".join(parts)
     return env
 
 
