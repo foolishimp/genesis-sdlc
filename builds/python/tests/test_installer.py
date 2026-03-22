@@ -73,13 +73,21 @@ class TestEngineInstall:
         _install(tmp_path, ["--project-slug", "test_proj"])
         assert (tmp_path / ".genesis" / "gtl" / "core.py").exists()
 
-    def test_genesis_yml_written(self, tmp_path):
+    def test_kernel_genesis_yml_written(self, tmp_path):
+        """ABG seeds kernel default in .genesis/genesis.yml."""
         _install(tmp_path, ["--project-slug", "my_domain"])
         text = (tmp_path / ".genesis" / "genesis.yml").read_text()
-        assert "my_domain" in text
-        assert "gtl_spec.packages.my_domain:package" in text
-        assert "pythonpath" in text
-        assert ".gsdlc/release" in text
+        assert "genesis_core" in text
+
+    def test_domain_runtime_contract(self, tmp_path):
+        """gsdlc writes full runtime contract to .gsdlc/release/genesis.yml."""
+        _install(tmp_path, ["--project-slug", "rc_test"])
+        contract = (tmp_path / ".gsdlc" / "release" / "genesis.yml").read_text()
+        assert "gtl_spec.packages.rc_test:package" in contract
+        assert "gtl_spec.packages.rc_test:worker" in contract
+        assert ".gsdlc/release" in contract
+        assert "active_workflow: .gsdlc/release/active-workflow.json" in contract
+        assert "workflow_root: .gsdlc/release/workflows" in contract
 
 
 # ── SDLC starter spec ─────────────────────────────────────────────────────────

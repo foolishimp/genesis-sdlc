@@ -677,13 +677,24 @@ def install_operating_standards(source: Path, target: Path) -> str:
     return f"installed:{','.join(installed)}" if installed else "empty"
 
 
+def _find_contract(target: Path) -> Path | None:
+    """Return the path to the active runtime contract, or None."""
+    domain = target / ".gsdlc" / "release" / "genesis.yml"
+    if domain.exists():
+        return domain
+    kernel = target / ".genesis" / "genesis.yml"
+    if kernel.exists():
+        return kernel
+    return None
+
+
 def _read_worker_ref(target: Path) -> tuple[str | None, str | None]:
-    """Return (module, attr) for the project worker declared in genesis.yml."""
-    genesis_yml = target / ".genesis" / "genesis.yml"
-    if not genesis_yml.exists():
+    """Return (module, attr) for the project worker declared in the runtime contract."""
+    contract = _find_contract(target)
+    if contract is None:
         return None, None
     import re
-    text = genesis_yml.read_text(encoding="utf-8")
+    text = contract.read_text(encoding="utf-8")
     m = re.search(r"^worker:\s+(\S+):(\w+)", text, re.MULTILINE)
     if not m:
         return None, None
@@ -691,11 +702,11 @@ def _read_worker_ref(target: Path) -> tuple[str | None, str | None]:
 
 
 def _read_existing_slug(target: Path) -> str | None:
-    genesis_yml = target / ".genesis" / "genesis.yml"
-    if not genesis_yml.exists():
+    contract = _find_contract(target)
+    if contract is None:
         return None
     import re
-    text = genesis_yml.read_text(encoding="utf-8")
+    text = contract.read_text(encoding="utf-8")
     m = re.search(r"^package:\s+gtl_spec\.packages\.(\w+):package", text, re.MULTILINE)
     return m.group(1) if m else None
 
@@ -717,39 +728,36 @@ def _install_bootloader_release(source: Path, target: Path) -> str:
     return "installed"
 
 
-def _update_genesis_yml_pythonpath(target: Path) -> str:
+def _write_domain_runtime_contract(target: Path, slug: str,
+                                    platform: str = "python") -> str:
     """
-    Update genesis.yml pythonpath to point to .gsdlc/release instead of builds/python/src.
+    Write the full runtime contract to .gsdlc/release/genesis.yml.
 
     # Implements: REQ-F-TERRITORY-002
 
-    The engine reads pythonpath entries from genesis.yml and adds them to sys.path.
-    After territory separation, the deployed runtime is at .gsdlc/release, not builds/.
+    The runtime contract is the authoritative app configuration for this project.
+    The ABG engine discovers it at .gsdlc/release/genesis.yml (domain contract)
+    with .genesis/genesis.yml as a compatibility fallback.
+
+    gsdlc owns this file. ABG does not write to it. This eliminates the
+    cross-territory mutation where gsdlc previously modified .genesis/genesis.yml.
     """
-    import re
-    genesis_yml = target / ".genesis" / "genesis.yml"
-    if not genesis_yml.exists():
-        return "no_genesis_yml"
+    release_dir = target / ".gsdlc" / "release"
+    release_dir.mkdir(parents=True, exist_ok=True)
+    contract_path = release_dir / "genesis.yml"
 
-    text = genesis_yml.read_text(encoding="utf-8")
-
-    # Replace pythonpath section: remove builds/python/src, add .gsdlc/release
-    # Handle the YAML list format: "pythonpath:\n  - entry\n  - entry"
-    new_pythonpath = "pythonpath:\n  - .gsdlc/release\n"
-
-    if "pythonpath:" in text:
-        # Replace entire pythonpath block (key + indented list items)
-        text = re.sub(
-            r"^pythonpath:\s*\n(?:\s+-\s+.+\n?)*",
-            new_pythonpath,
-            text,
-            flags=re.MULTILINE,
-        )
-    else:
-        text = text.rstrip() + "\n" + new_pythonpath
-
-    genesis_yml.write_text(text, encoding="utf-8")
-    return "updated"
+    contract = (
+        f"# Runtime contract — written by genesis_sdlc installer\n"
+        f"# The ABG engine reads this file at startup.\n"
+        f"package: gtl_spec.packages.{slug}:package\n"
+        f"worker:  gtl_spec.packages.{slug}:worker\n"
+        f"pythonpath:\n"
+        f"  - .gsdlc/release\n"
+        f"active_workflow: .gsdlc/release/active-workflow.json\n"
+        f"workflow_root: .gsdlc/release/workflows\n"
+    )
+    contract_path.write_text(contract, encoding="utf-8")
+    return "installed"
 
 
 def _emit_workflow_activated_event(target: Path, previous_version: str | None) -> None:
@@ -835,10 +843,10 @@ def _migrate_provenance(target: Path) -> dict:
     if added_gsdlc:
         _sys.path.insert(0, gsdlc_release_path)
 
-    # Collect extra pythonpath entries declared in genesis.yml
+    # Collect extra pythonpath entries declared in the runtime contract
     added_project_paths: list[str] = []
-    genesis_yml = target / ".genesis" / "genesis.yml"
-    if genesis_yml.exists():
+    genesis_yml = _find_contract(target)
+    if genesis_yml is not None:
         import re as _re2
         _yml_text = genesis_yml.read_text(encoding="utf-8")
         for _pp in _re2.findall(r"^\s+-\s+(.+)$", _yml_text, _re2.MULTILINE):
@@ -1047,11 +1055,11 @@ def install(
     except Exception as exc:
         result["errors"].append(f"sdlc_starter_spec: {exc}")
 
-    # 5c. Update genesis.yml pythonpath to .gsdlc/release  # Implements: REQ-F-TERRITORY-002
+    # 5c. Write domain runtime contract to .gsdlc/release/genesis.yml  # Implements: REQ-F-TERRITORY-002
     try:
-        result["genesis_yml_pythonpath"] = _update_genesis_yml_pythonpath(target)
+        result["runtime_contract"] = _write_domain_runtime_contract(target, slug, platform)
     except Exception as exc:
-        result["errors"].append(f"genesis_yml_pythonpath: {exc}")
+        result["errors"].append(f"runtime_contract: {exc}")
 
     # 6. Slash commands
     try:
@@ -1121,6 +1129,7 @@ def _verify(target: Path, result: dict, platform: str = "python") -> dict:
         "gtl": (target / ".genesis" / "gtl" / "core.py").exists(),
         "genesis_yml": (target / ".genesis" / "genesis.yml").exists(),
         # Release territory (.gsdlc/release/) — owned by gsdlc
+        "runtime_contract": (target / ".gsdlc" / "release" / "genesis.yml").exists(),
         "workflow_release": ver_spec.exists(),
         "active_workflow": (target / ".gsdlc" / "release" / "active-workflow.json").exists(),
         "immutable_spec": (target / ".gsdlc" / "release" / "spec" / "genesis_sdlc.py").exists(),
@@ -1351,9 +1360,9 @@ def _audit(target: Path, result: dict, source: Path, slug: str,
         _finding("gtl_bootloader_content", "missing", "CLAUDE.md not found")
         _finding("sdlc_bootloader_content", "missing", "CLAUDE.md not found")
 
-    # ── 7. genesis.yml package/worker contract ──
-    genesis_yml = target / ".genesis" / "genesis.yml"
-    if genesis_yml.exists():
+    # ── 7. Runtime contract — package/worker binding ──
+    genesis_yml = _find_contract(target)
+    if genesis_yml is not None:
         yml_text = genesis_yml.read_text(encoding="utf-8")
         pkg_match = re.search(r"^package:\s+(\S+)", yml_text, re.MULTILINE)
         worker_match = re.search(r"^worker:\s+(\S+)", yml_text, re.MULTILINE)
@@ -1393,7 +1402,8 @@ def _audit(target: Path, result: dict, source: Path, slug: str,
             _finding("genesis_yml_worker", "missing",
                      "No worker: line in genesis.yml")
     else:
-        _finding("genesis_yml", "missing", "genesis.yml not found")
+        _finding("runtime_contract", "missing",
+                 "No genesis.yml found in .gsdlc/release/ or .genesis/")
 
     # ── 8. Generated wrapper — content matches expected template ──
     wrapper_path = target / ".gsdlc" / "release" / "gtl_spec" / "packages" / f"{slug}.py"

@@ -187,15 +187,17 @@ class TestInstallStructure:
         assert (sandbox / ".gsdlc" / "release" / "workflows" / "genesis_sdlc" / "standard" / ver_tag / "spec.py").exists()
         assert (sandbox / ".gsdlc" / "release" / "gtl_spec" / "packages" / f"{PROJECT_SLUG}.py").exists()
 
-    def test_genesis_yml_pythonpath_points_to_gsdlc_release(self, sandbox):
-        """# Validates: REQ-F-TERRITORY-002 — runtime resolves from .gsdlc/release."""
-        yml = (sandbox / ".genesis" / "genesis.yml").read_text()
-        assert ".gsdlc/release" in yml, "genesis.yml pythonpath must include .gsdlc/release"
-        assert "builds/python/src" not in yml, "genesis.yml pythonpath must not include builds/python/src"
+    def test_domain_contract_exists(self, sandbox):
+        """# Validates: REQ-F-TERRITORY-002 — domain contract at .gsdlc/release/genesis.yml."""
+        contract = (sandbox / ".gsdlc" / "release" / "genesis.yml")
+        assert contract.exists(), "Domain runtime contract must exist at .gsdlc/release/genesis.yml"
+        text = contract.read_text()
+        assert ".gsdlc/release" in text, "Contract pythonpath must include .gsdlc/release"
+        assert f"{PROJECT_SLUG}" in text, "Contract must reference project slug"
 
-    def test_build_scaffold_created(self, sandbox):
-        assert (sandbox / "builds" / "python" / "src").exists()
-        assert (sandbox / "builds" / "python" / "tests").exists()
+    def test_specification_scaffold_created(self, sandbox):
+        """ABG kernel no longer creates builds/; gsdlc scaffolds specification/."""
+        assert (sandbox / "specification" / "requirements.md").exists()
 
     def test_ai_workspace_created(self, sandbox):
         assert (sandbox / ".ai-workspace" / "events").exists()
@@ -602,7 +604,7 @@ class TestCustodyInstall:
         spec = custody_sandbox / ".gsdlc" / "release" / "gtl_spec" / "packages" / "custody_test.py"
         content = spec.read_text()
         assert "_load_reqs()" in content, "Wrapper must call _load_reqs()"
-        assert "requirements=_load_reqs()" in content, "Wrapper must pass requirements to instantiate()"
+        assert "req_keys=_load_reqs()" in content, "Wrapper must pass req_keys to instantiate()"
 
     def test_requirements_md_scaffolded(self, custody_sandbox):
         # Validates: REQ-F-CUSTODY-003
@@ -739,8 +741,8 @@ class TestCustodyNoRequirementsFile:
                 req_file.unlink()
 
             env = {**os.environ, "PYTHONPATH": os.pathsep.join([
-                str(custody_sandbox / ".genesis"),
                 str(custody_sandbox / ".gsdlc" / "release"),
+                str(custody_sandbox / ".genesis"),
             ])}
             result = subprocess.run(
                 [sys.executable, "-c",
@@ -782,6 +784,7 @@ class TestSandboxInspectability:
             if line.strip():
                 json.loads(line)  # must not raise
 
-    def test_genesis_yml_points_to_slug(self, sandbox):
-        yml = (sandbox / ".genesis" / "genesis.yml").read_text()
-        assert PROJECT_SLUG in yml
+    def test_domain_contract_points_to_slug(self, sandbox):
+        """Domain runtime contract at .gsdlc/release/genesis.yml carries the project slug."""
+        contract = (sandbox / ".gsdlc" / "release" / "genesis.yml").read_text()
+        assert PROJECT_SLUG in contract
