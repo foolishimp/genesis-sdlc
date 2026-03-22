@@ -14,7 +14,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src", "../../.genesis", "../.."]
+pythonpath = ["src", "tests", "../../.genesis", "../.."]
 addopts = "-q"
 markers = [
     "e2e: end-to-end sandbox tests — install into fresh directory and verify operational",

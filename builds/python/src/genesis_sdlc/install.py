@@ -110,10 +110,12 @@ PYTHONPATH=.genesis python -m genesis gaps --workspace .
 │   ├── src/                           ← implementation source
 │   ├── tests/                         ← test suite
 │   └── design/adrs/                   ← architecture decision records
+├── design/adrs/                       ← architecture decision records
+├── docs/                              ← user-facing documentation
 ├── .genesis/                          ← ABG kernel (immutable, owned by abiogenesis)
-│   ├── genesis/                       ← abiogenesis engine
+│   ├── genesis/                       ← engine modules
 │   ├── gtl/                           ← GTL type system
-│   └── genesis.yml                    ← project config (package/worker/pythonpath)
+│   └── genesis.yml                    ← bootstrap config → runtime_contract
 ├── .gsdlc/release/                    ← gsdlc methodology release (immutable between releases)
 │   ├── workflows/genesis_sdlc/        ← versioned release snapshots
 │   └── gtl_spec/packages/{slug}.py    ← generated workflow wrapper (system-owned)
@@ -152,7 +154,7 @@ def _source_root_from_package() -> Path | None:
             pkg_path.parent.parent.parent,
             pkg_path.parent.parent.parent.parent,
         ]:
-            if (parent / ".genesis" / "gtl_spec").exists() and (parent / ".genesis").exists():
+            if (parent / "builds" / "python" / "src" / "genesis_sdlc").is_dir():
                 return parent
     except ImportError:
         pass
@@ -176,7 +178,7 @@ def resolve_source(explicit: str | None) -> Path:
     return _source_root_from_script()
 
 
-def _run_abiogenesis_installer(source: Path, target: Path, slug: str, platform: str) -> dict:
+def _run_abiogenesis_installer(source: Path, target: Path, platform: str) -> dict:
     candidates = [
         source.parent / "abiogenesis" / "builds" / "claude_code" / "code" / "gen-install.py",
     ]
@@ -191,7 +193,6 @@ def _run_abiogenesis_installer(source: Path, target: Path, slug: str, platform: 
     result = subprocess.run(
         [sys.executable, str(installer),
          "--target", str(target),
-         "--project-slug", slug,
          "--platform", platform],
         capture_output=True, text=True,
     )
@@ -331,29 +332,6 @@ def install_active_workflow(target: Path) -> tuple[str, bool, str | None]:
     return "installed", needs_migration, previous_version
 
 
-def install_immutable_spec(source: Path, target: Path) -> str:
-    """
-    Install sdlc_graph.py into .gsdlc/release/spec/genesis_sdlc.py (backwards compat shim).
-
-    # Implements: REQ-F-TERRITORY-001
-
-    This path is kept so that user-owned local specs written before the territory model
-    (which import from spec.genesis_sdlc) continue to work after reinstall. New generated
-    wrappers import from the versioned release path instead.
-    """
-    spec_dir = target / ".gsdlc" / "release" / "spec"
-    spec_dir.mkdir(parents=True, exist_ok=True)
-    init_py = spec_dir / "__init__.py"
-    if not init_py.exists():
-        init_py.touch()
-
-    src = _sdlc_graph_source(source)
-    if src is None:
-        return "source_missing"
-
-    shutil.copy2(src, spec_dir / "genesis_sdlc.py")
-    return "installed"
-
 
 def _src_dir_for_platform(platform: str) -> str:
     """Map platform to source subdirectory convention."""
@@ -425,9 +403,6 @@ def install_sdlc_starter_spec(source: Path, target: Path, slug: str,
     wrapper_dir.mkdir(parents=True, exist_ok=True)
     wrapper_path = wrapper_dir / f"{slug}.py"
 
-    # Also check legacy .genesis/ location for migration
-    legacy_wrapper = target / ".genesis" / "gtl_spec" / "packages" / f"{slug}.py"
-
     if wrapper_path.exists():
         existing = wrapper_path.read_text(encoding="utf-8")
         is_system_owned = (
@@ -437,12 +412,6 @@ def install_sdlc_starter_spec(source: Path, target: Path, slug: str,
         )
         if not is_system_owned:
             return "already_customised"
-    elif legacy_wrapper.exists():
-        # Migrating from old territory — treat as writable
-        pass
-    else:
-        # Fresh install — wrapper doesn't exist anywhere yet, create it
-        pass
 
     # Create __init__.py for the gtl_spec.packages namespace
     for init_dir in [
@@ -459,8 +428,16 @@ def install_sdlc_starter_spec(source: Path, target: Path, slug: str,
     return "installed"
 
 
-_REQUIREMENTS_SCAFFOLD = """\
-# Project Requirements
+_SCAFFOLDS: dict[str, str] = {
+    "specification/INTENT.md": """\
+# {project_name} — Intent
+
+## INT-001 — Problem
+
+Describe the problem, value proposition, and scope boundary for this project.
+""",
+    "specification/requirements.md": """\
+# {project_name} — Requirements
 
 Define your project-specific requirements here. Each `### REQ-*` header
 is parsed by the genesis engine as a requirement key for coverage tracking.
@@ -475,18 +452,47 @@ Describe what the system must do.
 
 **Acceptance Criteria**:
 - AC-1: Measurable criterion
-"""
+""",
+    "specification/feature_decomposition.md": """\
+# {project_name} — Feature Decomposition
+
+Capture the feature vectors, dependency ordering, and MVP boundary here.
+""",
+}
+
+# Directories the graph expects to exist (created empty).
+_SCAFFOLD_DIRS: list[str] = [
+    "design/adrs",
+    "builds/{platform}/src",
+    "builds/{platform}/tests",
+    "docs",
+]
 
 
-def _scaffold_requirements_md(target: Path) -> str:
-    """Create specification/requirements.md if absent.  # Implements: REQ-F-CUSTODY-003"""
-    spec_dir = target / "specification"
-    req_file = spec_dir / "requirements.md"
-    if req_file.exists():
-        return "already_exists"
-    spec_dir.mkdir(parents=True, exist_ok=True)
-    req_file.write_text(_REQUIREMENTS_SCAFFOLD, encoding="utf-8")
-    return "scaffolded"
+def _scaffold_project_structure(target: Path, project_name: str,
+                                 platform: str = "python") -> dict:
+    """Scaffold system structure files and directories the graph expects.
+
+    Only creates files/dirs that don't already exist — never overwrites
+    authored content.
+    """
+    result: dict = {"files": [], "dirs": []}
+    for rel_path, template in _SCAFFOLDS.items():
+        path = target / rel_path
+        if path.exists():
+            continue
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(template.format(project_name=project_name), encoding="utf-8")
+        result["files"].append(rel_path)
+
+    for rel_dir in _SCAFFOLD_DIRS:
+        dir_path = target / rel_dir.format(platform=platform)
+        if dir_path.exists():
+            continue
+        dir_path.mkdir(parents=True, exist_ok=True)
+        result["dirs"].append(rel_dir.format(platform=platform))
+
+    return result
 
 
 def migrate_full_copy(target: Path, slug: str) -> dict:
@@ -501,13 +507,10 @@ def migrate_full_copy(target: Path, slug: str) -> dict:
       4. Returns a report of what was moved and what must be ported manually.
     """
     wrapper_path = target / ".gsdlc" / "release" / "gtl_spec" / "packages" / f"{slug}.py"
-    # Also check legacy location
-    legacy_location = target / ".genesis" / "gtl_spec" / "packages" / f"{slug}.py"
-    source_path = wrapper_path if wrapper_path.exists() else legacy_location
-    if not source_path.exists():
+    if not wrapper_path.exists():
         return {"status": "no_spec_found"}
 
-    existing = source_path.read_text(encoding="utf-8")
+    existing = wrapper_path.read_text(encoding="utf-8")
 
     if "genesis_sdlc-generated" in existing:
         return {"status": "already_migrated", "message": "Spec is already the generated wrapper."}
@@ -520,7 +523,7 @@ def migrate_full_copy(target: Path, slug: str) -> dict:
     backup_dir = target / ".gsdlc" / "release" / "gtl_spec" / "packages"
     backup_dir.mkdir(parents=True, exist_ok=True)
     legacy_path = backup_dir / f"{slug}_legacy_{ts}.py"
-    shutil.move(str(source_path), str(legacy_path))
+    shutil.move(str(wrapper_path), str(legacy_path))
 
     wrapper_path.parent.mkdir(parents=True, exist_ok=True)
     wrapper_path.write_text(_render_wrapper(slug, platform="python",
@@ -736,11 +739,10 @@ def _write_domain_runtime_contract(target: Path, slug: str,
     # Implements: REQ-F-TERRITORY-002
 
     The runtime contract is the authoritative app configuration for this project.
-    The ABG engine discovers it at .gsdlc/release/genesis.yml (domain contract)
-    with .genesis/genesis.yml as a compatibility fallback.
+    ABG v1.0 reads .genesis/genesis.yml, follows runtime_contract: to this file.
+    _wire_runtime_contract() sets that pointer after ABG installs.
 
-    gsdlc owns this file. ABG does not write to it. This eliminates the
-    cross-territory mutation where gsdlc previously modified .genesis/genesis.yml.
+    gsdlc owns this file. ABG does not write to it.
     """
     release_dir = target / ".gsdlc" / "release"
     release_dir.mkdir(parents=True, exist_ok=True)
@@ -758,6 +760,41 @@ def _write_domain_runtime_contract(target: Path, slug: str,
     )
     contract_path.write_text(contract, encoding="utf-8")
     return "installed"
+
+
+def _wire_runtime_contract(target: Path) -> None:
+    """
+    Set runtime_contract in .genesis/genesis.yml so the ABG engine discovers
+    the domain config at .gsdlc/release/genesis.yml.
+
+    ABG v1.0 reads .genesis/genesis.yml at boot; if it contains
+    runtime_contract: <path>, it follows the pointer. Without this line,
+    the engine boots with no package and no worker.
+
+    This function is idempotent: it adds the line if absent, updates if
+    present with a different value, and leaves it alone if already correct.
+    """
+    kernel_yml = target / ".genesis" / "genesis.yml"
+    if not kernel_yml.exists():
+        return
+
+    text = kernel_yml.read_text(encoding="utf-8")
+    contract_line = "runtime_contract: .gsdlc/release/genesis.yml"
+
+    if contract_line in text:
+        return  # already wired
+
+    # Replace a commented-out placeholder if ABG's seed config has one
+    if "# runtime_contract:" in text:
+        text = text.replace(
+            "# runtime_contract: path/to/domain/genesis.yml",
+            contract_line,
+        )
+    else:
+        # Append after the header comments
+        text = text.rstrip() + f"\n{contract_line}\n"
+
+    kernel_yml.write_text(text, encoding="utf-8")
 
 
 def _emit_workflow_activated_event(target: Path, previous_version: str | None) -> None:
@@ -996,7 +1033,6 @@ def install(
         "engine": None,
         "workflow_release": None,
         "active_workflow": None,
-        "immutable_spec": None,
         "commands": [],
         "claude_md": None,
         "sdlc_starter_spec": None,
@@ -1010,9 +1046,9 @@ def install(
     if audit_only:
         return _audit(target, result, src, slug, platform=platform)
 
-    # 1. Engine + .genesis/gtl_spec + builds/<platform>/ scaffold via abiogenesis
+    # 1. Engine via abiogenesis — kernel only (.genesis/genesis/, .genesis/gtl/, .mcp.json)
     try:
-        engine_result = _run_abiogenesis_installer(src, target, slug, platform)
+        engine_result = _run_abiogenesis_installer(src, target, platform)
         result["engine"] = engine_result.get("status")
         if engine_result.get("errors"):
             result["errors"].extend(engine_result["errors"])
@@ -1021,6 +1057,13 @@ def install(
             result["errors"].append("engine: GTL bootloader not installed into CLAUDE.md")
     except (FileNotFoundError, RuntimeError) as exc:
         result["errors"].append(f"engine: {exc}")
+
+    # 1b. Wire runtime_contract into .genesis/genesis.yml so ABG engine discovers domain config
+    try:
+        _wire_runtime_contract(target)
+        result["runtime_contract_wired"] = True
+    except Exception as exc:
+        result["errors"].append(f"runtime_contract_wiring: {exc}")
 
     # 2. Versioned immutable workflow release (Layer 2 — written once, never overwritten)
     try:
@@ -1037,17 +1080,11 @@ def install(
     except Exception as exc:
         result["errors"].append(f"active_workflow: {exc}")
 
-    # 4. Backwards-compat shim: spec/genesis_sdlc.py for old imports
+    # 4. Scaffold project structure (specification files, build dirs, docs)
     try:
-        result["immutable_spec"] = install_immutable_spec(src, target)
+        result["scaffold"] = _scaffold_project_structure(target, project_name, platform)
     except Exception as exc:
-        result["errors"].append(f"immutable_spec: {exc}")
-
-    # 5a. Scaffold specification/requirements.md if absent  # Implements: REQ-F-CUSTODY-003
-    try:
-        result["requirements_scaffold"] = _scaffold_requirements_md(target)
-    except Exception as exc:
-        result["errors"].append(f"requirements_scaffold: {exc}")
+        result["errors"].append(f"scaffold: {exc}")
 
     # 5b. Generated wrapper (Layer 3 — rewritten when system-ownership marker present)
     try:
@@ -1092,6 +1129,7 @@ def install(
         ".ai-workspace/reviews/pending",
         ".ai-workspace/reviews/proxy-log",
         ".ai-workspace/comments/claude",
+        ".ai-workspace/modules",
         ".ai-workspace/backlog",
     ]:
         (target / ws_dir).mkdir(parents=True, exist_ok=True)
@@ -1132,7 +1170,6 @@ def _verify(target: Path, result: dict, platform: str = "python") -> dict:
         "runtime_contract": (target / ".gsdlc" / "release" / "genesis.yml").exists(),
         "workflow_release": ver_spec.exists(),
         "active_workflow": (target / ".gsdlc" / "release" / "active-workflow.json").exists(),
-        "immutable_spec": (target / ".gsdlc" / "release" / "spec" / "genesis_sdlc.py").exists(),
         "gtl_spec": (target / ".gsdlc" / "release" / "gtl_spec" / "packages").is_dir(),
         # Commands and documentation
         "commands": (target / ".claude" / "commands" / "gen-start.md").exists(),
@@ -1300,24 +1337,28 @@ def _audit(target: Path, result: dict, source: Path, slug: str,
     if claude_md.exists():
         text = claude_md.read_text(encoding="utf-8")
 
-        # 6a. GTL bootloader (installed by abiogenesis)
+        # 6a. GTL bootloader (installed by abiogenesis into CLAUDE.md — no file copy in .genesis/)
         if _GTL_START in text and _GTL_END in text:
-            gtl_start = text.index(_GTL_START)
-            gtl_end = text.index(_GTL_END) + len(_GTL_END)
-            installed_gtl = text[gtl_start:gtl_end]
-            # Verify against the installed copy in .genesis/gtl_spec/
-            gtl_source = target / ".genesis" / "gtl_spec" / "GTL_BOOTLOADER.md"
-            if gtl_source.exists():
-                gtl_content = gtl_source.read_text(encoding="utf-8")
+            # ABG v1.0 injects the bootloader directly into CLAUDE.md.
+            # Verify against ABG source if available, otherwise just confirm presence.
+            abg_bootloader_src = (
+                source.parent / "abiogenesis" / "builds" / "claude_code"
+                / "code" / "gtl_spec" / "GTL_BOOTLOADER.md"
+            )
+            if abg_bootloader_src.exists():
+                gtl_start = text.index(_GTL_START)
+                gtl_end = text.index(_GTL_END) + len(_GTL_END)
+                installed_gtl = text[gtl_start:gtl_end]
+                gtl_content = abg_bootloader_src.read_text(encoding="utf-8")
                 expected_gtl = f"{_GTL_START}\n{gtl_content}\n{_GTL_END}"
                 if _file_hash_str(installed_gtl) != _file_hash_str(expected_gtl):
                     _finding("gtl_bootloader_content", "drifted",
-                             "CLAUDE.md GTL bootloader block differs from .genesis/gtl_spec/GTL_BOOTLOADER.md")
+                             "CLAUDE.md GTL bootloader block differs from abiogenesis source")
                 else:
                     _finding("gtl_bootloader_content", "ok")
             else:
-                _finding("gtl_bootloader_content", "source_missing",
-                         "GTL_BOOTLOADER.md not found in .genesis/gtl_spec/")
+                _finding("gtl_bootloader_content", "ok",
+                         "GTL bootloader markers present (ABG source not available for content check)")
         else:
             _finding("gtl_bootloader_content", "missing",
                      "GTL bootloader markers not found in CLAUDE.md — abiogenesis install may have failed")
@@ -1442,17 +1483,6 @@ def _audit(target: Path, result: dict, source: Path, slug: str,
             _finding("manifest", "error", str(exc))
     else:
         _finding("manifest", "missing")
-
-    # ── 11. Immutable spec shim ──
-    shim = target / ".gsdlc" / "release" / "spec" / "genesis_sdlc.py"
-    if spec_src and shim.exists():
-        if _file_hash(spec_src) != _file_hash(shim):
-            _finding("immutable_spec_shim", "drifted",
-                     "Backwards-compat shim differs from build source")
-        else:
-            _finding("immutable_spec_shim", "ok")
-    elif not shim.exists():
-        _finding("immutable_spec_shim", "missing")
 
     # ── Build result ──
     ok_count = sum(1 for f in findings if f["status"] == "ok")

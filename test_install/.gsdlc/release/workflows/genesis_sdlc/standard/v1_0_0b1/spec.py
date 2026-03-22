@@ -70,7 +70,7 @@ sdlc_bootloader = Context(
 
 this_spec = Context(
     name="sdlc_spec",
-    locator="workspace://builds/python/src/genesis_sdlc/sdlc_graph.py",
+    locator="workspace://CLAUDE.md",
     digest="sha256:" + "0" * 64,
 )
 
