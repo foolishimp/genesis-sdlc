@@ -437,7 +437,11 @@ def _emit_event_cmd(event_type: str, data_json: str, workspace: Path) -> int:
 
     # Annotate workflow_version from active-workflow.json (REQ-F-PROV-002).
     # Reads the file directly — emit-event runs pre-stack without a Scope object.
-    data["workflow_version"] = _read_workflow_version(workspace)
+    # Honour the runtime contract: if genesis.yml declares active_workflow, use it.
+    _config = _load_project_config(workspace)
+    data["workflow_version"] = _read_workflow_version(
+        workspace, _config.get("active_workflow")
+    )
 
     events_dir = workspace / ".ai-workspace" / "events"
     events_dir.mkdir(parents=True, exist_ok=True)
@@ -454,15 +458,13 @@ def _emit_event_cmd(event_type: str, data_json: str, workspace: Path) -> int:
     return 0
 
 
-def _load_project_config(workspace: Path) -> dict:
+def _parse_yaml_config(config_path: Path) -> dict:
     """
-    Read .genesis/genesis.yml — key: value pairs and YAML lists.
+    Parse a simple YAML config file — key: value pairs and YAML lists.
 
-    Returns a dict with 'package', 'worker', and/or 'pythonpath' keys.
-    'pythonpath' is returned as a list[str].
+    Returns a dict. 'pythonpath' (and any list-valued key) is returned as list[str].
     Returns empty dict if the file does not exist.
     """
-    config_path = workspace / ".genesis" / "genesis.yml"
     if not config_path.exists():
         return {}
     config: dict = {}
@@ -490,6 +492,27 @@ def _load_project_config(workspace: Path) -> dict:
     return config
 
 
+def _load_project_config(workspace: Path) -> dict:
+    """
+    Load the project runtime contract.
+
+    Discovery chain (first file found wins):
+      1. .gsdlc/release/genesis.yml   — domain installer contract (authoritative)
+      2. .genesis/genesis.yml          — kernel default (compatibility fallback)
+
+    Domain installers (e.g. gsdlc) write the full contract to .gsdlc/release/.
+    ABG kernel seeds a minimal default in .genesis/ on first install.
+    The domain contract takes precedence when both exist.
+    """
+    # Authoritative: domain installer contract
+    domain_config = workspace / ".gsdlc" / "release" / "genesis.yml"
+    if domain_config.exists():
+        return _parse_yaml_config(domain_config)
+
+    # Fallback: kernel default
+    return _parse_yaml_config(workspace / ".genesis" / "genesis.yml")
+
+
 def _import_symbol(ref: str, workspace: Path):
     """
     Import MODULE:VAR from workspace. Returns the symbol.
@@ -515,7 +538,7 @@ def _resolve_package_worker(args, workspace: Path):
     """
     Resolve Package and Worker.
 
-    Precedence: --package/--worker flags > .genesis/genesis.yml > error.
+    Precedence: --package/--worker flags > runtime contract (genesis.yml) > error.
     Validates symbol types. Exits with code 1 on any failure.
     """
     pkg_ref = getattr(args, "package", None) or None
@@ -530,7 +553,7 @@ def _resolve_package_worker(args, workspace: Path):
         print(
             "ERROR: no package/worker configured.\n"
             "  Pass --package MODULE:VAR --worker MODULE:VAR, or\n"
-            "  run gen-install.py to create .genesis/genesis.yml",
+            "  run the domain installer to create the runtime contract",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -570,7 +593,9 @@ def main() -> None:
     parser = _build_parser()
     args = parser.parse_args()
 
-    # Lightweight commands — no engine stack needed
+    # Lightweight commands — no engine stack needed.
+    # These are pure F_D file-scanning commands: no events emitted, no provenance,
+    # no workflow_version. They are explicitly out of runtime contract scope.
     if args.command == "check-tags":
         sys.exit(_check_tags(args.type, args.path))
     if args.command == "check-req-coverage":
@@ -624,6 +649,8 @@ def main() -> None:
         feature=getattr(args, "feature", None),
         edge=getattr(args, "edge", None),
         worker=worker,
+        active_workflow_path=_config.get("active_workflow"),
+        workflow_root=_config.get("workflow_root"),
     )
 
     # Bind active snapshot so work events carry package_snapshot_id.

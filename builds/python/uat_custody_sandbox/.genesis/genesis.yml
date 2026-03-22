@@ -1,6 +1,5 @@
-# Genesis project config — written by gen-install.py
-# Override per-invocation with: --package MODULE:VAR --worker MODULE:VAR
-package: gtl_spec.packages.custody_test:package
-worker:  gtl_spec.packages.custody_test:worker
-pythonpath:
-  - .gsdlc/release
+# Genesis kernel default — written by gen-install.py
+# Domain installers write the authoritative contract to
+# .gsdlc/release/genesis.yml which takes precedence.
+package: gtl_spec.packages.genesis_core:package
+worker:  gtl_spec.packages.genesis_core:worker

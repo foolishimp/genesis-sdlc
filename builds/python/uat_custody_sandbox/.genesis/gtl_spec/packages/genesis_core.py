@@ -27,13 +27,13 @@ from gtl.core import (
 
 bootloader = Context(
     name="bootloader",
-    locator="workspace://gtl_spec/GENESIS_BOOTLOADER.md",
+    locator="workspace://.genesis/gtl_spec/GENESIS_BOOTLOADER.md",
     digest="sha256:" + "0" * 64,   # PENDING
 )
 
 genesis_core_spec = Context(
     name="genesis_core_spec",
-    locator="workspace://gtl_spec/packages/genesis_core.py",
+    locator="workspace://.genesis/gtl_spec/packages/genesis_core.py",
     digest="sha256:" + "0" * 64,   # PENDING — self-referential, computed at activation
 )
 
@@ -45,7 +45,7 @@ design_adrs = Context(
 
 v1_doctrine = Context(
     name="v1_doctrine",
-    locator="workspace://V1_DOCTRINE.md",
+    locator="workspace://docs/V1_DOCTRINE.md",
     digest="sha256:" + "0" * 64,   # PENDING
 )
 
@@ -270,6 +270,12 @@ genesis_v1 = Package(
         "REQ-NFR-SELF-001",
     ],
 )
+
+
+# ── Standard exports ─────────────────────────────────────────────────────────
+# Engine convention: genesis.yml binds to {module}:package and {module}:worker.
+package = genesis_v1
+worker = worker_claude_code
 
 
 if __name__ == "__main__":

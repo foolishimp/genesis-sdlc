@@ -36,9 +36,13 @@ from .schedule import delta, iterate, schedule
 
 # ── Workflow provenance helpers ───────────────────────────────────────────────
 
-def _read_workflow_version(workspace: Path) -> str:
+def _read_workflow_version(workspace: Path, active_workflow_path: str | None = None) -> str:
     """
-    Read .genesis/active-workflow.json and return "{workflow}@{version}".
+    Read active-workflow.json and return "{workflow}@{version}".
+
+    When *active_workflow_path* is provided (from genesis.yml runtime contract),
+    it is resolved relative to workspace and used as the authoritative location.
+    Otherwise falls back to .genesis/active-workflow.json (kernel default).
 
     Returns "unknown" on any failure: file absent, invalid JSON, missing keys,
     non-string values. The engine never fails to start due to this file's state.
@@ -46,7 +50,10 @@ def _read_workflow_version(workspace: Path) -> str:
     Pure function — no Scope dependency. Called by Scope.__post_init__ at
     engine startup and by _emit_event_cmd at CLI call time (REQ-F-PROV-001/002).
     """
-    active_wf = workspace / ".genesis" / "active-workflow.json"
+    if active_workflow_path:
+        active_wf = (workspace / active_workflow_path).resolve()
+    else:
+        active_wf = workspace / ".genesis" / "active-workflow.json"
     try:
         data = json.loads(active_wf.read_text(encoding="utf-8"))
         workflow = data["workflow"]
@@ -62,9 +69,12 @@ def _read_carry_forward(scope: "Scope") -> list[dict]:
     """
     Read approved_carry_forward from the variant manifest.json.
 
-    Path: .genesis/workflows/{pkg}/{variant}/{version}/manifest.json
+    Path: {workflow_root}/{pkg}/{variant}/{version}/manifest.json
     where workflow "genesis_sdlc.standard@0.2.0" → pkg="genesis_sdlc",
     variant="standard", version="0.2.0".
+
+    When scope.workflow_root is set (from genesis.yml runtime contract), it is
+    used as the base directory. Otherwise falls back to .genesis/workflows/.
 
     Returns [] if workflow_version is "unknown", file absent, or key missing.
     """
@@ -75,9 +85,12 @@ def _read_carry_forward(scope: "Scope") -> list[dict]:
     pkg_name = parts[0]
     variant = parts[1] if len(parts) > 1 else "default"
     version_dir = "v" + version.replace(".", "_")
+    if scope.workflow_root:
+        wf_base = (scope.workspace_root / scope.workflow_root).resolve()
+    else:
+        wf_base = scope.workspace_root / ".genesis" / "workflows"
     manifest_path = (
-        scope.workspace_root / ".genesis" / "workflows"
-        / pkg_name / variant / version_dir / "manifest.json"
+        wf_base / pkg_name / variant / version_dir / "manifest.json"
     )
     try:
         data = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -102,9 +115,16 @@ class Scope:
         _resolve_worker() falls back to the genesis self-hosting spec import
         (V1 CLI convenience; remove in V2 — callers should always supply worker).
 
-    workflow_version: read from .genesis/active-workflow.json at construction.
+    active_workflow_path: relative path to active-workflow.json, read from
+        genesis.yml runtime contract. When set, used instead of the default
+        .genesis/active-workflow.json. Domain installers (e.g. gsdlc) write this.
+
+    workflow_root: relative path to workflow releases base directory, read from
+        genesis.yml runtime contract. When set, used instead of .genesis/workflows/.
+
+    workflow_version: derived at construction from active-workflow.json.
         "{workflow}@{version}" when file present and valid; "unknown" otherwise.
-        When "unknown", provenance checks are bypassed (no active-workflow.json present).
+        When "unknown", provenance checks are bypassed.
 
     Build identifier is build-layer specific. This Claude Code build defaults to "claude_code".
     """
@@ -114,10 +134,14 @@ class Scope:
     edge: Optional[str] = None        # edge name override (None = topological)
     build: str = "claude_code"
     worker: Optional[Worker] = None   # explicit worker; None = spec-import fallback
+    active_workflow_path: Optional[str] = None  # runtime contract: path to active-workflow.json
+    workflow_root: Optional[str] = None         # runtime contract: base dir for workflow releases
     workflow_version: str = field(init=False, default="unknown")
 
     def __post_init__(self) -> None:
-        self.workflow_version = _read_workflow_version(self.workspace_root)
+        self.workflow_version = _read_workflow_version(
+            self.workspace_root, self.active_workflow_path
+        )
 
 
 # ── gen_gaps — bind_fd over scope ─────────────────────────────────────────────

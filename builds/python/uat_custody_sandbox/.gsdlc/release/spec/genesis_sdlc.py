@@ -462,23 +462,54 @@ package = Package(
 
 # ── instantiate ───────────────────────────────────────────────────────────────
 
-def instantiate(slug: str, requirements=None):
+def instantiate(slug: str, req_keys=None, *,
+                platform: str = "python", src_dir: str = "src"):
     """
-    Return (package, worker) customised for the given project slug.
+    Return (package, worker) customised for the given project.
 
-    Overrides:
-      - req_coverage evaluator command to point at the project's own package
-      - sdlc_spec context locator to point at the project's own spec file
-      - package name to slug
-      - requirements to project-specific keys (if provided)
+    Parameterizes all build paths so the SDLC graph works correctly for
+    any project layout (e.g. builds/python/src/ vs builds/claude_code/code/).
 
     Args:
         slug: Project identifier used for import paths and config resolution.
-        requirements: Optional list of REQ-* keys for this project. When provided,
+        req_keys: Optional list of REQ-* keys for this project. When provided,
             these replace the workflow's hardcoded keys. When None, defaults to
             empty list — the workflow's keys are gsdlc's requirements, not the
             project's.  # Implements: REQ-F-CUSTODY-001
+        platform: Build platform directory name (default: "python").
+        src_dir: Source subdirectory name (default: "src"). Use "code" for ABG.
     """
+    src_path = f"builds/{platform}/{src_dir}"
+    test_path = f"builds/{platform}/tests"
+    adr_path = f"builds/{platform}/design/adrs"
+
+    # ── Contexts (parameterized) ─────────────────────────────────────────────
+    _this_spec = Context(
+        name="sdlc_spec",
+        locator=f"workspace://.gsdlc/release/gtl_spec/packages/{slug}.py",
+        digest="sha256:" + "0" * 64,
+    )
+    _design_adrs = Context(
+        name="design_adrs",
+        locator=f"workspace://{adr_path}/",
+        digest="sha256:" + "0" * 64,
+    )
+
+    # ── Operators (parameterized) ────────────────────────────────────────────
+    _pytest_op = Operator(
+        "pytest", F_D,
+        f"exec://python -m pytest {test_path}/ -q -m 'not e2e'",
+    )
+    _check_impl_op = Operator(
+        "check_impl", F_D,
+        f"exec://python -m genesis check-tags --type implements --path {src_path}/",
+    )
+    _check_test_op = Operator(
+        "check_test", F_D,
+        f"exec://python -m genesis check-tags --type validates --path {test_path}/",
+    )
+
+    # ── Evaluators (parameterized) ───────────────────────────────────────────
     _eval_req_coverage = Evaluator(
         "req_coverage", F_D,
         "Every REQ key in Package.requirements appears in ≥1 feature vector",
@@ -488,31 +519,174 @@ def instantiate(slug: str, requirements=None):
             f"--features .ai-workspace/features/"
         ),
     )
-
-    _this_spec = Context(
-        name="sdlc_spec",
-        locator=f"workspace://.gsdlc/release/gtl_spec/packages/{slug}.py",
-        digest="sha256:" + "0" * 64,
+    _eval_impl_tags = Evaluator(
+        "impl_tags", F_D,
+        "All source files carry # Implements: REQ-* tags, zero untagged",
+        command=f"python -m genesis check-tags --type implements --path {src_path}/",
+    )
+    _eval_tests_pass = Evaluator(
+        "tests_pass", F_D,
+        "pytest: zero failures, zero errors (excluding e2e tests — F_D evaluators must be acyclic)",
+        command=f"PYTHONPATH={src_path}/:.genesis python -m pytest {test_path}/ -q --tb=short -m 'not e2e'",
+    )
+    _eval_test_tags = Evaluator(
+        "validates_tags", F_D,
+        "All test files carry # Validates: REQ-* tags, zero untagged",
+        command=f"python -m genesis check-tags --type validates --path {test_path}/",
+    )
+    _eval_e2e_exists = Evaluator(
+        "e2e_tests_exist", F_D,
+        "At least one @pytest.mark.e2e test exists — e2e/integration scenarios are the primary "
+        "test surface; pure unit tests are supplementary",
+        command=(
+            f"PYTHONPATH={src_path}/:.genesis python -c \""
+            f"import pathlib,sys; "
+            f"tests=list(pathlib.Path('{test_path}/').rglob('*.py')); "
+            f"has_e2e=any('@pytest.mark.e2e' in f.read_text() for f in tests); "
+            f"sys.exit(0 if has_e2e else 1)"
+            f"\""
+        ),
+    )
+    _eval_sandbox_run = Evaluator(
+        "sandbox_e2e_passed", F_P,
+        f"Install into a fresh sandbox: "
+        f"PYTHONPATH={src_path}/:.genesis python -m genesis_sdlc.install "
+        f"--target /tmp/uat_sandbox_{{timestamp}} --project-slug {slug}. "
+        f"Then run e2e tests in that sandbox: "
+        f"PYTHONPATH=.genesis python -m pytest {test_path}/ -m e2e -q. "
+        f"Write a structured report to .ai-workspace/uat/sandbox_report.json: "
+        f"{{install_success: bool, sandbox_path: str, test_count: int, pass_count: int, "
+        f"fail_count: int, all_pass: bool, timestamp: ISO}}. "
+        f"Unit tests alone do not satisfy this edge — sandbox e2e is the acceptance proof.",
+    )
+    _eval_guide_version = Evaluator(
+        "guide_version_current", F_D,
+        "USER_GUIDE.md **Version**: field matches current release version in .gsdlc/release/active-workflow.json",
+        command=(
+            "python -c \""
+            "import json,re,sys,pathlib; "
+            "guide=pathlib.Path('docs/USER_GUIDE.md').read_text(); "
+            "ver=json.loads(pathlib.Path('.gsdlc/release/active-workflow.json').read_text())['version']; "
+            "sys.exit(0 if ('**Version**: '+ver) in guide else 1)"
+            "\""
+        ),
+    )
+    _eval_guide_coverage = Evaluator(
+        "guide_req_coverage", F_D,
+        "USER_GUIDE.md <!-- Covers: --> tags include every key in package.requirements",
+        command=(
+            f"PYTHONPATH=.gsdlc/release:.genesis python -c \""
+            f"import re,sys,pathlib,importlib; "
+            f"guide=pathlib.Path('docs/USER_GUIDE.md').read_text(); "
+            f"covered=set(r for t in re.findall(r'<!-- Covers:([^>]+)-->', guide) "
+            f"for r in re.findall(r'REQ-F-[A-Z0-9-]+', t)); "
+            f"pkg=importlib.import_module('gtl_spec.packages.{slug}').package; "
+            f"missing=sorted(set(pkg.requirements)-covered); "
+            f"print('uncovered:', missing) if missing else None; "
+            f"sys.exit(len(missing))\""
+        ),
     )
 
-    _job_req_feat = Job(e_req_feat, [_eval_req_coverage, eval_decomp_fp, eval_decomp_fh])
+    # ── Edges (rebuild those using parameterized operators/contexts) ──────────
+    _e_design_mdecomp = Edge(
+        name="design→module_decomp",
+        source=design, target=module_decomp,
+        using=[claude_agent, check_modules_op, human_gate],
+        rule=standard_gate,
+        context=[bootloader, _this_spec, _design_adrs],
+    )
+    _e_mdecomp_code = Edge(
+        name="module_decomp→code",
+        source=module_decomp, target=code,
+        using=[claude_agent, _check_impl_op],
+        context=[bootloader, _this_spec, _design_adrs, modules_dir],
+    )
+    _e_tdd = Edge(
+        name="code↔unit_tests",
+        source=[code, unit_tests], target=unit_tests,
+        co_evolve=True,
+        using=[claude_agent, _pytest_op, _check_impl_op, _check_test_op],
+        context=[bootloader, _this_spec, _design_adrs],
+    )
 
+    # Upstream edges use only generic contexts — rebind spec context only
+    _e_intent_req = Edge(
+        name="intent→requirements",
+        source=intent, target=requirements,
+        using=[claude_agent, human_gate],
+        rule=standard_gate,
+        context=[bootloader, _this_spec],
+    )
+    _e_req_feat = Edge(
+        name="requirements→feature_decomp",
+        source=requirements, target=feature_decomp,
+        using=[claude_agent, human_gate],
+        rule=standard_gate,
+        context=[bootloader, _this_spec, intent_doc],
+    )
+    _e_feat_design = Edge(
+        name="feature_decomp→design",
+        source=feature_decomp, target=design,
+        using=[claude_agent, human_gate],
+        rule=standard_gate,
+        context=[bootloader, _this_spec, intent_doc],
+    )
+    _e_unit_itest = Edge(
+        name="unit_tests→integration_tests",
+        source=unit_tests, target=integration_tests,
+        using=[claude_agent],
+        context=[bootloader, _this_spec],
+    )
+    _e_itest_guide = Edge(
+        name="integration_tests→user_guide",
+        source=integration_tests, target=user_guide,
+        using=[claude_agent, human_gate],
+        rule=standard_gate,
+        context=[bootloader, _this_spec],
+    )
+    _e_guide_uat = Edge(
+        name="user_guide→uat_tests",
+        source=user_guide, target=uat_tests,
+        using=[human_gate],
+        rule=standard_gate,
+        context=[bootloader, _this_spec],
+    )
+
+    # ── Jobs (rebuild with parameterized evaluators) ─────────────────────────
+    _all_edges = [
+        _e_intent_req, _e_req_feat, _e_feat_design, _e_design_mdecomp,
+        _e_mdecomp_code, _e_tdd, _e_unit_itest, _e_itest_guide, _e_guide_uat,
+    ]
+
+    _job_intent_req    = Job(_e_intent_req,    [eval_intent_fh])
+    _job_req_feat      = Job(_e_req_feat,      [_eval_req_coverage, eval_decomp_fp, eval_decomp_fh])
+    _job_feat_design   = Job(_e_feat_design,   [eval_design_fp, eval_design_fh])
+    _job_design_mdecomp = Job(_e_design_mdecomp, [eval_module_coverage, eval_module_schedule_fp, eval_schedule_fh])
+    _job_mdecomp_code  = Job(_e_mdecomp_code,  [_eval_impl_tags, eval_code_fp])
+    _job_tdd           = Job(_e_tdd,           [_eval_tests_pass, _eval_test_tags, _eval_e2e_exists, eval_coverage_fp])
+    _job_unit_itest    = Job(_e_unit_itest,    [eval_sandbox_report, _eval_sandbox_run])
+    _job_itest_guide   = Job(_e_itest_guide,   [_eval_guide_version, _eval_guide_coverage, eval_guide_content])
+    _job_guide_uat     = Job(_e_guide_uat,     [eval_uat_fh])
+
+    _all_jobs = [
+        _job_intent_req, _job_req_feat, _job_feat_design, _job_design_mdecomp,
+        _job_mdecomp_code, _job_tdd, _job_unit_itest, _job_itest_guide, _job_guide_uat,
+    ]
+
+    # ── Package + Worker ─────────────────────────────────────────────────────
     _package = Package(
         name=slug,
         assets=list(package.assets),
-        edges=list(package.edges),
-        operators=list(package.operators),
+        edges=_all_edges,
+        operators=[claude_agent, human_gate, _pytest_op, _check_impl_op, _check_test_op, check_modules_op],
         rules=list(package.rules),
-        contexts=[_this_spec if c.name == "sdlc_spec" else c for c in package.contexts],
-        requirements=list(requirements) if requirements is not None else [],  # Implements: REQ-F-CUSTODY-001
+        contexts=[bootloader, _this_spec, intent_doc, _design_adrs, modules_dir],
+        requirements=list(req_keys) if req_keys is not None else [],  # Implements: REQ-F-CUSTODY-001
     )
 
     _worker = Worker(
         id=worker.id,
-        can_execute=[
-            _job_req_feat if j.edge.name == "requirements→feature_decomp" else j
-            for j in worker.can_execute
-        ],
+        can_execute=_all_jobs,
     )
 
     return _package, _worker

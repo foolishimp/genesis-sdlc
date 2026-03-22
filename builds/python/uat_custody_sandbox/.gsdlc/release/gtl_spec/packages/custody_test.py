@@ -19,4 +19,5 @@ def _load_reqs():
     return reqs
 
 
-package, worker = instantiate(slug="custody_test", requirements=_load_reqs())
+package, worker = instantiate(slug="custody_test", req_keys=_load_reqs(),
+                             platform="python", src_dir="src")
