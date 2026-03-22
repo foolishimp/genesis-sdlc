@@ -85,11 +85,11 @@ All must pass. Do not proceed with failures.
 ### 1b. Check bootloader for changes
 
 ```bash
-git diff HEAD .genesis/gtl_spec/GENESIS_BOOTLOADER.md
+git diff HEAD .genesis/gtl_spec/GTL_BOOTLOADER.md .gsdlc/release/SDLC_BOOTLOADER.md
 ```
 
 If changed:
-- Bump the `**Version**:` line inside `GENESIS_BOOTLOADER.md`
+- Bump the `**Version**:` line inside `GTL_BOOTLOADER.md` and/or `SDLC_BOOTLOADER.md`
 - Update `BOOTLOADER_VERSION` in `builds/python/src/genesis_sdlc/install.py`
 - The genesis_sdlc version must be at least a MINOR bump
 
