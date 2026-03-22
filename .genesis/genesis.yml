@@ -4,3 +4,5 @@ package: gtl_spec.packages.genesis_sdlc:package
 worker:  gtl_spec.packages.genesis_sdlc:worker
 pythonpath:
   - .gsdlc/release
+active_workflow: .gsdlc/release/active-workflow.json
+workflow_root: .gsdlc/release/workflows
