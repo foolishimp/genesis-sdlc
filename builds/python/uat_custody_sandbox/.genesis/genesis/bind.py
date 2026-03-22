@@ -403,25 +403,33 @@ def _assemble_prompt(pre: PrecomputedManifest, job: Job, result_path: str = "") 
     """
     Assemble the F_P prompt.
 
-    Structure: INVARIANTS → CURRENT STATE → GAP → RELEVANT CONTEXT → OUTPUT CONTRACT.
-    F_P receives only what it needs to address the gap. Nothing more.
+    Structure: PRECONDITIONS → CURRENT STATE → GAP → CONTEXT → OUTPUT CONTRACT.
+
+    The methodology comes from Context[] on the edge (bootloader, spec, ADRs) —
+    not from hardcoded invariants. The engine is domain-blind; GSDLC (or any
+    domain package) defines what the F_P actor sees via edge.context[].
     """
     sections: list[str] = []
 
-    # [INVARIANTS] — always present
-    sections.append(
-        "[INVARIANTS]\n"
-        "- Assets are projections of the event stream — never mutate state directly.\n"
-        "- emit() is the only write path. event_time is system-assigned.\n"
-        "- Implement only V1 features. No V2 (spawn, consensus, release, multi-tenant).\n"
-        "- All code files must carry: # Implements: REQ-* tags.\n"
-        "- All test files must carry: # Validates: REQ-* tags.\n"
-        "- Exactly 6 modules: core, bind, schedule, manifest, commands, __main__."
-    )
+    # [PRECONDITIONS] — what's guaranteed from upstream (source asset stability)
+    src = job.edge.source
+    if isinstance(src, list):
+        src_name = " × ".join(a.name for a in src)
+        src_markov = {a.name: a.markov for a in src}
+    else:
+        src_name = src.name
+        src_markov = {src.name: src.markov}
+    precond_lines = [
+        "[PRECONDITIONS] — upstream asset stability (these hold):"
+    ]
+    for name, conditions in src_markov.items():
+        if conditions:
+            precond_lines.append(f"  {name}: {conditions}")
+        else:
+            precond_lines.append(f"  {name}: (no markov conditions)")
+    sections.append("\n".join(precond_lines))
 
     # [CURRENT STATE]
-    src = job.edge.source
-    src_name = " × ".join(a.name for a in src) if isinstance(src, list) else src.name
     sections.append(
         f"[CURRENT STATE]\n"
         f"Edge: {job.edge.name}\n"
@@ -442,19 +450,20 @@ def _assemble_prompt(pre: PrecomputedManifest, job: Job, result_path: str = "") 
         gap_lines.append("  (none — all evaluators pass)")
     sections.append("\n".join(gap_lines))
 
-    # [RELEVANT CONTEXT]
+    # [CONTEXT] — full constraint surface from edge.context[], no truncation.
+    # The methodology (bootloader), spec, design ADRs — whatever GSDLC declared
+    # on this edge. The engine does not filter or summarize; the domain package
+    # controls what the F_P actor sees by choosing edge.context[].
     if pre.relevant_contexts:
-        ctx_lines = ["[RELEVANT CONTEXT]:"]
+        ctx_lines = ["[CONTEXT] — constraint surface for this edge:"]
         for name, content in pre.relevant_contexts.items():
-            # Cap each context to avoid overwhelming the F_P actor
-            snippet = content[:4000] + ("…[truncated]" if len(content) > 4000 else "")
-            ctx_lines.append(f"\n--- {name} ---\n{snippet}")
+            ctx_lines.append(f"\n--- {name} ---\n{content}")
         sections.append("\n".join(ctx_lines))
 
     # [OUTPUT CONTRACT]
     # Constitutional constraint: F_P does NOT call the event logger.
     # The actor writes its assessment to result_path. The skill (F_D layer)
-    # reads it and emits assessed{kind: fp} via emit-event CLI. See GENESIS_BOOTLOADER §V.
+    # reads it and emits assessed{kind: fp} via emit-event CLI. See GTL Bootloader §V.
     target = job.edge.target
     fp_failing = [ev for ev in pre.failing_evaluators if ev.category is F_P]
     assessment_contract = ""

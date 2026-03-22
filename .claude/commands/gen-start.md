@@ -55,7 +55,7 @@ The actor writes its assessment JSON to `manifest["result_path"]`.
 
 **After MCP returns**, the skill reads `result_path` and emits `assessed` for each
 passing evaluator (F_P actors do NOT call emit-event — the skill is the F_D-controlled
-write path per GENESIS_BOOTLOADER §V):
+write path per GTL Bootloader §V):
 
 ```
 result = read_json(manifest["result_path"])   # {edge, assessments: [{evaluator, result, evidence}]}

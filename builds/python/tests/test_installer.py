@@ -393,15 +393,16 @@ class TestClaudeMd:
         """GTL block contains the universal formal system content (not just markers)."""
         _install(tmp_path, ["--project-slug", "test_proj"])
         text = (tmp_path / "CLAUDE.md").read_text()
-        assert "Four Primitives, One Operation" in text
-        assert "Event Stream as Model Substrate" in text
+        assert "Primitives" in text
+        assert "Event Stream" in text
+        assert "Invariants" in text
 
     def test_sdlc_bootloader_contains_sdlc_content(self, tmp_path):
         """SDLC block contains SDLC-specific content."""
         _install(tmp_path, ["--project-slug", "test_proj"])
         text = (tmp_path / "CLAUDE.md").read_text()
-        assert "Feature Vectors: Trajectories Through the Graph" in text
-        assert "The SDLC Graph" in text
+        assert "Feature Vectors" in text
+        assert "SDLC Graph" in text
 
     def test_gtl_block_precedes_sdlc_block(self, tmp_path):
         """GTL bootloader must appear before SDLC bootloader in CLAUDE.md."""

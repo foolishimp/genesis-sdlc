@@ -371,7 +371,7 @@ def _emit_event_cmd(event_type: str, data_json: str, workspace: Path) -> int:
 
     This is an F_D-controlled write path called by the skill layer (gen-start.md),
     never by F_P actors directly. F_P actors write to result_path; the skill reads
-    the result and calls emit-event. See GENESIS_BOOTLOADER §V (event-time invariant).
+    the result and calls emit-event. See GTL Bootloader §V (event-time invariant).
 
     Governance: required fields validated per event type (prime operators).
       approved  — requires: kind (fh_review | fh_intent), edge, actor (human | human-proxy)

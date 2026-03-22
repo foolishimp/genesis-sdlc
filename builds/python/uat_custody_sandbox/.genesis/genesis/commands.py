@@ -357,18 +357,52 @@ def gen_iterate(
     }
 
     # Write F_P manifest to disk when F_P dispatch is needed.
-    # gen-start.md reads fp_manifest_path to get the prompt for MCP dispatch.
+    # The manifest JSON is the authoritative F_P dispatch contract.
+    # Any conforming transport (Claude Code, API, Codex) must be able to
+    # execute from this JSON alone — CLAUDE.md is convenience, not authority.
     if fp_failing:
         manifests_dir = scope.workspace_root / ".ai-workspace" / "fp_manifests"
         manifests_dir.mkdir(parents=True, exist_ok=True)
         manifest_file = manifests_dir / f"{manifest_id}.json"
+
+        # Source asset(s) — handle product arrows (A × B)
+        src = selected_job.edge.source
+        if isinstance(src, list):
+            source_asset = [a.name for a in src]
+            source_markov = {a.name: a.markov for a in src}
+        else:
+            source_asset = src.name
+            source_markov = {src.name: src.markov}
+
+        # Context references with locator + digest + resolved content
+        contexts = []
+        for ctx in selected_job.edge.context:
+            ctx_entry: dict = {
+                "name": ctx.name,
+                "locator": ctx.locator,
+                "digest": ctx.digest,
+            }
+            if ctx.name in selected_pre.relevant_contexts:
+                ctx_entry["content"] = selected_pre.relevant_contexts[ctx.name]
+            contexts.append(ctx_entry)
+
         manifest = {
             "manifest_id": manifest_id,
             "edge": selected_job.edge.name,
+            "source_asset": source_asset,
+            "target_asset": selected_job.edge.target.name,
+            "source_markov": source_markov,
+            "target_markov": selected_job.edge.target.markov,
             "failing_evaluators": [
-                {"name": ev.name, "description": ev.description}
+                {"name": ev.name, "category": ev.category.__name__,
+                 "description": ev.description}
                 for ev in fp_failing
             ],
+            "fd_results": selected_pre.fd_results,
+            "delta": selected_pre.delta,
+            "delta_summary": selected_pre.delta_summary,
+            "contexts": contexts,
+            "current_asset": selected_pre.current_asset,
             "prompt": bound.prompt,
             "result_path": result_path,
             "spec_hash": spec_hash,
