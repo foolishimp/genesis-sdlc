@@ -49,7 +49,7 @@ class TestSourceRootDetection:
             from genesis_sdlc.install import _source_root_from_script
             root = _source_root_from_script()
             assert (root / ".genesis").exists(), f".genesis not found under {root}"
-            assert (root / ".genesis" / "gtl_spec").exists(), f"gtl_spec not found under {root}/.genesis"
+            assert (root / ".genesis" / "genesis").exists(), f"genesis engine not found under {root}/.genesis"
         finally:
             sys.path.pop(0)
 
@@ -74,10 +74,10 @@ class TestEngineInstall:
         assert (tmp_path / ".genesis" / "gtl" / "core.py").exists()
 
     def test_kernel_genesis_yml_written(self, tmp_path):
-        """ABG seeds kernel default in .genesis/genesis.yml."""
+        """ABG seeds kernel default in .genesis/genesis.yml with runtime_contract pointer."""
         _install(tmp_path, ["--project-slug", "my_domain"])
         text = (tmp_path / ".genesis" / "genesis.yml").read_text()
-        assert "genesis_core" in text
+        assert "runtime_contract:" in text
 
     def test_domain_runtime_contract(self, tmp_path):
         """gsdlc writes full runtime contract to .gsdlc/release/genesis.yml."""

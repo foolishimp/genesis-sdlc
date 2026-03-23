@@ -108,8 +108,7 @@ PYTHONPATH=.genesis python -m genesis gaps --workspace .
 ├── specification/                     ← axiomatic ontology (intent, requirements, standards)
 ├── builds/{platform}/
 │   ├── src/                           ← implementation source
-│   ├── tests/                         ← test suite
-│   └── design/adrs/                   ← architecture decision records
+│   └── tests/                         ← test suite
 ├── design/adrs/                       ← architecture decision records
 ├── docs/                              ← user-facing documentation
 ├── .genesis/                          ← ABG kernel (immutable, owned by abiogenesis)
@@ -1029,7 +1028,7 @@ def install(
         "version": VERSION,
         "target": str(target),
         "source": str(src),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": None,  # deferred to emit time — avoids temporal inversion with ABG events
         "engine": None,
         "workflow_release": None,
         "active_workflow": None,
@@ -1046,7 +1045,7 @@ def install(
     if audit_only:
         return _audit(target, result, src, slug, platform=platform)
 
-    # 1. Engine via abiogenesis — kernel only (.genesis/genesis/, .genesis/gtl/, .mcp.json)
+    # 1. Engine via abiogenesis — kernel only (.genesis/genesis/, .genesis/gtl/)
     try:
         engine_result = _run_abiogenesis_installer(src, target, platform)
         result["engine"] = engine_result.get("status")
@@ -1517,7 +1516,7 @@ def _emit_install_event(target: Path, install_result: dict) -> None:
     events_dir.mkdir(parents=True, exist_ok=True)
     event = {
         "event_type": "genesis_sdlc_installed",
-        "event_time": install_result["timestamp"],
+        "event_time": install_result.get("timestamp") or datetime.now(timezone.utc).isoformat(),
         "data": {
             "version": VERSION,
             "engine_status": install_result.get("engine"),

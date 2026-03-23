@@ -97,7 +97,7 @@ modules_dir = Context(
 
 claude_agent      = Operator("claude_agent",      F_P, "agent://claude/genesis")
 human_gate        = Operator("human_gate",        F_H, "fh://single")
-pytest_op         = Operator("pytest",            F_D, "exec://python -m pytest builds/python/tests/ -q -m 'not e2e'")
+pytest_op         = Operator("pytest",            F_D, "exec://python -m pytest builds/python/tests/ -q -m 'not integration and not live_fp'")
 check_impl_op     = Operator("check_impl",        F_D, "exec://python -m genesis check-tags --type implements --path builds/python/src/")
 check_test_op     = Operator("check_test",        F_D, "exec://python -m genesis check-tags --type validates --path builds/python/tests/")
 check_modules_op  = Operator("check_modules",     F_D, "exec://python -c \"import pathlib,sys; fd=pathlib.Path('.ai-workspace/features/'); md=pathlib.Path('.ai-workspace/modules/'); fids={f.stem for f in fd.rglob('*.yml')} if fd.exists() else set(); mfiles=list(md.rglob('*.yml')) if md.exists() else []; content=' '.join(m.read_text() for m in mfiles); covered={fid for fid in fids if fid in content}; uncovered=fids-covered; print({'uncovered':sorted(uncovered),'passes':not bool(uncovered)}); sys.exit(0 if not uncovered and mfiles else 1)\"")
@@ -318,11 +318,12 @@ eval_code_fp = Evaluator(
 )
 
 # F_D evaluators must NOT invoke genesis commands (acyclicity constraint).
-# Use -m 'not e2e' to exclude tests that may invoke genesis subcommands.
+# Exclude: integration (sandbox installs — own edge),
+#          live_fp (subprocess transport, unbounded runtime).
 eval_tests_pass = Evaluator(
     "tests_pass", F_D,
-    "pytest: zero failures, zero errors (excluding e2e tests — F_D evaluators must be acyclic)",
-    command="PYTHONPATH=builds/python/src/:.gsdlc/release:.genesis python -m pytest builds/python/tests/ -q --tb=short -m 'not e2e'",
+    "pytest: zero failures, zero errors (fast deterministic tests only)",
+    command="PYTHONPATH=builds/python/src/:.gsdlc/release:.genesis python -m pytest builds/python/tests/ -q --tb=short -m 'not integration and not live_fp'",
 )
 eval_test_tags = Evaluator(
     "validates_tags", F_D,
@@ -432,6 +433,14 @@ job_guide_uat     = Job(e_guide_uat,     [eval_uat_fh])
 
 
 # ── Worker + Package ──────────────────────────────────────────────────────────
+#
+# SOURCE-REPO ONLY. These top-level objects use source-world locators and
+# evaluator commands (e.g. builds/python/src/genesis_sdlc/...) that are valid
+# only inside the genesis_sdlc source repo. Dependent projects MUST use
+# instantiate() which rebinds all paths for the installed environment.
+# The installer copies this file into .gsdlc/release/workflows/ verbatim —
+# the top-level objects are dead code there. A future cleanup may strip them
+# from the installed copy or generate a runtime-only module.
 
 worker = Worker(
     id="claude_code",
@@ -504,7 +513,7 @@ def instantiate(slug: str, req_keys=None, *,
     # ── Operators (parameterized) ────────────────────────────────────────────
     _pytest_op = Operator(
         "pytest", F_D,
-        f"exec://python -m pytest {test_path}/ -q -m 'not e2e'",
+        f"exec://python -m pytest {test_path}/ -q -m 'not integration and not live_fp'",
     )
     _check_impl_op = Operator(
         "check_impl", F_D,
@@ -532,8 +541,8 @@ def instantiate(slug: str, req_keys=None, *,
     )
     _eval_tests_pass = Evaluator(
         "tests_pass", F_D,
-        "pytest: zero failures, zero errors (excluding e2e tests — F_D evaluators must be acyclic)",
-        command=f"PYTHONPATH={src_path}/:.gsdlc/release:.genesis python -m pytest {test_path}/ -q --tb=short -m 'not e2e'",
+        "pytest: zero failures, zero errors (fast deterministic tests only)",
+        command=f"PYTHONPATH={src_path}/:.gsdlc/release:.genesis python -m pytest {test_path}/ -q --tb=short -m 'not integration and not live_fp'",
     )
     _eval_test_tags = Evaluator(
         "validates_tags", F_D,

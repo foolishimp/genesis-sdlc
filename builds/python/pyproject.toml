@@ -15,7 +15,8 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src", "tests", "../../.genesis", "../.."]
-addopts = "-q"
+addopts = "-q -m 'not live_fp'"
 markers = [
-    "e2e: end-to-end sandbox tests — install into fresh directory and verify operational",
+    "integration: integration and end-to-end sandbox tests",
+    "live_fp: live F_P qualification tests (requires ANTHROPIC_API_KEY + Claude CLI)",
 ]

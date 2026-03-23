@@ -46,7 +46,7 @@ Scenarios cover the full user journey:
   - human-proxy gate mechanics
   - backlog commands
 
-Run with: pytest -m e2e builds/python/tests/test_e2e_sandbox.py -v
+Run with: pytest -m integration builds/python/tests/test_e2e_sandbox.py -v
 """
 import json
 import os
@@ -139,7 +139,7 @@ def events(sandbox):
 # ── Install structure ──────────────────────────────────────────────────────────
 
 
-@pytest.mark.e2e
+@pytest.mark.integration
 class TestInstallStructure:
     """Verify the installer produces a complete, correct workspace."""
 
@@ -228,7 +228,7 @@ class TestInstallStructure:
 # ── Engine commands ────────────────────────────────────────────────────────────
 
 
-@pytest.mark.e2e
+@pytest.mark.integration
 class TestEngineCommands:
     """Verify the installed engine responds correctly to all commands."""
 
@@ -266,7 +266,7 @@ class TestEngineCommands:
 # ── Event stream ───────────────────────────────────────────────────────────────
 
 
-@pytest.mark.e2e
+@pytest.mark.integration
 class TestEventStream:
     """Verify emit-event writes to the event stream and the stream is readable."""
 
@@ -314,7 +314,7 @@ class TestEventStream:
 # ── check-tags enforcement ─────────────────────────────────────────────────────
 
 
-@pytest.mark.e2e
+@pytest.mark.integration
 class TestCheckTags:
     """Verify check-tags enforces Implements: and Validates: tag requirements."""
 
@@ -384,7 +384,7 @@ class TestCheckTags:
 # ── check-req-coverage ─────────────────────────────────────────────────────────
 
 
-@pytest.mark.e2e
+@pytest.mark.integration
 class TestReqCoverage:
     """Verify check-req-coverage detects uncovered REQ keys."""
 
@@ -446,7 +446,7 @@ class TestReqCoverage:
 # ── Human-proxy gate mechanics ─────────────────────────────────────────────────
 
 
-@pytest.mark.e2e
+@pytest.mark.integration
 class TestHumanProxyGate:
     """Verify F_H gate mechanics: approved event carries correct actor field."""
 
@@ -496,7 +496,7 @@ class TestHumanProxyGate:
 # ── Backlog commands ───────────────────────────────────────────────────────────
 
 
-@pytest.mark.e2e
+@pytest.mark.integration
 class TestBacklogCommands:
     """Verify backlog schema, list, and promote commands."""
 
@@ -590,7 +590,7 @@ def custody_sandbox():
     return CUSTODY_SANDBOX_DIR
 
 
-@pytest.mark.e2e
+@pytest.mark.integration
 class TestCustodyInstall:
     """Task 1.4: Verify install produces a complete custody chain."""
 
@@ -618,7 +618,7 @@ class TestCustodyInstall:
         assert "REQ-F-EXAMPLE-001" in content
 
 
-@pytest.mark.e2e
+@pytest.mark.integration
 class TestCustodyRoundTrip:
     """Task 1.5: Write custom REQ keys, verify engine sees them — not gsdlc's 33."""
 
@@ -696,7 +696,7 @@ class TestCustodyRoundTrip:
         )
 
 
-@pytest.mark.e2e
+@pytest.mark.integration
 class TestCustodyWrapperGeneration:
     """Task 1.6: Verify wrapper structure and _load_reqs() parsing."""
 
@@ -727,7 +727,7 @@ class TestCustodyWrapperGeneration:
         assert "genesis_sdlc-generated" in content, "Wrapper must carry system-ownership marker"
 
 
-@pytest.mark.e2e
+@pytest.mark.integration
 class TestCustodyNoRequirementsFile:
     """Task 1.7: No requirements.md → empty list, never gsdlc defaults."""
 
@@ -766,7 +766,7 @@ class TestCustodyNoRequirementsFile:
 # ── Sandbox state is inspectable ───────────────────────────────────────────────
 
 
-@pytest.mark.e2e
+@pytest.mark.integration
 class TestSandboxInspectability:
     """
     Meta-tests: verify the sandbox is useful as a real project after tests run.
