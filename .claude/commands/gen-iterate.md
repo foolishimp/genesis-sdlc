@@ -1,7 +1,7 @@
 # /gen-iterate — Run One Iteration Cycle
 
 Runs one F_D→F_P→F_H cycle on a single feature+edge. The engine selects the
-next unconverged edge. This skill manages only the MCP handoff.
+next unconverged edge. This skill manages only the F_P handoff.
 
 Use `/gen-start --auto` to loop. Use `/gen-iterate` for a single controlled step.
 
@@ -28,35 +28,39 @@ Parse stdout as JSON.
 |------|--------|--------|
 | 0 | converged / nothing_to_do | Done. Report to user. |
 | 1 | error | Report error. Stop. |
-| 2 | fp_dispatched | MCP dispatch (Step 3) |
+| 2 | fp_dispatched | F_P dispatch (Step 3) |
 | 3 | fh_gate_pending | F_H evaluation — proxy or wait (Step 5) |
 | 4 | fd_gap | F_D still failing after F_P resolved — surface failures, stop (Step 4) |
 | 5 | max_iterations | Loop limit hit — report to user, stop |
 
-**Step 3 — MCP dispatch (exit code 2 only)**
+**Step 3 — F_P dispatch via canonical transport (exit code 2 only)**
 
 ```
 manifest_path = output["fp_manifest_path"]
 manifest = read(manifest_path)
 ```
 
-Call `mcp__claude-code-runner__claude_code` with:
-- `prompt`: manifest["prompt"]
-- `workFolder`: workspace root
+Dispatch via the engine's transport wrapper:
+
+```python
+from genesis.fp_dispatch import call_agent
+
+call_agent(manifest["prompt"], workspace_root)
+```
+
+`call_agent` handles agent selection, environment sanitization, and timeout (ADR-022).
+Do NOT restate transport details (CLI flags, env var stripping) — the wrapper owns that.
 
 The actor writes its assessment JSON to `manifest["result_path"]`.
 
-**After MCP returns**, the skill reads `result_path` and emits `assessed` for each
-passing evaluator (F_P actors do NOT call emit-event — the skill is the F_D-controlled
-write path per GTL Bootloader §V):
+**After the agent returns**, ingest the result via the engine's assess-result command.
+This resolves manifest provenance (spec_hash, workflow_version) and emits assessed
+events — the skill must NOT emit events directly:
 
-```
-result = read_json(manifest["result_path"])   # {edge, assessments: [{evaluator, result, evidence}]}
-for assessment in result["assessments"]:
-  if assessment["result"] == "pass":
-    PYTHONPATH=.genesis python -m genesis emit-event \
-      --type assessed \
-      --data '{"kind": "fp", "edge": "{edge}", "evaluator": "{evaluator}", "result": "pass"}'
+```bash
+PYTHONPATH=.genesis python -m genesis assess-result \
+  --result "$(echo $manifest | jq -r .result_path)" \
+  --workspace .
 ```
 
 Go to Step 1.
@@ -122,18 +126,17 @@ Violation causes unbounded subprocess recursion. When authoring evaluators:
 - `pytest` with no marker — incorrect if any e2e test invokes genesis commands
 - Any `genesis gaps|start|iterate` call — incorrect (cyclic)
 
-### `unit_tests→uat_tests` edge
+### `user_guide→uat_tests` edge
 
-The F_H gate for this edge requires **sandbox e2e evidence** before approval is granted.
-The F_P evaluator (`uat_e2e_passed`) is responsible for:
-1. Installing the project into a fresh sandbox directory via the installer
-2. Running e2e tests in that sandbox (`pytest -m e2e`)
-3. Reporting sandbox path, test count, and pass/fail
+The F_H gate for this edge requires **sandbox e2e evidence** and a **current user guide**
+before approval is granted. The upstream `unit_tests→integration_tests` edge produces the
+sandbox report; the `integration_tests→user_guide` edge certifies the guide.
 
-The F_H gate (`uat_accepted`) cannot be approved without that evidence.
-`--human-proxy` may proxy this gate only if the F_P actor's sandbox report is available and
-all e2e scenarios pass. A proxy approval on this edge without a sandbox report is a log-integrity
-violation (event emitted without the work having occurred).
+`--human-proxy` may proxy this gate only if:
+1. `sandbox_report.json` shows `all_pass: true`
+2. `USER_GUIDE.md` is version-current and REQ-coverage-tagged
+
+A proxy approval without both is a log-integrity violation.
 
 Unit tests alone (`code↔unit_tests`) are necessary but not sufficient.
-**Shipping requires sandbox proof.**
+**Shipping requires sandbox proof and a current guide.**

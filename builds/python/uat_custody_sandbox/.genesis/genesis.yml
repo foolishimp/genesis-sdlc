@@ -1,5 +1,9 @@
-# Genesis kernel default — written by gen-install.py
-# Domain installers write the authoritative contract to
-# .gsdlc/release/genesis.yml which takes precedence.
-package: gtl_spec.packages.genesis_core:package
-worker:  gtl_spec.packages.genesis_core:worker
+# Genesis kernel default — written by gen-install.py v1.0.3
+#
+# This file is the engine's bootstrap config. Domain installers
+# set package, worker, and runtime_contract when they install.
+# Without a domain package, the engine has no graph to iterate.
+#
+runtime_contract: .gsdlc/release/genesis.yml
+# package: your_domain.package:package
+# worker:  your_domain.package:worker

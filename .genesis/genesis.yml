@@ -1,8 +1,9 @@
-# Genesis project config — written by gen-install.py
-# Override per-invocation with: --package MODULE:VAR --worker MODULE:VAR
-package: gtl_spec.packages.genesis_sdlc:package
-worker:  gtl_spec.packages.genesis_sdlc:worker
-pythonpath:
-  - .gsdlc/release
-active_workflow: .gsdlc/release/active-workflow.json
-workflow_root: .gsdlc/release/workflows
+# Genesis kernel default — written by gen-install.py v1.0.0
+#
+# This file is the engine's bootstrap config. Domain installers
+# set package, worker, and runtime_contract when they install.
+# Without a domain package, the engine has no graph to iterate.
+#
+runtime_contract: .gsdlc/release/genesis.yml
+# package: your_domain.package:package
+# worker:  your_domain.package:worker

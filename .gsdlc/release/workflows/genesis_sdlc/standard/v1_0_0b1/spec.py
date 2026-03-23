@@ -56,9 +56,15 @@ from gtl.core import (
 
 # ── Contexts ──────────────────────────────────────────────────────────────────
 
-bootloader = Context(
-    name="bootloader",
-    locator="workspace://.genesis/gtl_spec/GENESIS_BOOTLOADER.md",
+gtl_bootloader = Context(
+    name="gtl_bootloader",
+    locator="workspace://CLAUDE.md",
+    digest="sha256:" + "0" * 64,
+)
+
+sdlc_bootloader = Context(
+    name="sdlc_bootloader",
+    locator="workspace://.gsdlc/release/SDLC_BOOTLOADER.md",
     digest="sha256:" + "0" * 64,
 )
 
@@ -76,7 +82,7 @@ intent_doc = Context(
 
 design_adrs = Context(
     name="design_adrs",
-    locator="workspace://builds/python/design/adrs/",
+    locator="workspace://design/adrs/",
     digest="sha256:" + "0" * 64,
 )
 
@@ -91,7 +97,7 @@ modules_dir = Context(
 
 claude_agent      = Operator("claude_agent",      F_P, "agent://claude/genesis")
 human_gate        = Operator("human_gate",        F_H, "fh://single")
-pytest_op         = Operator("pytest",            F_D, "exec://python -m pytest builds/python/tests/ -q -m 'not e2e'")
+pytest_op         = Operator("pytest",            F_D, "exec://python -m pytest builds/python/tests/ -q -m 'not integration and not live_fp'")
 check_impl_op     = Operator("check_impl",        F_D, "exec://python -m genesis check-tags --type implements --path builds/python/src/")
 check_test_op     = Operator("check_test",        F_D, "exec://python -m genesis check-tags --type validates --path builds/python/tests/")
 check_modules_op  = Operator("check_modules",     F_D, "exec://python -c \"import pathlib,sys; fd=pathlib.Path('.ai-workspace/features/'); md=pathlib.Path('.ai-workspace/modules/'); fids={f.stem for f in fd.rglob('*.yml')} if fd.exists() else set(); mfiles=list(md.rglob('*.yml')) if md.exists() else []; content=' '.join(m.read_text() for m in mfiles); covered={fid for fid in fids if fid in content}; uncovered=fids-covered; print({'uncovered':sorted(uncovered),'passes':not bool(uncovered)}); sys.exit(0 if not uncovered and mfiles else 1)\"")
@@ -185,7 +191,7 @@ e_intent_req = Edge(
     source=intent, target=requirements,
     using=[claude_agent, human_gate],
     rule=standard_gate,
-    context=[bootloader, this_spec],
+    context=[gtl_bootloader, sdlc_bootloader, this_spec],
 )
 
 e_req_feat = Edge(
@@ -193,7 +199,7 @@ e_req_feat = Edge(
     source=requirements, target=feature_decomp,
     using=[claude_agent, human_gate],
     rule=standard_gate,
-    context=[bootloader, this_spec, intent_doc],
+    context=[gtl_bootloader, sdlc_bootloader, this_spec, intent_doc],
 )
 
 e_feat_design = Edge(
@@ -201,7 +207,7 @@ e_feat_design = Edge(
     source=feature_decomp, target=design,
     using=[claude_agent, human_gate],
     rule=standard_gate,
-    context=[bootloader, this_spec, intent_doc],
+    context=[gtl_bootloader, sdlc_bootloader, this_spec, intent_doc],
 )
 
 e_design_mdecomp = Edge(
@@ -209,14 +215,14 @@ e_design_mdecomp = Edge(
     source=design, target=module_decomp,
     using=[claude_agent, check_modules_op, human_gate],
     rule=standard_gate,
-    context=[bootloader, this_spec, design_adrs],
+    context=[gtl_bootloader, sdlc_bootloader, this_spec, design_adrs],
 )
 
 e_mdecomp_code = Edge(
     name="module_decomp→code",
     source=module_decomp, target=code,
     using=[claude_agent, check_impl_op],
-    context=[bootloader, this_spec, design_adrs, modules_dir],
+    context=[gtl_bootloader, sdlc_bootloader, this_spec, design_adrs, modules_dir],
 )
 
 e_tdd = Edge(
@@ -224,14 +230,14 @@ e_tdd = Edge(
     source=[code, unit_tests], target=unit_tests,
     co_evolve=True,
     using=[claude_agent, pytest_op, check_impl_op, check_test_op],
-    context=[bootloader, this_spec, design_adrs],
+    context=[gtl_bootloader, sdlc_bootloader, this_spec, design_adrs],
 )
 
 e_unit_itest = Edge(
     name="unit_tests→integration_tests",
     source=unit_tests, target=integration_tests,
     using=[claude_agent],
-    context=[bootloader, this_spec],
+    context=[gtl_bootloader, sdlc_bootloader, this_spec],
 )
 
 e_itest_guide = Edge(
@@ -239,7 +245,7 @@ e_itest_guide = Edge(
     source=integration_tests, target=user_guide,
     using=[claude_agent, human_gate],
     rule=standard_gate,
-    context=[bootloader, this_spec],
+    context=[gtl_bootloader, sdlc_bootloader, this_spec],
 )
 
 e_guide_uat = Edge(
@@ -247,7 +253,7 @@ e_guide_uat = Edge(
     source=user_guide, target=uat_tests,
     using=[human_gate],
     rule=standard_gate,
-    context=[bootloader, this_spec],
+    context=[gtl_bootloader, sdlc_bootloader, this_spec],
 )
 
 
@@ -312,11 +318,12 @@ eval_code_fp = Evaluator(
 )
 
 # F_D evaluators must NOT invoke genesis commands (acyclicity constraint).
-# Use -m 'not e2e' to exclude tests that may invoke genesis subcommands.
+# Exclude: integration (sandbox installs — own edge),
+#          live_fp (subprocess transport, unbounded runtime).
 eval_tests_pass = Evaluator(
     "tests_pass", F_D,
-    "pytest: zero failures, zero errors (excluding e2e tests — F_D evaluators must be acyclic)",
-    command="PYTHONPATH=builds/python/src/:.genesis python -m pytest builds/python/tests/ -q --tb=short -m 'not e2e'",
+    "pytest: zero failures, zero errors (fast deterministic tests only)",
+    command="PYTHONPATH=builds/python/src/:.gsdlc/release:.genesis python -m pytest builds/python/tests/ -q --tb=short -m 'not integration and not live_fp'",
 )
 eval_test_tags = Evaluator(
     "validates_tags", F_D,
@@ -328,7 +335,7 @@ eval_e2e_exists = Evaluator(
     "At least one @pytest.mark.e2e test exists — e2e/integration scenarios are the primary "
     "test surface; pure unit tests are supplementary",
     command=(
-        "PYTHONPATH=builds/python/src/:.genesis python -c \""
+        "PYTHONPATH=builds/python/src/:.gsdlc/release:.genesis python -c \""
         "import pathlib,sys; "
         "tests=list(pathlib.Path('builds/python/tests/').rglob('*.py')); "
         "has_e2e=any('@pytest.mark.e2e' in f.read_text() for f in tests); "
@@ -360,7 +367,7 @@ eval_sandbox_run = Evaluator(
     "Install into a fresh sandbox: "
     "python builds/python/src/genesis_sdlc/install.py --target /tmp/uat_sandbox_{timestamp} --project-slug {slug}. "
     "Then run e2e tests in that sandbox: "
-    "PYTHONPATH=.genesis python -m pytest builds/python/tests/ -m e2e -q. "
+    "PYTHONPATH=.gsdlc/release:.genesis python -m pytest builds/python/tests/ -m e2e -q. "
     "Write a structured report to .ai-workspace/uat/sandbox_report.json: "
     "{install_success: bool, sandbox_path: str, test_count: int, pass_count: int, fail_count: int, all_pass: bool, timestamp: ISO}. "
     "Unit tests alone do not satisfy this edge — sandbox e2e is the acceptance proof.",
@@ -384,7 +391,7 @@ eval_guide_coverage = Evaluator(
     "guide_req_coverage", F_D,
     "USER_GUIDE.md <!-- Covers: --> tags include every key in package.requirements",
     command=(
-        "PYTHONPATH=builds/python/src:.genesis python -c \""
+        "PYTHONPATH=builds/python/src:.gsdlc/release:.genesis python -c \""
         "import re,sys,pathlib,importlib; "
         "guide=pathlib.Path('docs/USER_GUIDE.md').read_text(); "
         "covered=set(r for t in re.findall(r'<!-- Covers:([^>]+)-->', guide) "
@@ -426,6 +433,14 @@ job_guide_uat     = Job(e_guide_uat,     [eval_uat_fh])
 
 
 # ── Worker + Package ──────────────────────────────────────────────────────────
+#
+# SOURCE-REPO ONLY. These top-level objects use source-world locators and
+# evaluator commands (e.g. builds/python/src/genesis_sdlc/...) that are valid
+# only inside the genesis_sdlc source repo. Dependent projects MUST use
+# instantiate() which rebinds all paths for the installed environment.
+# The installer copies this file into .gsdlc/release/workflows/ verbatim —
+# the top-level objects are dead code there. A future cleanup may strip them
+# from the installed copy or generate a runtime-only module.
 
 worker = Worker(
     id="claude_code",
@@ -438,7 +453,7 @@ package = Package(
     edges=[e_intent_req, e_req_feat, e_feat_design, e_design_mdecomp, e_mdecomp_code, e_tdd, e_unit_itest, e_itest_guide, e_guide_uat],
     operators=[claude_agent, human_gate, pytest_op, check_impl_op, check_test_op, check_modules_op],
     rules=[standard_gate],
-    contexts=[bootloader, this_spec, intent_doc, design_adrs, modules_dir],
+    contexts=[gtl_bootloader, sdlc_bootloader, this_spec, intent_doc, design_adrs, modules_dir],
     requirements=[
         "REQ-F-BOOT-001", "REQ-F-BOOT-002",
         "REQ-F-BOOT-003", "REQ-F-BOOT-004", "REQ-F-BOOT-005", "REQ-F-BOOT-006",
@@ -481,7 +496,7 @@ def instantiate(slug: str, req_keys=None, *,
     """
     src_path = f"builds/{platform}/{src_dir}"
     test_path = f"builds/{platform}/tests"
-    adr_path = f"builds/{platform}/design/adrs"
+    adr_path = "design/adrs"
 
     # ── Contexts (parameterized) ─────────────────────────────────────────────
     _this_spec = Context(
@@ -498,7 +513,7 @@ def instantiate(slug: str, req_keys=None, *,
     # ── Operators (parameterized) ────────────────────────────────────────────
     _pytest_op = Operator(
         "pytest", F_D,
-        f"exec://python -m pytest {test_path}/ -q -m 'not e2e'",
+        f"exec://python -m pytest {test_path}/ -q -m 'not integration and not live_fp'",
     )
     _check_impl_op = Operator(
         "check_impl", F_D,
@@ -526,8 +541,8 @@ def instantiate(slug: str, req_keys=None, *,
     )
     _eval_tests_pass = Evaluator(
         "tests_pass", F_D,
-        "pytest: zero failures, zero errors (excluding e2e tests — F_D evaluators must be acyclic)",
-        command=f"PYTHONPATH={src_path}/:.genesis python -m pytest {test_path}/ -q --tb=short -m 'not e2e'",
+        "pytest: zero failures, zero errors (fast deterministic tests only)",
+        command=f"PYTHONPATH={src_path}/:.gsdlc/release:.genesis python -m pytest {test_path}/ -q --tb=short -m 'not integration and not live_fp'",
     )
     _eval_test_tags = Evaluator(
         "validates_tags", F_D,
@@ -539,7 +554,7 @@ def instantiate(slug: str, req_keys=None, *,
         "At least one @pytest.mark.e2e test exists — e2e/integration scenarios are the primary "
         "test surface; pure unit tests are supplementary",
         command=(
-            f"PYTHONPATH={src_path}/:.genesis python -c \""
+            f"PYTHONPATH={src_path}/:.gsdlc/release:.genesis python -c \""
             f"import pathlib,sys; "
             f"tests=list(pathlib.Path('{test_path}/').rglob('*.py')); "
             f"has_e2e=any('@pytest.mark.e2e' in f.read_text() for f in tests); "
@@ -550,10 +565,10 @@ def instantiate(slug: str, req_keys=None, *,
     _eval_sandbox_run = Evaluator(
         "sandbox_e2e_passed", F_P,
         f"Install into a fresh sandbox: "
-        f"PYTHONPATH={src_path}/:.genesis python -m genesis_sdlc.install "
+        f"PYTHONPATH={src_path}/:.gsdlc/release:.genesis python -m genesis_sdlc.install "
         f"--target /tmp/uat_sandbox_{{timestamp}} --project-slug {slug}. "
         f"Then run e2e tests in that sandbox: "
-        f"PYTHONPATH=.genesis python -m pytest {test_path}/ -m e2e -q. "
+        f"PYTHONPATH=.gsdlc/release:.genesis python -m pytest {test_path}/ -m e2e -q. "
         f"Write a structured report to .ai-workspace/uat/sandbox_report.json: "
         f"{{install_success: bool, sandbox_path: str, test_count: int, pass_count: int, "
         f"fail_count: int, all_pass: bool, timestamp: ISO}}. "
@@ -593,20 +608,20 @@ def instantiate(slug: str, req_keys=None, *,
         source=design, target=module_decomp,
         using=[claude_agent, check_modules_op, human_gate],
         rule=standard_gate,
-        context=[bootloader, _this_spec, _design_adrs],
+        context=[gtl_bootloader, sdlc_bootloader, _this_spec, _design_adrs],
     )
     _e_mdecomp_code = Edge(
         name="module_decomp→code",
         source=module_decomp, target=code,
         using=[claude_agent, _check_impl_op],
-        context=[bootloader, _this_spec, _design_adrs, modules_dir],
+        context=[gtl_bootloader, sdlc_bootloader, _this_spec, _design_adrs, modules_dir],
     )
     _e_tdd = Edge(
         name="code↔unit_tests",
         source=[code, unit_tests], target=unit_tests,
         co_evolve=True,
         using=[claude_agent, _pytest_op, _check_impl_op, _check_test_op],
-        context=[bootloader, _this_spec, _design_adrs],
+        context=[gtl_bootloader, sdlc_bootloader, _this_spec, _design_adrs],
     )
 
     # Upstream edges use only generic contexts — rebind spec context only
@@ -615,41 +630,41 @@ def instantiate(slug: str, req_keys=None, *,
         source=intent, target=requirements,
         using=[claude_agent, human_gate],
         rule=standard_gate,
-        context=[bootloader, _this_spec],
+        context=[gtl_bootloader, sdlc_bootloader, _this_spec],
     )
     _e_req_feat = Edge(
         name="requirements→feature_decomp",
         source=requirements, target=feature_decomp,
         using=[claude_agent, human_gate],
         rule=standard_gate,
-        context=[bootloader, _this_spec, intent_doc],
+        context=[gtl_bootloader, sdlc_bootloader, _this_spec, intent_doc],
     )
     _e_feat_design = Edge(
         name="feature_decomp→design",
         source=feature_decomp, target=design,
         using=[claude_agent, human_gate],
         rule=standard_gate,
-        context=[bootloader, _this_spec, intent_doc],
+        context=[gtl_bootloader, sdlc_bootloader, _this_spec, intent_doc],
     )
     _e_unit_itest = Edge(
         name="unit_tests→integration_tests",
         source=unit_tests, target=integration_tests,
         using=[claude_agent],
-        context=[bootloader, _this_spec],
+        context=[gtl_bootloader, sdlc_bootloader, _this_spec],
     )
     _e_itest_guide = Edge(
         name="integration_tests→user_guide",
         source=integration_tests, target=user_guide,
         using=[claude_agent, human_gate],
         rule=standard_gate,
-        context=[bootloader, _this_spec],
+        context=[gtl_bootloader, sdlc_bootloader, _this_spec],
     )
     _e_guide_uat = Edge(
         name="user_guide→uat_tests",
         source=user_guide, target=uat_tests,
         using=[human_gate],
         rule=standard_gate,
-        context=[bootloader, _this_spec],
+        context=[gtl_bootloader, sdlc_bootloader, _this_spec],
     )
 
     # ── Jobs (rebuild with parameterized evaluators) ─────────────────────────
@@ -680,7 +695,7 @@ def instantiate(slug: str, req_keys=None, *,
         edges=_all_edges,
         operators=[claude_agent, human_gate, _pytest_op, _check_impl_op, _check_test_op, check_modules_op],
         rules=list(package.rules),
-        contexts=[bootloader, _this_spec, intent_doc, _design_adrs, modules_dir],
+        contexts=[gtl_bootloader, sdlc_bootloader, _this_spec, intent_doc, _design_adrs, modules_dir],
         requirements=list(req_keys) if req_keys is not None else [],  # Implements: REQ-F-CUSTODY-001
     )
 

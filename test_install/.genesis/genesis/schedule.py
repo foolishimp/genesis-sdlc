@@ -120,14 +120,27 @@ def iterate(
     # Record what contexts were consumed
     surface.context_consumed = list(job.edge.context)
 
-    # REQ-F-GATE-002: F_D must pass before F_P is dispatched; F_D + F_P must
-    # pass before F_H gate is emitted. Dispatching agent work against a broken
-    # deterministic state wastes budget and can produce false convergence.
+    # REQ-F-GATE-002 (ADR-021): F_D findings escalate to F_P on edges with
+    # unresolved F_P evaluators. F_H still requires both F_D and F_P to pass.
     fd_failing = [ev for ev in pre.failing_evaluators if ev.category is F_D]
-
-    # Dispatch F_P evaluators — only when all F_D pass
     fp_failing = [ev for ev in pre.failing_evaluators if ev.category is F_P]
-    if fp_failing and not fd_failing:
+    fh_failing = [ev for ev in pre.failing_evaluators if ev.category is F_H]
+
+    # Record F_D findings — kind depends on whether F_P escalation is available
+    if fd_failing:
+        kind = "fd_findings" if fp_failing else "fd_gap"
+        surface.events.append({
+            "event_type": "found",
+            "data": {
+                "kind": kind,
+                "edge": job.edge.name,
+                "failing": [ev.name for ev in fd_failing],
+                "delta_summary": pre.delta_summary,
+            },
+        })
+
+    # Dispatch F_P evaluators — F_D findings escalate, not gate
+    if fp_failing:
         fp_dispatch_data: dict = {
             "edge": job.edge.name,
             "failing_evaluators": [ev.name for ev in fp_failing],
@@ -149,7 +162,6 @@ def iterate(
             on_fp_dispatch(bound_job)
 
     # Record F_H gates — only when all F_D and all F_P pass
-    fh_failing = [ev for ev in pre.failing_evaluators if ev.category is F_H]
     if fh_failing and not fd_failing and not fp_failing:
         surface.events.append({
             "event_type": "fh_gate_pending",
@@ -157,19 +169,6 @@ def iterate(
                 "edge": job.edge.name,
                 "evaluators": [ev.name for ev in fh_failing],
                 "criteria": [ev.description for ev in fh_failing],
-            },
-        })
-
-    # Record F_D failures as artifacts (for audit trail)
-    fd_failing = [ev for ev in pre.failing_evaluators if ev.category is F_D]
-    if fd_failing:
-        surface.events.append({
-            "event_type": "found",
-            "data": {
-                "kind": "fd_gap",
-                "edge": job.edge.name,
-                "failing": [ev.name for ev in fd_failing],
-                "delta_summary": pre.delta_summary,
             },
         })
 

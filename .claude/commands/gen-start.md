@@ -1,7 +1,7 @@
 # /gen-start — State-Driven Routing Entry Point
 
 State machine entry point. Runs the engine, routes on exit code, handles F_P dispatch
-and F_H gates. The engine owns all logic and events. This skill owns only the MCP handoff.
+and F_H gates. The engine owns all logic and events. This skill owns only the F_P handoff.
 
 ## Usage
 
@@ -35,35 +35,39 @@ Parse stdout as JSON.
 |------|--------|--------|
 | 0 | converged / nothing_to_do | Done. Report to user. |
 | 1 | error | Report error. Stop. |
-| 2 | fp_dispatched | MCP dispatch (Step 3) |
+| 2 | fp_dispatched | F_P dispatch (Step 3) |
 | 3 | fh_gate_pending | F_H evaluation — proxy or wait (Step 5) |
 | 4 | fd_gap | F_D still failing after F_P resolved — surface failures, stop (Step 4) |
 | 5 | max_iterations | Loop limit hit — report to user, stop |
 
-**Step 3 — MCP dispatch (exit code 2 only)**
+**Step 3 — F_P dispatch via canonical transport (exit code 2 only)**
 
 ```
 manifest_path = output["fp_manifest_path"]
 manifest = read(manifest_path)
 ```
 
-Call `mcp__claude-code-runner__claude_code` with:
-- `prompt`: manifest["prompt"]
-- `workFolder`: workspace root
+Dispatch via the engine's transport wrapper:
+
+```python
+from genesis.fp_dispatch import call_agent
+
+call_agent(manifest["prompt"], workspace_root)
+```
+
+`call_agent` handles agent selection, environment sanitization, and timeout (ADR-022).
+Do NOT restate transport details (CLI flags, env var stripping) — the wrapper owns that.
 
 The actor writes its assessment JSON to `manifest["result_path"]`.
 
-**After MCP returns**, the skill reads `result_path` and emits `assessed` for each
-passing evaluator (F_P actors do NOT call emit-event — the skill is the F_D-controlled
-write path per GTL Bootloader §V):
+**After the agent returns**, ingest the result via the engine's assess-result command.
+This resolves manifest provenance (spec_hash, workflow_version) and emits assessed
+events — the skill must NOT emit events directly:
 
-```
-result = read_json(manifest["result_path"])   # {edge, assessments: [{evaluator, result, evidence}]}
-for assessment in result["assessments"]:
-  if assessment["result"] == "pass":
-    PYTHONPATH=.genesis python -m genesis emit-event \
-      --type assessed \
-      --data '{"kind": "fp", "edge": "{edge}", "evaluator": "{evaluator}", "result": "pass"}'
+```bash
+PYTHONPATH=.genesis python -m genesis assess-result \
+  --result "$(echo $manifest | jq -r .result_path)" \
+  --workspace .
 ```
 
 Go to Step 1.

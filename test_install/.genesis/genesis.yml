@@ -1,4 +1,4 @@
-# Genesis kernel default — written by gen-install.py v1.0.0
+# Genesis kernel default — written by gen-install.py v1.0.1
 #
 # This file is the engine's bootstrap config. Domain installers
 # set package, worker, and runtime_contract when they install.

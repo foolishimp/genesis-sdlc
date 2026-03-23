@@ -19,12 +19,13 @@ uat_custody_sandbox/
 ├── specification/                     ← axiomatic ontology (intent, requirements, standards)
 ├── builds/python/
 │   ├── src/                           ← implementation source
-│   ├── tests/                         ← test suite
-│   └── design/adrs/                   ← architecture decision records
+│   └── tests/                         ← test suite
+├── design/adrs/                       ← architecture decision records
+├── docs/                              ← user-facing documentation
 ├── .genesis/                          ← ABG kernel (immutable, owned by abiogenesis)
-│   ├── genesis/                       ← abiogenesis engine
+│   ├── genesis/                       ← engine modules
 │   ├── gtl/                           ← GTL type system
-│   └── genesis.yml                    ← project config (package/worker/pythonpath)
+│   └── genesis.yml                    ← bootstrap config → runtime_contract
 ├── .gsdlc/release/                    ← gsdlc methodology release (immutable between releases)
 │   ├── workflows/genesis_sdlc/        ← versioned release snapshots
 │   └── gtl_spec/packages/custody_test.py    ← generated workflow wrapper (system-owned)
@@ -96,14 +97,14 @@ Escalation: F_D → F_P (deterministic blocked). F_P → F_H (agent stuck). F_H 
 | Territory | What | Rule |
 |-----------|------|------|
 | `.genesis/` | ABG engine (installed) | **Never edit directly.** Updated only by ABG installer. |
-| `.gsdlc/release/` | Domain package (installed) | **Never edit directly.** Updated only by domain installer. |
+| `<domain>/release/` | Domain package (installed) | **Never edit directly.** Updated only by domain installer. |
 | `specification/` | Authored spec | Editable — intent, requirements, standards. |
 | `builds/` | Authored source | Editable — implementation, tests, design. |
 | `.ai-workspace/` | Runtime state | Events, features, comments — territory-partitioned by agent. |
 
 ## Cascade Chain
 
-Source → installer → installed territory. Order: **ABG → GSDLC → dependents** (never ABG direct to dependents).
+Source → installer → installed territory. Order: **ABG → domain package → dependents** (never ABG direct to dependents).
 
 ## F_P Dispatch Contract
 

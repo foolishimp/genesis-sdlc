@@ -42,18 +42,22 @@ def _read_workflow_version(workspace: Path, active_workflow_path: str | None = N
 
     When *active_workflow_path* is provided (from genesis.yml runtime contract),
     it is resolved relative to workspace and used as the authoritative location.
-    Otherwise falls back to .genesis/active-workflow.json (kernel default).
+    Otherwise reads .ai-workspace/runtime/active-workflow.json.
+
+    .genesis/ is immutable installed runtime — no fallback to it. Mutable state
+    must live under .ai-workspace/. The installer (gen-install.py) is responsible
+    for creating the runtime directory and migrating legacy locations.
 
     Returns "unknown" on any failure: file absent, invalid JSON, missing keys,
     non-string values. The engine never fails to start due to this file's state.
 
-    Pure function — no Scope dependency. Called by Scope.__post_init__ at
-    engine startup and by _emit_event_cmd at CLI call time (REQ-F-PROV-001/002).
+    Pure read — no side effects. Called by Scope.__post_init__ at engine startup
+    and by _emit_event_cmd at CLI call time (REQ-F-PROV-001/002).
     """
     if active_workflow_path:
         active_wf = (workspace / active_workflow_path).resolve()
     else:
-        active_wf = workspace / ".genesis" / "active-workflow.json"
+        active_wf = workspace / ".ai-workspace" / "runtime" / "active-workflow.json"
     try:
         data = json.loads(active_wf.read_text(encoding="utf-8"))
         workflow = data["workflow"]
@@ -70,7 +74,7 @@ def _read_carry_forward(scope: "Scope") -> list[dict]:
     Read approved_carry_forward from the variant manifest.json.
 
     Path: {workflow_root}/{pkg}/{variant}/{version}/manifest.json
-    where workflow "genesis_sdlc.standard@0.2.0" → pkg="genesis_sdlc",
+    where workflow "my_domain.standard@0.2.0" → pkg="my_domain",
     variant="standard", version="0.2.0".
 
     When scope.workflow_root is set (from genesis.yml runtime contract), it is
@@ -117,7 +121,7 @@ class Scope:
 
     active_workflow_path: relative path to active-workflow.json, read from
         genesis.yml runtime contract. When set, used instead of the default
-        .genesis/active-workflow.json. Domain installers (e.g. gsdlc) write this.
+        .ai-workspace/runtime/active-workflow.json.
 
     workflow_root: relative path to workflow releases base directory, read from
         genesis.yml runtime contract. When set, used instead of .genesis/workflows/.
@@ -286,27 +290,9 @@ def gen_iterate(
     fp_failing = [ev for ev in selected_pre.failing_evaluators if ev.category is _F_P]
     fh_failing = [ev for ev in selected_pre.failing_evaluators if ev.category is _F_H]
 
-    # REQ-F-GATE-002: do not produce an F_P manifest while F_D is red.
-    # The gate is enforced in schedule.iterate() — this layer must not create
-    # orphaned manifest files that imply a dispatch will happen when it won't.
-    # Emit found{kind: fd_gap} so gen_start(auto=True) event-based detection at
-    # commands.py#L314 fires correctly — without this event, the auto-loop
-    # cannot distinguish "fd_gap" from "no progress" and loops to max_iterations.
-    if fd_failing and fp_failing:
-        stream.append("found", {
-            "kind": "fd_gap",
-            "edge": selected_job.edge.name,
-            "failing": [ev.name for ev in fd_failing],
-            "delta_summary": selected_pre.delta_summary,
-        })
-        return {
-            "status": "iterated",
-            "edge": selected_job.edge.name,
-            "delta_before": selected_pre.delta,
-            "failing_evaluators": [ev.name for ev in selected_pre.failing_evaluators],
-            "events_emitted": 1,
-            "stopped_by": "fd_gap",
-        }
+    # REQ-F-GATE-002 (ADR-021): F_D findings escalate to F_P — no early return.
+    # The fd_gap early return was removed. iterate() now emits both
+    # found{kind: fd_findings} and fp_dispatched when F_D and F_P are both failing.
 
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
     edge_slug = selected_job.edge.name.replace("→", "_").replace("↔", "_")
@@ -354,6 +340,8 @@ def gen_iterate(
         "failing_evaluators": [ev.name for ev in selected_pre.failing_evaluators],
         "events_emitted": len(surface.events) + 1,  # +1 for edge_started
         "prompt_words": len(bound.prompt.split()),
+        "surface_artifacts": surface.artifacts,
+        "context_consumed": [c.name for c in surface.context_consumed],
     }
 
     # Write F_P manifest to disk when F_P dispatch is needed.
@@ -406,6 +394,7 @@ def gen_iterate(
             "prompt": bound.prompt,
             "result_path": result_path,
             "spec_hash": spec_hash,
+            "requirements": scope.package.requirements,
         }
         manifest_file.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         result["fp_manifest_path"] = str(manifest_file)
@@ -479,7 +468,10 @@ def gen_start(
         if "fh_gate_pending" in new_types:
             result["stopped_by"] = "fh_gate"
             return result
-        if "found" in new_types:
+        # REQ-F-GATE-002 (ADR-021): only terminal fd_gap stops the loop.
+        # fd_findings (escalation) accompanies fp_dispatched which stops above.
+        if any(e["event_type"] == "found" and e.get("data", {}).get("kind") == "fd_gap"
+               for e in new_events):
             result["stopped_by"] = "fd_gap"
             return result
 

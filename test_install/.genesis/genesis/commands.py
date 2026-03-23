@@ -290,27 +290,9 @@ def gen_iterate(
     fp_failing = [ev for ev in selected_pre.failing_evaluators if ev.category is _F_P]
     fh_failing = [ev for ev in selected_pre.failing_evaluators if ev.category is _F_H]
 
-    # REQ-F-GATE-002: do not produce an F_P manifest while F_D is red.
-    # The gate is enforced in schedule.iterate() — this layer must not create
-    # orphaned manifest files that imply a dispatch will happen when it won't.
-    # Emit found{kind: fd_gap} so gen_start(auto=True) event-based detection at
-    # commands.py#L314 fires correctly — without this event, the auto-loop
-    # cannot distinguish "fd_gap" from "no progress" and loops to max_iterations.
-    if fd_failing and fp_failing:
-        stream.append("found", {
-            "kind": "fd_gap",
-            "edge": selected_job.edge.name,
-            "failing": [ev.name for ev in fd_failing],
-            "delta_summary": selected_pre.delta_summary,
-        })
-        return {
-            "status": "iterated",
-            "edge": selected_job.edge.name,
-            "delta_before": selected_pre.delta,
-            "failing_evaluators": [ev.name for ev in selected_pre.failing_evaluators],
-            "events_emitted": 1,
-            "stopped_by": "fd_gap",
-        }
+    # REQ-F-GATE-002 (ADR-021): F_D findings escalate to F_P — no early return.
+    # The fd_gap early return was removed. iterate() now emits both
+    # found{kind: fd_findings} and fp_dispatched when F_D and F_P are both failing.
 
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
     edge_slug = selected_job.edge.name.replace("→", "_").replace("↔", "_")
@@ -486,7 +468,10 @@ def gen_start(
         if "fh_gate_pending" in new_types:
             result["stopped_by"] = "fh_gate"
             return result
-        if "found" in new_types:
+        # REQ-F-GATE-002 (ADR-021): only terminal fd_gap stops the loop.
+        # fd_findings (escalation) accompanies fp_dispatched which stops above.
+        if any(e["event_type"] == "found" and e.get("data", {}).get("kind") == "fd_gap"
+               for e in new_events):
             result["stopped_by"] = "fd_gap"
             return result
 

@@ -474,8 +474,8 @@ def _assemble_prompt(pre: PrecomputedManifest, job: Job, result_path: str = "") 
         ]
         assessment_contract = (
             f"\n\nWrite assessment JSON to: {result_path}\n"
-            f"Format: {{{{'edge': '{job.edge.name}', 'assessments': [{', '.join(ev_assessments)}]}}}}\n"
-            "The skill reads this file and emits assessed events — do NOT call emit-event yourself."
+            f"Format: {{{{'edge': '{job.edge.name}', 'actor': '<your_agent_id>', 'assessments': [{', '.join(ev_assessments)}]}}}}\n"
+            "The app reads this file and emits assessed events — do NOT call emit-event yourself."
         )
 
     sections.append(

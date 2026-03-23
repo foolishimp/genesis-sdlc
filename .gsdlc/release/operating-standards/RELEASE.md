@@ -2,7 +2,11 @@
 
 **Governance**: Maintained by the methodology author. Read-only for agents.
 
-**NOTE TO LLM**: If this file is referenced in a prompt, it is an active instruction to execute a release following this process exactly. Do not skip steps. Do not reorder steps.
+**Scope**: This is the release process for the **genesis_sdlc** methodology package itself.
+Dependent projects do NOT follow this process — they receive updates via the cascade installer
+(Step 7). If you are working in a dependent project, this document is reference-only.
+
+**NOTE TO LLM**: If this file is referenced in a prompt within the genesis_sdlc source repo, it is an active instruction to execute a release following this process exactly. Do not skip steps. Do not reorder steps. If you are in a dependent project, do NOT execute these steps.
 
 ---
 
@@ -85,15 +89,22 @@ All must pass. Do not proceed with failures.
 ### 1b. Check bootloader for changes
 
 ```bash
-git diff HEAD .genesis/gtl_spec/GTL_BOOTLOADER.md .gsdlc/release/SDLC_BOOTLOADER.md
+git diff HEAD specification/standards/SDLC_BOOTLOADER.md
 ```
 
-If changed:
-- Bump the `**Version**:` line inside `GTL_BOOTLOADER.md` and/or `SDLC_BOOTLOADER.md`
+Note: The GTL bootloader is owned by abiogenesis, not genesis_sdlc. Check the abiogenesis
+release notes if the GTL bootloader version changed.
+
+If SDLC bootloader changed:
+- Bump the `**Version**:` line inside `SDLC_BOOTLOADER.md`
 - Update `BOOTLOADER_VERSION` in `builds/python/src/genesis_sdlc/install.py`
 - The genesis_sdlc version must be at least a MINOR bump
 
-If unchanged: confirm `BOOTLOADER_VERSION` in `install.py` still matches the `**Version**:` line in the file.
+If GTL bootloader changed (abiogenesis owns this):
+- Coordinate with the abiogenesis release — the GTL bootloader version is bumped in that repo
+- Confirm `BOOTLOADER_VERSION` in `install.py` still matches the SDLC bootloader version (GTL and SDLC bootloader versions are independent)
+
+If neither changed: confirm `BOOTLOADER_VERSION` in `install.py` still matches the `**Version**:` line in `SDLC_BOOTLOADER.md`.
 
 ### 2. Bump version
 
@@ -105,11 +116,10 @@ Append a new entry to `builds/python/CHANGELOG.md` using the format above.
 
 Compute spec_hash (must match the engine's `req_hash()` — JSON-sorted):
 ```bash
-PYTHONPATH=.genesis python -c "
-import json, hashlib, importlib.util
-spec = importlib.util.spec_from_file_location('s', 'builds/python/src/genesis_sdlc/sdlc_graph.py')
-mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
-print(hashlib.sha256(json.dumps(sorted(mod.package.requirements)).encode()).hexdigest()[:16])
+PYTHONPATH=builds/python/src:.gsdlc/release:.genesis python -c "
+from genesis.bind import req_hash
+from genesis_sdlc.sdlc_graph import package
+print(req_hash(package.requirements))
 "
 ```
 
@@ -192,6 +202,6 @@ Run the cascade installer against all of these on every release, starting with `
 ## What Does Not Need a Release
 
 - Editing comment posts in `.ai-workspace/comments/` — these are workspace artifacts, not versioned artifacts
-- Editing ADRs in `builds/python/design/adrs/` — ADRs are immutable; supersede with a new ADR
+- Editing ADRs in `design/adrs/` — ADRs are immutable; supersede with a new ADR
 
 **Note**: Editing `specification/standards/` files (operating standards) DOES require a release — they are installer assets deployed to dependent projects. Update the source, bump the version (MINOR), cascade, commit.

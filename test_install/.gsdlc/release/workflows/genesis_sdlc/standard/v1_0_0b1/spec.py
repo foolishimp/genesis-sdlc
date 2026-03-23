@@ -70,7 +70,7 @@ sdlc_bootloader = Context(
 
 this_spec = Context(
     name="sdlc_spec",
-    locator="workspace://CLAUDE.md",
+    locator="workspace://builds/python/src/genesis_sdlc/sdlc_graph.py",
     digest="sha256:" + "0" * 64,
 )
 
@@ -432,6 +432,14 @@ job_guide_uat     = Job(e_guide_uat,     [eval_uat_fh])
 
 
 # ── Worker + Package ──────────────────────────────────────────────────────────
+#
+# SOURCE-REPO ONLY. These top-level objects use source-world locators and
+# evaluator commands (e.g. builds/python/src/genesis_sdlc/...) that are valid
+# only inside the genesis_sdlc source repo. Dependent projects MUST use
+# instantiate() which rebinds all paths for the installed environment.
+# The installer copies this file into .gsdlc/release/workflows/ verbatim —
+# the top-level objects are dead code there. A future cleanup may strip them
+# from the installed copy or generate a runtime-only module.
 
 worker = Worker(
     id="claude_code",

@@ -8,6 +8,8 @@ description: |
 implements_features:
   - REQ-F-BOOT
   - REQ-F-BOOT-V2
+  - REQ-F-CUSTODY
+  - REQ-F-TERRITORY
   - F-BOOTSTRAP
 dependencies:
   - MOD-001

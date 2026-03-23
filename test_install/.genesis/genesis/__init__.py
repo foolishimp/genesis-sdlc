@@ -12,4 +12,4 @@ Seven modules.
     fp_dispatch — MCP transport for F_P actor invocations (ADR-020)
     __main__    — CLI entry point
 """
-__version__ = "1.0.0"
+__version__ = "1.0.1"
