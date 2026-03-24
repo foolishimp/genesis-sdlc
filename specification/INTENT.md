@@ -120,3 +120,99 @@ code ↔ unit_tests → integration_tests → user_guide → uat_tests
 - Rewriting USER_GUIDE.md content (only adding traceability tags)
 - Multiple guide formats
 - Automated guide generation
+
+---
+
+## INT-004 — DAG Topology and Bootloader as Compiled Constraint Surface
+
+### Problem
+
+The V1 graph is a linear pipeline masquerading as a DAG:
+
+```
+intent → requirements → feature_decomp → design → module_decomp → code ↔ unit_tests
+    → integration_tests → user_guide → uat_tests
+```
+
+This conflates three distinct relationship types into a single edge chain:
+
+1. **Artifact lineage** (what is this asset intellectually derived from?) is tangled with **evidence prerequisites** (what must be proven before this asset can be accepted?). The user guide's lineage is `[integration_tests]`, but integration tests don't contribute creative content to the guide — design does. Integration tests provide *evidence* that the guide describes a working system.
+
+2. **The bootloader** (`CLAUDE.md` / `SDLC_BOOTLOADER.md`) is a derived document treated as a primary source. It is injected as context on every edge, but nothing in the graph drives its construction, validates its currency, or catches drift when spec/standards/design change. It goes stale silently.
+
+3. **The TDD co-evolve edge** (`code ↔ unit_tests`) imports a work practice into the type system. Tests are a behavioral specification derived from module design, not a co-product of coding. The reflexive edge prevents the graph from being a clean DAG.
+
+The result: edges encode a conveyor belt where real-world dependencies are a DAG; the bootloader drifts without detection; and the graph topology cannot distinguish "this asset needs that content" from "this asset needs that proof."
+
+### Value Proposition
+
+Separate the three relationship types (lineage, evidence, delivery) and make every derived document a graph asset with evaluators:
+
+- **Lineage**: `Asset.lineage` — what creative input produced this asset
+- **Evidence prerequisites**: multi-source `Edge.source` — what must converge before the edge fires
+- **Delivery**: the partial order implied by the edge DAG — structural, not overridable
+
+The bootloader becomes the 11th graph asset — a compiled constraint surface synthesised from specification, standards, and design, validated by F_D for currency and F_P for content. When the spec changes, `gen-gaps` catches the stale bootloader. No more silent drift.
+
+The graph becomes a clean DAG: 11 assets, 10 edges, four multi-source edges, no reflexive edges.
+
+### Scope
+
+**Target topology** (11 assets, 10 edges):
+
+```mermaid
+graph TD
+    INT[intent] -->|E1| REQ[requirements]
+    REQ -->|E2| FD[feature_decomp]
+    FD -->|E3| DES[design]
+    DES -->|E4| MOD[module_decomp]
+
+    MOD -->|E5| CODE[code]
+    MOD -->|E6| UT[unit_tests]
+
+    CODE -->|E7| IT[integration_tests]
+    UT -->|E7| IT
+
+    DES -->|E9| UG[user_guide]
+    IT -->|E9| UG
+
+    REQ -->|E8| BOOT[bootloader]
+    DES -->|E8| BOOT
+    IT -->|E8| BOOT
+
+    REQ -->|E10| UAT[uat_tests]
+    IT -->|E10| UAT
+```
+
+**Key changes from V1 pipeline:**
+- E5 + E6: module_decomp fans out to code and unit_tests in parallel (co-evolve removed)
+- E7: `[code, unit_tests] → integration_tests` — consistency proven here
+- E8: `[requirements, design, integration_tests] → bootloader` — new asset, leaf node
+- E9: `[design, integration_tests] → user_guide` — lineage is design, evidence is integration
+- E10: `[requirements, integration_tests] → uat_tests` — decoupled from user_guide
+
+**New asset — bootloader:**
+- Compiled constraint surface for LLM consumption (~150-200 lines, 10:1 compression from source docs)
+- F_D evaluators: spec hash current, version current, section coverage complete, references valid
+- F_P evaluator: regenerate bootloader from source documents
+- F_H gate: human approves compiled output
+- Leaf node — nothing depends on it. Methodology health is separate from product acceptance.
+
+**Context model cleanup:**
+- `sdlc_bootloader` removed as edge context input (it is an output, not an input)
+- Source documents referenced directly as edge contexts (spec_requirements, spec_features, operating_standards)
+
+### Out of Scope
+
+- Engine changes for schedule-aware feature traversal (ABG work)
+- Graph variant profiles (poc, hotfix, minimal — separate work)
+- Multi-agent coordination
+- Bootloader content generation prompt (the F_P prompt is a separate deliverable; this intent defines the structure and validation)
+
+### Success Criteria
+
+1. `gen-gaps` on a converged workspace reports 10 edges, all delta=0
+2. Changing a REQ key in `requirements.md` causes delta>0 on the bootloader edge — F_D catches staleness
+3. The bootloader F_D evaluators catch: wrong spec hash, wrong version, missing section, broken reference
+4. The graph renders as a clean DAG — no reflexive edges
+5. Clean install into an empty target produces 11 assets, 10 edges, all context paths resolve

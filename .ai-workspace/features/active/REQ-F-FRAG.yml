@@ -1,0 +1,24 @@
+id: REQ-F-FRAG
+title: Compositional Graphs — Fragment, Zoom, Spawn/Fold-back
+status: active
+satisfies:
+  - REQ-F-FRAG-001
+  - REQ-F-FRAG-002
+  - REQ-F-FRAG-003
+  - REQ-F-FRAG-004
+description: |
+  Implements ADR-025: Fragment as a GTL type representing reusable subgraphs with
+  input/output contracts. Fragments compose into Packages, zoom() expands edges
+  into fragment internals, and spawn/fold-back provides recursive work decomposition
+  through the event stream. V1 degenerate case preserved (empty fragments, no zoom).
+dependencies:
+  - REQ-F-WK
+acceptance_criteria:
+  - Fragment frozen dataclass in gtl/core.py with inputs, outputs, assets, edges, contexts
+  - Package gains fragments field (default empty tuple for V1 compat)
+  - validate_composition() verifies input/output contracts and DAG property
+  - zoom(edge, fragment) replaces edge with fragment internals
+  - spawn() creates child work_keys; fold-back projects convergence to parent
+  - work_spawned event recorded in stream for provenance
+  - active_work_keys() discovers spawned children from event stream
+  - All existing tests pass (V1 degenerate case)

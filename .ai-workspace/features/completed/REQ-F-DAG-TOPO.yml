@@ -1,0 +1,25 @@
+id: REQ-F-DAG-TOPO
+title: DAG Topology — Relationship Type Separation
+status: completed
+satisfies:
+  - REQ-F-GRAPH-001
+description: |
+  Rewires the SDLC graph from a linear pipeline to a clean DAG. Separates
+  artifact lineage (creative input) from evidence prerequisites (convergence
+  gates) in edge definitions. Removes co-evolve reflexive edge. Code and
+  unit_tests become parallel derivations from module_decomp. User guide lineage
+  changes to design. UAT decoupled from user guide. Four multi-source edges.
+  11 assets, 10 edges, no reflexive edges.
+acceptance_criteria:
+  - E5 module_decomp→code and E6 module_decomp→unit_tests (parallel, no co-evolve)
+  - E7 [code, unit_tests]→integration_tests (multi-source)
+  - E8 [requirements, design, integration_tests]→bootloader (multi-source)
+  - E9 [design, integration_tests]→user_guide (lineage from design, evidence from itest)
+  - E10 [requirements, integration_tests]→uat_tests (decoupled from user_guide)
+  - No reflexive or co-evolving edges — graph is a DAG
+  - gen-gaps reports 10 edges, all delta=0 when converged
+  - Clean install produces 11 assets, 10 edges, all context paths resolve
+dependencies:
+  - REQ-F-GRAPH
+  - REQ-F-INT-003
+  - REQ-F-BOOTDOC

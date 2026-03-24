@@ -1,7 +1,7 @@
 # genesis_sdlc — Requirements
 
 **Derived from**: `builds/python/src/genesis_sdlc/sdlc_graph.py` (the GTL Package IS the requirement registry)
-**Traces to**: INT-001, INT-002, INT-003
+**Traces to**: INT-001, INT-002, INT-003, INT-004
 **Status**: Approved
 **Date**: 2026-03-20
 
@@ -79,13 +79,13 @@ The installer can verify that a deployment is consistent with the version it cla
 
 ### REQ-F-GRAPH-001 — GTL Package defines the SDLC graph
 
-The Package declares a typed asset graph with admissible transitions.
+The Package declares a typed asset graph with admissible transitions. The graph is a clean DAG — no reflexive edges. Each edge explicitly separates creative input (lineage) from evidence prerequisites (convergence gates).
 
 **Acceptance Criteria**:
-- AC-1: Ten assets: `intent`, `requirements`, `feature_decomp`, `design`, `module_decomp`, `code`, `unit_tests`, `integration_tests`, `user_guide`, `uat_tests`
-- AC-2: Nine edges with the topology: `intent→requirements→feature_decomp→design→module_decomp→code↔unit_tests→integration_tests→user_guide→uat_tests`
+- AC-1: Eleven assets: `intent`, `requirements`, `feature_decomp`, `design`, `module_decomp`, `code`, `unit_tests`, `integration_tests`, `user_guide`, `bootloader`, `uat_tests`
+- AC-2: Ten edges with the DAG topology: E1 `intent→requirements`, E2 `requirements→feature_decomp`, E3 `feature_decomp→design`, E4 `design→module_decomp`, E5 `module_decomp→code`, E6 `module_decomp→unit_tests`, E7 `[code, unit_tests]→integration_tests`, E8 `[requirements, design, integration_tests]→bootloader`, E9 `[design, integration_tests]→user_guide`, E10 `[requirements, integration_tests]→uat_tests`
 - AC-3: Each edge has at least one evaluator
-- AC-4: The `code↔unit_tests` edge is co-evolving (`co_evolve=True`)
+- AC-4: Four multi-source edges (E7, E8, E9, E10). No reflexive or co-evolving edges. The graph is a DAG.
 - AC-5: Package is loadable: `python builds/python/src/genesis_sdlc/sdlc_graph.py` produces valid JSON describing the graph
 
 ### REQ-F-GRAPH-002 — Asset.markov conditions are acceptance criteria
@@ -199,7 +199,7 @@ Every REQ key in the Package must appear in at least one feature vector.
 The user guide is on the convergence blocking path with F_D enforcement.
 
 **Acceptance Criteria**:
-- AC-1: `user_guide` is an asset in the SDLC graph with edge `integration_tests→user_guide`
+- AC-1: `user_guide` is an asset in the SDLC graph with edge `[design, integration_tests]→user_guide` — lineage from design, evidence gate from integration_tests
 - AC-2: F_D evaluator `guide_version_current` checks version string in USER_GUIDE.md matches install.py VERSION
 - AC-3: F_D evaluator `guide_req_coverage` checks `REQ-F-*` tags are present in USER_GUIDE.md
 - AC-4: F_P evaluator `guide_content_certified` assesses install steps, commands, operating loop, recovery paths
@@ -239,14 +239,14 @@ Version sandboxing ensures tests run against the release candidate source, not s
 ### REQ-F-UAT-001 — Sandbox install + e2e proof required to ship
 
 **Acceptance Criteria**:
-- AC-1: The `unit_tests→uat_tests` edge (now `unit_tests→integration_tests`) requires sandbox evidence before approval
+- AC-1: The `[requirements, integration_tests]→uat_tests` edge requires sandbox evidence before approval — UAT accepts against requirements with sandbox proof
 - AC-2: Unit tests alone are necessary but not sufficient — sandbox proof is the acceptance bar
 - AC-3: Human cannot approve UAT without integration test report showing all_pass
 
 ### REQ-F-UAT-002 — integration_tests asset produces structured report
 
 **Acceptance Criteria**:
-- AC-1: `integration_tests` is an asset in the graph with edge `unit_tests→integration_tests`
+- AC-1: `integration_tests` is an asset in the graph with edge `[code, unit_tests]→integration_tests` — code provides the install target, unit_tests provide the evidence gate
 - AC-2: F_P evaluator `sandbox_e2e_passed` installs into a fresh sandbox and runs `pytest -m e2e`
 - AC-3: F_P writes structured report to `.ai-workspace/uat/sandbox_report.json` with fields: `install_success`, `sandbox_path`, `test_count`, `pass_count`, `fail_count`, `all_pass`, `timestamp`
 - AC-4: F_D evaluator `sandbox_report_exists` checks the report exists and `all_pass: true`
@@ -391,6 +391,49 @@ The deployed runtime path must not include `builds/`.
 
 ---
 
+## Bootloader as Graph Asset (REQ-F-BOOTDOC-*)
+
+### REQ-F-BOOTDOC-001 — bootloader is a compiled graph asset with F_D currency validation
+
+The bootloader (`SDLC_BOOTLOADER.md` / the SDLC section of `CLAUDE.md`) is a derived document — a compiled constraint surface synthesised from specification, standards, and design. It is a graph asset with its own edge, evaluators, and convergence lifecycle. It is not a primary source.
+
+**Acceptance Criteria**:
+- AC-1: `bootloader` is an asset in the Package with ID format `BOOT-{SEQ}` and lineage `[requirements, design]`
+- AC-2: Markov conditions: `spec_hash_current`, `version_current`, `section_coverage_complete`, `references_valid`
+- AC-3: Edge E8 `[requirements, design, integration_tests]→bootloader` — creative input from requirements and design, evidence gate from integration_tests
+- AC-4: Operative: `OPERATIVE_ON_APPROVED` — bootloader is not usable until human-approved
+
+### REQ-F-BOOTDOC-002 — F_D evaluators validate bootloader currency without LLM
+
+Four deterministic evaluators catch staleness. All computable without LLM invocation.
+
+**Acceptance Criteria**:
+- AC-1: `spec_hash_current` — hash of `Package.requirements` matches hash embedded in bootloader header
+- AC-2: `version_current` — bootloader version matches `active-workflow.json` version
+- AC-3: `section_coverage_complete` — all mandatory sections present in the bootloader
+- AC-4: `references_valid` — every `workspace://` path in the bootloader points to an existing file
+
+### REQ-F-BOOTDOC-003 — F_P regenerates bootloader from source documents
+
+The bootloader is synthesised from three authored planes, not hand-maintained. F_P regenerates all content; F_D validates the structure.
+
+**Acceptance Criteria**:
+- AC-1: F_P evaluator `synthesize_bootloader` regenerates the bootloader from specification, standards, and design documents
+- AC-2: Fixed section structure — sections are invariant, content within each section is synthesised
+- AC-3: Size budget: ~150-200 lines (10:1 compression from source documents)
+- AC-4: Each section carries `workspace://` references for depth — the bootloader orients, source documents provide detail
+
+### REQ-F-BOOTDOC-004 — Bootloader is a leaf node with no downstream dependents
+
+The bootloader is methodology observability, not product acceptance. Nothing depends on it.
+
+**Acceptance Criteria**:
+- AC-1: No edge in the Package has `bootloader` as a source
+- AC-2: `uat_tests` does not depend on `bootloader` — product acceptance is separate from methodology health
+- AC-3: Bootloader convergence is tracked by `gen-gaps` but does not block downstream edges
+
+---
+
 ## Key Counts
 
 | Category | REQ Keys |
@@ -407,4 +450,5 @@ The deployed runtime path must not include `builds/`.
 | Module Decomposition | REQ-F-MDECOMP-001 through 005 (5) |
 | Requirements Custody | REQ-F-CUSTODY-001 through 003 (3) |
 | Territory Model | REQ-F-TERRITORY-001, 002 (2) |
-| **Total** | **37 keys** |
+| Bootloader as Graph Asset | REQ-F-BOOTDOC-001 through 004 (4) |
+| **Total** | **41 keys** |

@@ -1,6 +1,6 @@
 id: REQ-F-CUSTODY
 title: Requirements Custody — Project-Specific REQ Keys
-status: iterating
+status: completed
 satisfies:
   - REQ-F-CUSTODY-001
   - REQ-F-CUSTODY-002

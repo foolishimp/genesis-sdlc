@@ -82,7 +82,7 @@ intent_doc = Context(
 
 design_adrs = Context(
     name="design_adrs",
-    locator="workspace://design/adrs/",
+    locator="workspace://builds/python/design/adrs/",
     digest="sha256:" + "0" * 64,
 )
 
@@ -496,7 +496,7 @@ def instantiate(slug: str, req_keys=None, *,
     """
     src_path = f"builds/{platform}/{src_dir}"
     test_path = f"builds/{platform}/tests"
-    adr_path = "design/adrs"
+    adr_path = f"builds/{platform}/design/adrs"
 
     # ── Contexts (parameterized) ─────────────────────────────────────────────
     _this_spec = Context(

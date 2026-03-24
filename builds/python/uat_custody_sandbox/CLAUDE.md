@@ -19,8 +19,8 @@ uat_custody_sandbox/
 ├── specification/                     ← axiomatic ontology (intent, requirements, standards)
 ├── builds/python/
 │   ├── src/                           ← implementation source
-│   └── tests/                         ← test suite
-├── design/adrs/                       ← architecture decision records
+│   ├── tests/                         ← test suite
+│   └── design/adrs/                   ← architecture decision records
 ├── docs/                              ← user-facing documentation
 ├── .genesis/                          ← ABG kernel (immutable, owned by abiogenesis)
 │   ├── genesis/                       ← engine modules

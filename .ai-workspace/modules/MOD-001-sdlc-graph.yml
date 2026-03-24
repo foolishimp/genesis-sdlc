@@ -15,7 +15,10 @@ implements_features:
   - REQ-F-UAT
   - REQ-F-MDECOMP
   - REQ-F-INT-003
+  - REQ-F-BOOTDOC
+  - REQ-F-DAG-TOPO
   - REQ-F-VAR-001
+  - REQ-F-FRAG
   - F-GRAPH
   - F-COMMANDS
   - F-TRACEABILITY

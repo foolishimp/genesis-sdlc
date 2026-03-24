@@ -472,9 +472,9 @@ def write_features(
         json.dumps(schedule, indent=2))
 
 
-def write_adrs(target: Path) -> None:
-    """Write a minimal ADR to design/adrs/."""
-    adr_dir = target / "design" / "adrs"
+def write_adrs(target: Path, platform: str = "python") -> None:
+    """Write a minimal ADR to builds/{platform}/design/adrs/."""
+    adr_dir = target / "builds" / platform / "design" / "adrs"
     adr_dir.mkdir(parents=True, exist_ok=True)
     (adr_dir / "ADR-001-initial-design.md").write_text(textwrap.dedent("""\
         # ADR-001: Initial Design

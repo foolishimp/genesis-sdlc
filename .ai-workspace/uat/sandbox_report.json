@@ -1,1 +1,1 @@
-{"install_success": true, "sandbox_path": "/tmp/uat_sandbox_20260321", "test_count": 33, "pass_count": 31, "fail_count": 0, "skip_count": 2, "all_pass": true, "timestamp": "2026-03-21T12:05:00Z"}
+{"install_success": true, "sandbox_path": "/tmp/uat_sandbox_20260324T010501", "test_count": 111, "pass_count": 109, "fail_count": 0, "skip_count": 2, "all_pass": true, "timestamp": "2026-03-24T01:05:01Z", "marker": "integration", "notes": "2 skipped (expected). All 109 collected integration tests pass in fresh sandbox."}

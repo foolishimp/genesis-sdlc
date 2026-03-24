@@ -9,7 +9,7 @@ Seven modules.
     manifest    — PrecomputedManifest, BoundJob (dataclasses)
     schedule    — delta, iterate, schedule
     commands    — gen_start, gen_iterate, gen_gaps, Scope
-    fp_dispatch — MCP transport for F_P actor invocations (ADR-020)
+    fp_dispatch — Subprocess transport for F_P actor invocations (ADR-022)
     __main__    — CLI entry point
 """
-__version__ = "1.0.1"
+__version__ = "1.0.3"

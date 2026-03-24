@@ -1,6 +1,6 @@
 feature_id: REQ-F-TERRITORY
 title: "Territory Model — Separate ABG/GSDLC Install Surfaces"
-status: iterating
+status: completed
 satisfies:
   - REQ-F-TERRITORY-001
   - REQ-F-TERRITORY-002

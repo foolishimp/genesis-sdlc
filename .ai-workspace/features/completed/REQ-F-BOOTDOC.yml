@@ -1,0 +1,27 @@
+id: REQ-F-BOOTDOC
+title: Bootloader as Compiled Graph Asset
+status: completed
+satisfies:
+  - REQ-F-BOOTDOC-001
+  - REQ-F-BOOTDOC-002
+  - REQ-F-BOOTDOC-003
+  - REQ-F-BOOTDOC-004
+description: |
+  Adds bootloader as the 11th graph asset — a compiled constraint surface
+  synthesised from specification, standards, and design. Four F_D evaluators
+  validate currency (spec hash, version, section coverage, reference validity).
+  F_P regenerates from source documents. F_H approves. Leaf node — nothing
+  depends on it. Methodology health is separate from product acceptance.
+acceptance_criteria:
+  - bootloader asset in Package with BOOT-{SEQ} ID format
+  - Edge E8 [requirements, design, integration_tests] → bootloader
+  - F_D spec_hash_current validates spec hash in bootloader header
+  - F_D version_current validates version matches active-workflow.json
+  - F_D section_coverage_complete validates all mandatory sections present
+  - F_D references_valid validates workspace:// paths resolve
+  - F_P synthesize_bootloader regenerates from source documents
+  - F_H approves compiled output
+  - No edge has bootloader as source (leaf node)
+dependencies:
+  - REQ-F-GRAPH
+  - REQ-F-INT-003

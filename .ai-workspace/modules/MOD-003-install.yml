@@ -10,6 +10,7 @@ implements_features:
   - REQ-F-BOOT-V2
   - REQ-F-CUSTODY
   - REQ-F-TERRITORY
+  - REQ-F-BOOTDOC
   - F-BOOTSTRAP
 dependencies:
   - MOD-001

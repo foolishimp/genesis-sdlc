@@ -1,6 +1,6 @@
 # genesis_sdlc — Feature Decomposition
 
-**Traces to**: INT-001, INT-002, INT-003
+**Traces to**: INT-001, INT-002, INT-003, INT-004
 **Requirements**: specification/requirements.md
 **REQ key registry**: builds/python/src/genesis_sdlc/sdlc_graph.py
 **Status**: Approved
@@ -28,6 +28,8 @@
 | REQ-F-MDECOMP | Module Decomposition and Build Scheduling | MDECOMP-001..005 | GRAPH, GATE | Y |
 | REQ-F-CUSTODY | Requirements Custody — Project-Specific REQ Keys | CUSTODY-001, CUSTODY-002, CUSTODY-003 | BOOT-V2, COV | Y |
 | REQ-F-TERRITORY | Territory Model — Separate ABG/GSDLC Install Surfaces | TERRITORY-001, TERRITORY-002 | BOOT-V2, CUSTODY | Y |
+| REQ-F-BOOTDOC | Bootloader as Compiled Graph Asset | BOOTDOC-001, BOOTDOC-002, BOOTDOC-003, BOOTDOC-004 | GRAPH, INT-003 | Y |
+| REQ-F-DAG-TOPO | DAG Topology — Relationship Type Separation | GRAPH-001 (updated ACs) | GRAPH, INT-003, BOOTDOC | Y |
 
 ---
 
@@ -52,6 +54,10 @@ REQ-F-BACKLOG                  (independent — pre-intent holding area)
 
 REQ-F-BOOT-V2 + REQ-F-COV
     └── REQ-F-CUSTODY          (needs three-layer install for wrapper gen + COV for coverage chain)
+
+REQ-F-GRAPH + REQ-F-INT-003
+    └── REQ-F-BOOTDOC          (needs graph asset model + integration_tests as evidence gate)
+         └── REQ-F-DAG-TOPO    (topology change requires bootloader asset + updated edge wiring)
 ```
 
 **Build order** (topological sort):
@@ -62,12 +68,14 @@ REQ-F-BOOT-V2 + REQ-F-COV
 5. REQ-F-GATE, REQ-F-TAG, REQ-F-DOCS (depend on CMD)
 6. REQ-F-TEST-V2 (depends on TEST + BOOT-V2)
 7. REQ-F-INT-003 (depends on UAT + DOCS + GRAPH)
+8. REQ-F-BOOTDOC (depends on GRAPH + INT-003)
+9. REQ-F-DAG-TOPO (depends on GRAPH + INT-003 + BOOTDOC)
 
 ---
 
 ## MVP Scope
 
-All 14 features are MVP. This is the minimum standard SDLC package that provides a complete graph from intent through UAT with convergence enforcement at every edge.
+All 18 features are MVP. This is the minimum standard SDLC package that provides a complete graph from intent through UAT with convergence enforcement at every edge.
 
 **Deferred** (V2+):
 - Variant evolution model (REQ-F-VAR-*, REQ-F-PROV-* — proposed, not yet in Package registry)
@@ -102,7 +110,7 @@ The genesis_sdlc implementation consists of a single Python package. Features ma
 
 The GTL Package at `builds/python/src/genesis_sdlc/sdlc_graph.py` defines the typed asset graph. This is the constitutional source — all other features implement or enforce what the Package declares.
 
-**Key artifacts**: 10 assets with markov conditions, 9 edges with evaluators, 6 operators (1 F_P, 1 F_H, 4 F_D), 5 contexts.
+**Key artifacts**: 11 assets with markov conditions, 10 edges with evaluators (4 multi-source), operators (F_P, F_H, F_D), contexts per edge.
 
 ### REQ-F-BOOT — Project Bootstrap
 
@@ -162,13 +170,25 @@ Fixes the critical bug where `instantiate()` hardcodes gsdlc's 33 REQ keys into 
 
 **Modules affected**: `sdlc_graph.py` (instantiate signature), `install.py` (wrapper template, scaffold)
 
+### REQ-F-BOOTDOC — Bootloader as Compiled Graph Asset
+
+Adds `bootloader` as the 11th graph asset — a compiled constraint surface synthesised from specification, standards, and design. Four F_D evaluators validate currency (spec hash, version, section coverage, reference validity). F_P regenerates from source documents. F_H approves. Leaf node — nothing depends on it.
+
+**Modules affected**: `sdlc_graph.py` (new asset, edge E8, evaluators, contexts), `install.py` (bootloader generation on install)
+
+### REQ-F-DAG-TOPO — DAG Topology with Relationship Type Separation
+
+Rewires the graph from a linear pipeline to a clean DAG. Separates artifact lineage (creative input) from evidence prerequisites (convergence gates) in edge definitions. Removes co-evolve reflexive edge. Code and unit_tests become parallel derivations from module_decomp. User guide lineage changes to design. UAT decoupled from user guide.
+
+**Modules affected**: `sdlc_graph.py` (edge rewiring, lineage changes, context reassignment, remove co_evolve), `install.py` (updated scaffolding if needed)
+
 ---
 
 ## Coverage Summary
 
 ```
-Requirements: 37 REQ keys defined
-Covered:      37/37  [==========]  100%
+Requirements: 41 REQ keys defined
+Covered:      41/41  [==========]  100%
 Gaps:         (none)
-Features:     16 vectors — 14 completed, 2 in progress (CUSTODY, TERRITORY)
+Features:     18 vectors — 14 completed, 2 in progress (CUSTODY, TERRITORY), 2 new (BOOTDOC, DAG-TOPO)
 ```

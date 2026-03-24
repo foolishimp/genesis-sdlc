@@ -344,6 +344,16 @@ The spec/design boundary sits at `feature_decomp→design`. Everything upstream 
 
 The `design→module_decomp` edge decomposes design ADRs into an ordered build schedule. Each module is recorded as a `.ai-workspace/modules/MOD-*.yml` artifact listing its rank, dependencies, and which design features it implements. The `module_coverage` F_D evaluator checks that every design feature is assigned to at least one module before any code is written. An F_H gate (`schedule_approved`) requires human approval of the module build order.
 
+### The bootloader as a graph asset
+
+<!-- Covers: REQ-F-BOOTDOC-001, REQ-F-BOOTDOC-002, REQ-F-BOOTDOC-003, REQ-F-BOOTDOC-004 -->
+
+The bootloader (`SDLC_BOOTLOADER.md` / the SDLC section of `CLAUDE.md`) is a compiled constraint surface — a derived document synthesised from specification, standards, and design. It is the 11th graph asset with its own edge, evaluators, and convergence lifecycle.
+
+Edge E8 `[requirements, design, integration_tests]→bootloader`: creative input from requirements and design, evidence gate from integration_tests. Four F_D evaluators validate currency without LLM invocation: `spec_hash_current` (spec hash matches bootloader header), `version_current` (version matches active-workflow.json), `section_coverage_complete` (all mandatory sections present), `references_valid` (all `workspace://` paths resolve). F_P regenerates the bootloader from source documents. F_H approves the compiled output.
+
+The bootloader is a **leaf node** — no other asset depends on it. Methodology health (is the bootloader current?) is separate from product acceptance (does UAT pass?). `gen-gaps` tracks bootloader convergence but it does not block downstream edges.
+
 ### The TDD edge
 
 `code↔unit_tests` is a co-evolution edge — `co_evolve=True`. Code and tests are co-authored. The `code` asset is the source; `unit_tests` is the target. Both change together under the same evaluator set.

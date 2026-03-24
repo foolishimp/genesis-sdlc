@@ -108,8 +108,8 @@ PYTHONPATH=.genesis python -m genesis gaps --workspace .
 ├── specification/                     ← axiomatic ontology (intent, requirements, standards)
 ├── builds/{platform}/
 │   ├── src/                           ← implementation source
-│   └── tests/                         ← test suite
-├── design/adrs/                       ← architecture decision records
+│   ├── tests/                         ← test suite
+│   └── design/adrs/                   ← architecture decision records
 ├── docs/                              ← user-facing documentation
 ├── .genesis/                          ← ABG kernel (immutable, owned by abiogenesis)
 │   ├── genesis/                       ← engine modules
@@ -461,7 +461,7 @@ Capture the feature vectors, dependency ordering, and MVP boundary here.
 
 # Directories the graph expects to exist (created empty).
 _SCAFFOLD_DIRS: list[str] = [
-    "design/adrs",
+    "builds/{platform}/design/adrs",
     "builds/{platform}/src",
     "builds/{platform}/tests",
     "docs",
