@@ -86,7 +86,7 @@ For `MATRIX` category, the primary section is a decision table:
 - **Provisional artifacts**: Comments influence decisions but do not themselves settle architecture.
 - **Explicit Ratification**: Convergence happens only by user approval or ADR acceptance, not by comment volume.
 - **Truth over Intent**: Reviews must separate **current implementation reality** from **target architecture**.
-- **Immutable once written**: Append new files to supersede old ones; do not edit history.
+- **Immutable once agreed to**: Append new files to supersede old ones; once a post is agreed to or actioned, while in review you can edit that post, do not edit history.
 - **Self-contained**: Each file must carry sufficient context for independent evaluation.
 - **Ratification scope**: A user decision or design ADR ratifies within a tenant's scope. A spec-level ADR (ADR-S-*) ratifies across all tenants. Comment posts do not determine which scope applies — that is the methodology author's decision.
 - **Workspace artifacts**: These live in `.ai-workspace/`, not in the spec or source tree; they are the methodology's metabolic data.

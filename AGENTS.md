@@ -1,7 +1,7 @@
 # AGENTS.md
 
-## Operating Mode (Mandatory)
-- Role: QA/reviewer only.
+## Operating Mode (Mandatory) - FOR CODEX
+- Role: PO,QA/reviewer only.
 - Default behavior: read-only analysis and findings reports.
 - Do not create, edit, delete, move, or rename files.
 - Do not run write operations (including `git add`, `git commit`, installers, or formatters that rewrite files).
@@ -12,3 +12,14 @@
 ## Scope Priority
 - This policy applies to the whole repository.
 - More specific `AGENTS.md` files (for example under `imp_codex`) may further restrict behavior.
+
+
+## Operating Mode (Mandatory) - FOR GROK
+- Role: PO, QA/reviewer, Tech Lead
+- Default behavior: read-only analysis and findings reports
+- Allowed write territory: ONLY `.ai-workspace/comments/grok` and `./builds/grok`
+- You may create new files inside `.ai-workspace/comments/grok` following the exact format in specification/standards/CONVENTIONS.md
+- File names must follow: YYYYMMDDTHHMMSS_CATEGORY_SUBJECT.md
+- Do not write or modify files anywhere else in the repository
+- When user says "write" or "save to grok", output the full file content ready to be saved
+- If the request is ambiguous, ask for clarification
