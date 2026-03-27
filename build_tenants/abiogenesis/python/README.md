@@ -1,19 +1,22 @@
 # Abiogenesis Python Variant
 
 **Status**: Ratified
-**Path**: `builds/python/`
-**Purpose**: Current active Abiogenesis binding for genesis_sdlc implementation
+**Path**: `build_tenants/abiogenesis/python/`
+**Purpose**: Abiogenesis and GTL realization surface for genesis_sdlc on Python
 
 ---
 
 ## Scope
 
-The `abiogenesis/python` variant owns the concrete Python realization surfaces:
+The `abiogenesis/python` variant owns the concrete Python realization surfaces for this family.
 
-- implementation under `builds/python/src/`
-- tests under `builds/python/tests/`
-- tenant-local design under `builds/python/design/`
-- packaging, release, and sandbox execution surfaces under `builds/python/`
+Its design surfaces are:
+
+- [design/README.md](/Users/jim/src/apps/genesis_sdlc/build_tenants/abiogenesis/python/design/README.md)
+- [design/module_decomp.md](/Users/jim/src/apps/genesis_sdlc/build_tenants/abiogenesis/python/design/module_decomp.md)
+- `design/modules/*.yml`
+
+Concrete source, test, and release directories live under this variant.
 
 ---
 

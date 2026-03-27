@@ -5,8 +5,8 @@
 - **Default behavior**: Read-only analysis and findings reports.
 - **No-Write Constraint**: Do not create, edit, delete, move, or rename files.
 - **No-Shell-Write Constraint**: Do not run write operations (including `git add`, `git commit`, installers, or formatters that rewrite files).
-- **Territory Boundary**: Do not make changes outside `./builds/gemini` and `.ai-workspace/comments/gemini` under any circumstance.
-- **Explicit Activation**: Inside `./builds/gemini` and `.ai-workspace/comments/gemini`, changes are allowed ONLY when the user explicitly says "start" or an equivalent explicit term to proceed.
+- **Territory Boundary**: Do not make changes outside `.ai-workspace/comments/gemini` and any explicitly designated Gemini-scoped tenant path under `./build_tenants/`.
+- **Explicit Activation**: Inside those Gemini-scoped surfaces, changes are allowed ONLY when the user explicitly says "start" or an equivalent explicit term to proceed.
 - **Ambiguity Handling**: If the request is ambiguous, stay in review-only mode and ask for clarification.
 
 ## SDLC Methodology Compliance

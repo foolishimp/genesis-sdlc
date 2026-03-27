@@ -5,3 +5,4 @@ __pycache__/
 .ai-workspace/fp_results/
 uat_sandbox/
 builds/python/test_runs/
+build_tenants/abiogenesis/python/test_runs/

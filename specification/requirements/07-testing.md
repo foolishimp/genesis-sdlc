@@ -25,6 +25,18 @@ Testing requirements define the primary evidence surface for proving workflow be
 Version sandboxing ensures tests run against the release candidate source, not stale installed copies.
 
 **Acceptance Criteria**:
-- AC-1: All F_D evaluator `command:` fields that invoke pytest use `PYTHONPATH=builds/python/src/:.genesis`
-- AC-2: This ensures tests import from the build source tree, not from any system-installed package
+- AC-1: All F_D evaluator `command:` fields that invoke pytest pin `PYTHONPATH` to the active build-tenant source root plus `.genesis`
+- AC-2: This ensures tests import from the active authoring source tree, not from any system-installed package
 - AC-3: F_D evaluator acyclicity is preserved — test commands never invoke genesis subcommands
+
+### REQ-F-TEST-004 — Sandbox-backed e2e scenarios preserve persistent run archives
+
+Fresh sandbox execution is scratch space. Postmortem requires a durable run record.
+
+**Acceptance Criteria**:
+- AC-1: Every sandbox-backed e2e scenario supports a persistent run archive under a stable, non-temporary `test_runs/` root
+- AC-2: Archive paths are scenario-oriented and encode at minimum use-case identity plus sortable run timestamp
+- AC-3: Each archived run preserves the full sandbox workspace needed for replay-free postmortem
+- AC-4: Each archived run preserves operator-facing run metadata and summary artifacts, including subprocess logs and a convergence summary
+- AC-5: Archive materialization occurs before fixture teardown or sandbox cleanup
+- AC-6: Archived runs are immutable and non-overwriting; a later run does not destroy a prior archive

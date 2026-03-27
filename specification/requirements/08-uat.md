@@ -26,6 +26,6 @@ UAT requirements define the release-acceptance evidence surface and its human ap
 
 **Acceptance Criteria**:
 - AC-1: `uat_tests` asset has a single F_H evaluator: `uat_accepted`
-- AC-2: Human reviews: (1) sandbox_report.json shows all_pass, (2) USER_GUIDE.md is coherent and version-current, (3) every operator-facing feature is documented
+- AC-2: Human reviews: (1) sandbox_report.json shows all_pass, (2) the user-guide artifact is coherent and version-current, (3) every operator-facing feature is documented
 - AC-3: No release ships without human approval at this gate
 - AC-4: `--human-proxy` may proxy this gate only if the sandbox report is available and all e2e scenarios pass

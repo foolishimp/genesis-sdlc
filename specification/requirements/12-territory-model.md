@@ -19,10 +19,10 @@ The gsdlc installer must produce its own territory separate from the ABG kernel.
 
 ### REQ-F-TERRITORY-002 — Runtime resolves from installed territories, not build source
 
-The deployed runtime path must not include `builds/`.
+The deployed runtime path must not include authoring-source roots.
 
 **Acceptance Criteria**:
-- AC-1: `genesis.yml` pythonpath contains `.gsdlc/release`, not `builds/python/src`
+- AC-1: `genesis.yml` pythonpath contains `.gsdlc/release`, not a build-tenant source root
 - AC-2: `PYTHONPATH=.genesis python -m genesis gaps --workspace .` resolves Package from `.gsdlc/release/gtl_spec/packages/{slug}.py`
-- AC-3: No import in the runtime chain requires `builds/` on sys.path
-- AC-4: Evaluator commands MAY reference `builds/` — they test source, not deploy it
+- AC-3: No import in the runtime chain requires authoring-source roots on sys.path
+- AC-4: Evaluator commands MAY reference build-tenant source roots — they test source, not deploy it

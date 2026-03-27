@@ -1,0 +1,20 @@
+id: MOD-001
+name: workflow_core
+description: Owns the GTL package boundary, lifecycle node set, job registry, graph manifest, and project requirement custody for the 1.0 base process workflow.
+implements_features:
+  - workflow.base_graph
+  - workflow.markov_contracts
+  - workflow.requirements_registry
+dependencies: []
+rank: 1
+interfaces:
+  - instantiate(slug, requirements=None)
+  - package
+  - worker
+  - graph_manifest()
+source_files:
+  - src/genesis_sdlc/workflow/assets.py
+  - src/genesis_sdlc/evidence/fd_checks.py
+  - src/genesis_sdlc/workflow/graph.py
+  - src/genesis_sdlc/workflow/package.py
+  - src/genesis_sdlc/workflow/requirements.py

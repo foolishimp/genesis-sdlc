@@ -30,6 +30,21 @@ Control carriers may embed or cache bare operating axioms, but they are not prim
 
 Concrete carrier filenames, placement, and embedding topology remain design choices below this shared boundary.
 
+Two carrier modes are lawful:
+
+- compacted carrier mode: the carrier embeds the compiled bootloader content directly as its operating surface
+- paired entry mode: the carrier drives ABG together with the released bootloader artifact, leaving the compiled bootloader as a distinct runtime surface
+
+Both modes preserve the same source/compiled/delivery boundary. The choice between them is a tenant-local design decision unless promoted to common.
+
+In the `abiogenesis` family, paired entry divides ownership as follows:
+
+- the upstream ABG installer provides the engine entry surface, vendored GTL, kernel bootstrap config seed, and the ABG/GTL bootloader carrier
+- the domain realization provides package and worker binding, runtime contract, and the domain bootloader artifact or its carrier embedding
+
+The ABG/GTL bootloader remains upstream-owned. Domain packages do not own or rewrite it; they only
+add their own compiled domain bootloader surfaces alongside it or through a separate domain carrier.
+
 ---
 
 ## Consequences
@@ -37,4 +52,6 @@ Concrete carrier filenames, placement, and embedding topology remain design choi
 - source truth stays in authored specification and design surfaces
 - compiled bootloader drift becomes observable as a graph problem rather than a documentation habit
 - control carriers stay replaceable without reclassifying them as constitutional surfaces
+- the bootloader may function as the runtime entry surface either by compaction into the carrier or by explicit pairing with ABG
+- in the Abiogenesis family, the ABG/GTL bootloader and its carrier originate from the upstream `gen-install.py` boundary and remain upstream-owned
 - different realization families or variants may choose different carrier layouts while preserving the same source/compiled/delivery boundary

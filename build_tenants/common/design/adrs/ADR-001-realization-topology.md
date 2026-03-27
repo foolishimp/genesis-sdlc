@@ -12,7 +12,6 @@ The specification defines the SDLC constitutional `what`, but the repository sti
 
 That topology must satisfy four constraints:
 
-- shared GTL-level definition law must remain portable
 - shared design law must not be inferred from one implementation
 - different realization families must be able to coexist without ambient bleed
 - concrete implementation layout must remain downstream of design rather than being treated as constitutional by habit
@@ -24,14 +23,13 @@ That topology must satisfy four constraints:
 genesis_sdlc adopts a hierarchical realization topology:
 
 - `build_tenants/common/` is the shared realization root
-- `build_tenants/common/gtl/` holds portable GTL-level definitions and precedents
 - `build_tenants/common/design/` holds shared design law across realization families
 - `build_tenants/<family>/` holds family-level realization surfaces for one substrate or realization family
 - `build_tenants/<family>/<variant>/` holds a concrete binding or deployment variant within that family
 
-The current active realization family is `abiogenesis`.
+The realization family is `abiogenesis`.
 
-The current active variant is `abiogenesis/python`.
+The realization variant is `abiogenesis/python`.
 
 No folder becomes authoritative merely by existing. Authority flows from ratified design surfaces, not from ambient filesystem precedent.
 
@@ -39,7 +37,7 @@ No folder becomes authoritative merely by existing. Authority flows from ratifie
 
 ## Consequences
 
-- GTL portability is preserved as a shared surface rather than hidden inside one family
 - new realization families can be added without redefining the constitutional specification
 - family-local and variant-local design can diverge lawfully without contaminating common design
-- any future concrete implementation layout must be intentionally adopted beneath the family or variant that owns it
+- concrete implementation layout sits beneath the family or variant that owns it
+- engine-owned orchestration stays outside tenant module schedules even when command requirements are active upstream

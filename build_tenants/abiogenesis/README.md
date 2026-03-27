@@ -12,10 +12,7 @@
 It is where the repo records:
 
 - family-level realization assumptions
-- family-local design law that applies across Abiogenesis variants
 - the set of active Abiogenesis variants
-
-It does not own portable GTL definition law.
 
 ---
 
@@ -25,10 +22,8 @@ The Abiogenesis family realizes:
 
 - `specification/`
 - `build_tenants/common/`
-- `build_tenants/common/gtl/`
+- `build_tenants/abiogenesis/python/`
 
-Current active variant:
+Active variant:
 
 - [python/README.md](/Users/jim/src/apps/genesis_sdlc/build_tenants/abiogenesis/python/README.md)
-
-Future variants may include other bindings or deployment modes under this family when they become real.

@@ -1,0 +1,21 @@
+id: MOD-002
+name: release_bootstrap
+description: Owns install, audit, wrapper generation, requirements loading, territory separation, and bootloader compilation for released methodology delivery.
+implements_features:
+  - release.install
+  - release.wrapper_generation
+  - release.bootloader_compile
+  - release.territory_boundary
+dependencies:
+  - workflow_core
+rank: 2
+interfaces:
+  - install(target, source, audit_only=False)
+  - load_project_requirements()
+  - render_wrapper()
+  - synthesize_bootloader()
+source_files:
+  - src/genesis_sdlc/release/install.py
+  - src/genesis_sdlc/release/bootloader.py
+  - src/genesis_sdlc/release/wrapper.py
+  - src/genesis_sdlc/release/territory.py

@@ -8,7 +8,7 @@ Bootstrap requirements govern how genesis_sdlc installs and validates its method
 
 ### REQ-F-BOOT-001 — gen-install bootstraps target project with engine + methodology
 
-The installer copies the genesis engine and methodology into a target project so it can run without an installed package. It creates the five-territory structure: `.genesis/` (ABG kernel, immutable), `.gsdlc/release/` (gsdlc methodology, immutable between releases), `.ai-workspace/` (runtime evidence), `specification/` (read-only axioms), `builds/` (read-write source).
+The installer copies the genesis engine and methodology into a target project so it can run without an installed package. It establishes the installed runtime surface: `.genesis/` (ABG kernel, immutable), `.gsdlc/release/` (gsdlc methodology release, immutable between reinstalls), `.ai-workspace/` (runtime evidence), and project-local `specification/` (constitutional source for the target project).
 
 **Acceptance Criteria**:
 - AC-1: `install(target, source)` creates `.genesis/genesis/` with engine modules copied from the abiogenesis engine
@@ -35,7 +35,7 @@ The engine reads its Package and Worker from a config file at startup.
 The install architecture separates immutable methodology spec from mutable project spec, with gsdlc artifacts in `.gsdlc/release/` (not `.genesis/`).
 
 **Acceptance Criteria**:
-- AC-1: `install()` copies `sdlc_graph.py` into `.gsdlc/release/spec/genesis_sdlc.py` as the frozen methodology layer
+- AC-1: `install()` copies the realized workflow package and supporting release assets into `.gsdlc/release/` as the frozen methodology layer
 - AC-2: The installed spec is versioned: `.gsdlc/release/workflows/genesis_sdlc/standard/v{VERSION}/` contains the release snapshot
 - AC-3: The frozen spec is never modified after install — it represents the methodology version that was installed
 

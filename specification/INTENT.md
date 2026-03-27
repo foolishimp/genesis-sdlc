@@ -126,7 +126,7 @@ genesis_sdlc treats `integration_tests` and `user_guide` as first-class graph as
 
 ### Out of Scope
 
-- Rewriting USER_GUIDE.md content (only adding traceability tags)
+- Rewriting the user-guide artifact content (only adding traceability tags)
 - Multiple guide formats
 - Automated guide generation
 
@@ -230,3 +230,51 @@ graph TD
 3. The bootloader F_D evaluators catch: wrong spec hash, wrong version, missing section, broken reference
 4. The graph renders as a clean DAG — no reflexive edges
 5. Clean install into an empty target produces 11 assets, 10 edges, all context paths resolve
+
+---
+
+## INT-005 — SDLC As Ecosystem Lifecycle
+
+### Problem
+
+If the lifecycle stops at `uat_tests`, the framework appears to end at acceptance. That is too narrow. A real software-development process belongs to a larger ecosystem: pre-intent incubation exists before the workflow; accepted artifacts move into operational use after it; operational observations create signals; those signals must be evaluated and returned to the pre-intent holding area.
+
+Without that wider framing, release, operation, monitoring, and renewal look like implementation afterthoughts rather than part of the system’s actual lifecycle.
+
+### Value Proposition
+
+genesis_sdlc treats the 1.0 development workflow as the core of a larger ecosystem lifecycle:
+
+```text
+creche -> intent -> requirements -> feature_decomp -> design -> module_decomp
+       -> code -> unit_tests -> integration_tests -> user_guide -> uat_tests
+       -> publish -> operational_env -> monitoring -> homeostatic_eval -> creche
+```
+
+- `creche` is the pre-intent incubation surface
+- `publish` is distinct from acceptance
+- `operational_env` is the live usage/deployment boundary
+- `monitoring` is the operational observation surface
+- `homeostatic_eval` turns field signals into actionable observations that return to `creche`
+
+This makes the SDLC explicitly homeostatic rather than a pipeline that terminates at acceptance.
+
+### Scope
+
+- The 1.0 base process workflow remains the development-lifecycle core
+- The wider ecosystem lifecycle defines the post-acceptance and pre-intent stages the framework belongs to
+- The return path from `monitoring` through `homeostatic_eval` back to `creche` is part of the lifecycle ontology
+- Backlog and intent-raising remain the mechanism by which observations re-enter the normal renewal path
+
+### Out of Scope
+
+- Making the Phase 2 ecosystem stages mandatory 1.0 graph assets
+- Prescribing one release, deployment, install, CI/CD, or telemetry stack
+- Treating automation tooling as a substitute for lifecycle stages
+
+### Success Criteria
+
+1. The specification distinguishes acceptance from publish
+2. The specification distinguishes development workflow from operational lifecycle
+3. Operational observation has an explicit return path into pre-intent incubation
+4. The ecosystem lifecycle is definable without prescribing one automation stack
