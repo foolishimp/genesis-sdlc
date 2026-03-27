@@ -1,7 +1,7 @@
 # Human Gate Requirements
 
 **Family**: REQ-F-GATE-*
-**Status**: Still needed
+**Status**: Active
 **Category**: Governance
 
 Human gate requirements define where and how explicit human approval is constitutionally required.

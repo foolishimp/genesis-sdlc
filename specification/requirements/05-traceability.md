@@ -1,7 +1,7 @@
 # Traceability Requirements
 
 **Family**: REQ-F-TAG-*, REQ-F-COV-*
-**Status**: Still needed
+**Status**: Active
 **Category**: Verification
 
 Traceability requirements define the deterministic surfaces that prove implementation and tests remain grounded in REQ authority.

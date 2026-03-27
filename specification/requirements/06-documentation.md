@@ -1,7 +1,7 @@
 # Documentation Requirements
 
 **Family**: REQ-F-DOCS-*
-**Status**: Still needed
+**Status**: Active
 **Category**: Capability
 
 Documentation requirements define the operator-facing guide surface and its place on the convergence path.

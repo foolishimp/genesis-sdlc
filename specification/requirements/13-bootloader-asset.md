@@ -1,14 +1,14 @@
 # Bootloader Asset Requirements
 
 **Family**: REQ-F-BOOTDOC-*
-**Status**: Still needed
+**Status**: Active
 **Category**: Verification
 
 Bootloader asset requirements define how the SDLC bootloader becomes a convergence-tracked graph artifact rather than a hand-maintained side document.
 
 ### REQ-F-BOOTDOC-001 — bootloader is a compiled graph asset with F_D currency validation
 
-The bootloader (`SDLC_BOOTLOADER.md` / the SDLC section of `CLAUDE.md`) is a derived document — a compiled constraint surface synthesised from specification, standards, and design. It is a graph asset with its own edge, evaluators, and convergence lifecycle. It is not a primary source.
+The bootloader is a derived document — a compiled constraint surface synthesised from specification, standards, and design. It is a graph asset with its own edge, evaluators, and convergence lifecycle. It is not a primary source. It may be released as a standalone artifact and/or embedded into supported agent control surfaces, but those carrier files are design choices rather than requirement truth.
 
 **Acceptance Criteria**:
 - AC-1: `bootloader` is an asset in the Package with ID format `BOOT-{SEQ}` and lineage `[requirements, design]`
@@ -28,7 +28,7 @@ Four deterministic evaluators catch staleness. All computable without LLM invoca
 
 ### REQ-F-BOOTDOC-003 — F_P regenerates bootloader from source documents
 
-The bootloader is synthesised from three authored planes, not hand-maintained. F_P regenerates all content; F_D validates the structure.
+The bootloader is synthesised from three authored planes, not hand-maintained. F_P regenerates all content; F_D validates the structure. Control-surface carrier files consume this compiled artifact; they do not replace it as a source of truth.
 
 **Acceptance Criteria**:
 - AC-1: F_P evaluator `synthesize_bootloader` regenerates the bootloader from specification, standards, and design documents

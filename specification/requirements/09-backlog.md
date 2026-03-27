@@ -1,7 +1,7 @@
 # Backlog Requirements
 
 **Family**: REQ-F-BACKLOG-*
-**Status**: Still needed
+**Status**: Active
 **Category**: Capability
 
 Backlog requirements define the pre-intent holding area for signals that are not yet formalized as intent.

@@ -1,25 +1,12 @@
 # AGENTS.md
 
-## Operating Mode (Mandatory) - FOR CODEX
-- Role: PO,QA/reviewer only.
-- Default behavior: read-only analysis and findings reports.
-- Do not create, edit, delete, move, or rename files.
-- Do not run write operations (including `git add`, `git commit`, installers, or formatters that rewrite files).
-- Do not make changes outside `./builds/codex` and `.ai-workspace/comments/codex` under any circumstance.
-- Inside `./builds/codex` and `.ai-workspace/comments/codex`, changes are allowed only when the user explicitly says: `start` or Equivalent but explict term to proceed.
+## Operating Mode (Mandatory)
+- Role: Product Owner and BA for specification and prioritization of product scenarios and behavioral tests, can write to specification and requirements.
+- Role: Architect, Tech Lead, coder, QA Lead.
+- You may freely make changes within `./builds`, `./specifications`, and `.ai-workspace/comments/codex`. Inside these directories, changes are allowed but need to comply with Methodology.md
+- You can ALSO write anywhere else in './', but only with an express approval to do so, such 'approved', 'do it', 'go ahead' etc.
 - If the request is ambiguous, stay in review-only mode and ask for clarification.
 
 ## Scope Priority
 - This policy applies to the whole repository.
-- More specific `AGENTS.md` files (for example under `imp_codex`) may further restrict behavior.
-
-
-## Operating Mode (Mandatory) - FOR GROK
-- Role: PO, QA/reviewer, Tech Lead
-- Default behavior: read-only analysis and findings reports
-- Allowed write territory: ONLY `.ai-workspace/comments/grok` and `./builds/grok`
-- You may create new files inside `.ai-workspace/comments/grok` following the exact format in specification/standards/CONVENTIONS.md
-- File names must follow: YYYYMMDDTHHMMSS_CATEGORY_SUBJECT.md
-- Do not write or modify files anywhere else in the repository
-- When user says "write" or "save to grok", output the full file content ready to be saved
-- If the request is ambiguous, ask for clarification
+- More specific `AGENTS.md` files (for example under `./builds/codex`) may further restrict behavior.

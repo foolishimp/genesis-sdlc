@@ -25,10 +25,10 @@
 Within this architecture:
 
 - `genesis_sdlc` is the software development process domain
-- `abiogenesis` is the engine/runtime that realizes declared process structure
+- an engine/runtime realizes the declared process structure
 - project `INTENT.md`, `requirements/`, design, code, and evidence surfaces are downstream of the method
 
-Therefore the canonical software-development-process doctrine belongs with `genesis_sdlc`, not with the ABG engine.
+Therefore the canonical software-development-process doctrine belongs with `genesis_sdlc`, not with any particular engine implementation.
 
 ---
 
@@ -57,6 +57,8 @@ The genesis_sdlc method refines the general baseline in these ways:
 - the live requirement surface is folder-based under `specification/requirements/`
 - requirements may be stored individually or in requirement families
 - the method is declarative-first: truth, structure, evaluators, and evidence surfaces are declared before imperative mechanism
+- agent entry and control surfaces are design surfaces; the requirement layer may require authoritative bootstrap to exist, but design chooses the concrete carrier topology
+- bootstrap carriers may cache bare axioms for the agent, but they remain routing surfaces that point back to the canonical method documents
 - the software-development-process domain is upstream of the engine that executes it
 
 These refinements specialize the baseline method. They do not replace it.

@@ -1,10 +1,10 @@
 # Bootstrap Requirements
 
 **Family**: REQ-F-BOOT-*
-**Status**: Still needed
+**Status**: Active
 **Category**: Governance
 
-Bootstrap requirements govern how genesis_sdlc installs and validates its methodology surface in a target project.
+Bootstrap requirements govern how genesis_sdlc installs and validates its methodology surface and agent-facing bootstrap/control surfaces in a target project.
 
 ### REQ-F-BOOT-001 — gen-install bootstraps target project with engine + methodology
 
@@ -16,9 +16,10 @@ The installer copies the genesis engine and methodology into a target project so
 - AC-3: Creates `.ai-workspace/` directory structure (events/, features/active/, features/completed/, comments/, reviews/)
 - AC-4: Installs operating standards from `specification/standards/` into `.gsdlc/release/operating-standards/`
 - AC-5: Installs command files from plugin sources into `.claude/commands/`
-- AC-6: Appends SDLC bootloader to `CLAUDE.md` (GTL bootloader is appended by abiogenesis installer)
-- AC-7: Idempotent — re-running updates engine files and standards, preserves workspace state and local specs
-- AC-8: Emits `genesis_sdlc_installed` event on completion with version, spec_hash, and migration outcome
+- AC-6: Installs or updates the supported agent bootstrap/control surfaces defined by the active design
+- AC-7: Delivered bootstrap/control surfaces carry bare operating axioms and route the agent to the canonical released process documents
+- AC-8: Idempotent — re-running updates engine files and standards, preserves workspace state and local specs
+- AC-9: Emits `genesis_sdlc_installed` event on completion with version, spec_hash, and install outcome
 
 ### REQ-F-BOOT-002 — .genesis/genesis.yml config resolves Package/Worker
 
@@ -54,7 +55,7 @@ Upgrade safety: the methodology layer is replaceable, project customisations are
 **Acceptance Criteria**:
 - AC-1: `install()` replaces `.gsdlc/release/spec/` and `.gsdlc/release/workflows/` atomically on reinstall
 - AC-2: System-owned wrappers (with marker) are replaced; customised specs are never overwritten
-- AC-3: One-time provenance migration runs on upgrade: re-emits old events with new schema and workflow version
+- AC-3: On reinstall, provenance reconciliation emits events under the current schema and workflow version
 
 ### REQ-F-BOOT-006 — --audit validates installed artifacts match the release
 
@@ -62,7 +63,7 @@ The installer can verify that a deployment is consistent with the version it cla
 
 **Acceptance Criteria**:
 - AC-1: `install(target, audit_only=True)` returns structured JSON with per-component findings (ok, drifted, missing, error)
-- AC-2: Checks content hashes of workflow release, commands, operating standards, bootloader block, and immutable spec shim against build source
+- AC-2: Checks content hashes of workflow release, commands, operating standards, bootstrap/control-surface artifacts, and immutable spec shim against build source
 - AC-3: Checks version consistency across active-workflow.json, manifest.json, and commands stamp
 - AC-4: Verifies genesis.yml package/worker references resolve via import (not just exist as files)
 - AC-5: Verifies Layer 3 wrapper content matches expected template for the installed version

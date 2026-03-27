@@ -1,7 +1,7 @@
 # Testing Requirements
 
 **Family**: REQ-F-TEST-*
-**Status**: Still needed
+**Status**: Active
 **Category**: Verification
 
 Testing requirements define the primary evidence surface for proving workflow behavior.

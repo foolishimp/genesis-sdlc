@@ -1,7 +1,7 @@
 # Territory Model Requirements
 
 **Family**: REQ-F-TERRITORY-*
-**Status**: Still needed
+**Status**: Active
 **Category**: Constraint / Guarantee
 
 Territory model requirements define the install boundary between ABG kernel surfaces and gsdlc methodology surfaces.

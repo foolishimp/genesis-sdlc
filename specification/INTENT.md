@@ -18,29 +18,34 @@ The result: each project re-derives the same SDLC topology (intent → requireme
 
 genesis_sdlc is a GTL Package that provides the standard SDLC bootstrap graph. A team installs it via `gen-install` and gets:
 
-- **A complete graph**: intent → requirements → feature_decomp → design → module_decomp → code ↔ unit_tests, with evaluators at every edge
+- **A complete graph**: 11 assets, 10 edges, a clean DAG, and evaluators at every edge
 - **Convergence guarantees**: every stage has explicit acceptance criteria (F_D deterministic, F_P agent, F_H human). Work is not done until evaluators pass.
 - **Traceability**: REQ keys thread from intent through requirements, features, design, code, and tests. Coverage is computable at any time.
 - **AI in the right role**: F_D runs first; F_P only when F_D passes; F_H gates stage transitions. No wasted agent calls.
 - **Event-sourced state**: all progress recorded in an append-only event log. State derived from events, not mutable objects. Recovery is replay.
 
-### Scope (V1)
+### Scope
 
 The standard SDLC bootstrap graph:
 
 ```
-intent → requirements → feature_decomp → design → module_decomp → code ↔ unit_tests
+intent → requirements → feature_decomp → design → module_decomp
+module_decomp → code
+module_decomp → unit_tests
+[code, unit_tests] → integration_tests
+[design, integration_tests] → user_guide
+[requirements, design, integration_tests] → bootloader
+[requirements, integration_tests] → uat_tests
 ```
 
-- Install via `gen-install` — bootstraps `.genesis/` with engine + Package
+- Install via `gen-install` — bootstraps `.genesis/` with engine and installs the gsdlc methodology surface
 - Three commands: `gen-gaps` (delta), `gen-iterate` (one cycle), `gen-start` (auto-loop)
 - Human approval gates at spec/design boundaries
 - REQ key traceability enforced by deterministic checks
-- Single worker (claude_code) in V1
 
-### Out of Scope (V1)
+### Out of Scope
 
-- Multi-agent coordination (single worker)
+- Multi-agent coordination
 - GUI or web interface (CLI only)
 - Package distribution (local install only)
 
@@ -63,25 +68,27 @@ The result: code produced from design tends to be under-decomposed or built in a
 
 ### Value Proposition
 
-Insert `module_decomp` between design and code:
+genesis_sdlc treats `module_decomp` as the structural bridge between design and construction:
 
 ```
-design → module_decomp → code ↔ unit_tests
+design → module_decomp
+module_decomp → code
+module_decomp → unit_tests
 ```
 
 The agent (and the human) approve a build schedule before any code is written. Modules are built leaf-first through to root, so each module is implemented against stable interfaces.
 
 ### Scope
 
-- New asset: `module_decomp` with markov: `all_features_assigned`, `dependency_dag_acyclic`, `build_order_defined`
-- New edge: `design→module_decomp` with F_D (module_coverage) + F_P (decompose) + F_H (approve schedule)
-- Modified edge: `module_decomp→code` replaces `design→code`
+- Asset: `module_decomp` with markov: `all_features_assigned`, `dependency_dag_acyclic`, `build_order_defined`
+- Edge: `design→module_decomp` with F_D (module_coverage) + F_P (decompose) + F_H (approve schedule)
+- Downstream derivation: `module_decomp→code` and `module_decomp→unit_tests`
 - Output: `.ai-workspace/modules/*.yml` — one per module with dependencies and build rank
 
 ### Out of Scope
 
 - Basis projections (further decomposition below module level)
-- Parallel build scheduling (single worker in V1)
+- Parallel build scheduling
 
 ---
 
@@ -97,10 +104,12 @@ Two assets that should be on the convergence blocking path are outside the graph
 
 ### Value Proposition
 
-Insert two new assets between `unit_tests` and `uat_tests`:
+genesis_sdlc treats `integration_tests` and `user_guide` as first-class graph assets on the convergence path:
 
 ```
-code ↔ unit_tests → integration_tests → user_guide → uat_tests
+[code, unit_tests] → integration_tests
+[design, integration_tests] → user_guide
+[requirements, integration_tests] → uat_tests
 ```
 
 - `integration_tests`: sandbox install + `pytest -m e2e` produces structured report. F_D checks the report.
@@ -109,11 +118,11 @@ code ↔ unit_tests → integration_tests → user_guide → uat_tests
 
 ### Scope
 
-- New asset: `integration_tests` with markov: `sandbox_install_passes`, `e2e_scenarios_pass`
-- New asset: `user_guide` with markov: `version_current`, `req_coverage_tagged`, `content_certified`
-- New edge: `unit_tests→integration_tests` (F_D report check + F_P sandbox runner)
-- New edge: `integration_tests→user_guide` (F_D version/coverage + F_P content coherence)
-- Modified edge: `user_guide→uat_tests` (pure F_H gate)
+- Asset: `integration_tests` with markov: `sandbox_install_passes`, `e2e_scenarios_pass`
+- Asset: `user_guide` with markov: `version_current`, `req_coverage_tagged`, `content_certified`
+- Edge: `[code, unit_tests]→integration_tests` (F_D report check + F_P sandbox runner)
+- Edge: `[design, integration_tests]→user_guide` (F_D version/coverage + F_P content coherence)
+- Edge: `[requirements, integration_tests]→uat_tests` (pure F_H gate)
 
 ### Out of Scope
 
@@ -127,20 +136,19 @@ code ↔ unit_tests → integration_tests → user_guide → uat_tests
 
 ### Problem
 
-The V1 graph is a linear pipeline masquerading as a DAG:
+A linear pipeline masquerading as a DAG would look like:
 
 ```
-intent → requirements → feature_decomp → design → module_decomp → code ↔ unit_tests
-    → integration_tests → user_guide → uat_tests
+intent → requirements → feature_decomp → design → module_decomp → code → integration_tests → user_guide → uat_tests
 ```
 
 This conflates three distinct relationship types into a single edge chain:
 
 1. **Artifact lineage** (what is this asset intellectually derived from?) is tangled with **evidence prerequisites** (what must be proven before this asset can be accepted?). The user guide's lineage is `[integration_tests]`, but integration tests don't contribute creative content to the guide — design does. Integration tests provide *evidence* that the guide describes a working system.
 
-2. **The bootloader** (`CLAUDE.md` / `SDLC_BOOTLOADER.md`) is a derived document treated as a primary source. It is injected as context on every edge, but nothing in the graph drives its construction, validates its currency, or catches drift when spec/standards/design change. It goes stale silently.
+2. **The agent bootstrap/control surface** is a derived delivery surface treated as a primary source. Whether carried in `CLAUDE.md`, `AGENTS.md`, `SDLC_BOOTLOADER.md`, or another file, it is injected as context on every edge, but nothing in the graph drives its construction, validates its currency, or catches drift when spec/standards/design change. It goes stale silently.
 
-3. **The TDD co-evolve edge** (`code ↔ unit_tests`) imports a work practice into the type system. Tests are a behavioral specification derived from module design, not a co-product of coding. The reflexive edge prevents the graph from being a clean DAG.
+3. **A reflexive code/tests edge** imports a work practice into the type system. Tests are a behavioral specification derived from module design, not a co-product of coding. A reflexive edge prevents the graph from being a clean DAG.
 
 The result: edges encode a conveyor belt where real-world dependencies are a DAG; the bootloader drifts without detection; and the graph topology cannot distinguish "this asset needs that content" from "this asset needs that proof."
 
@@ -152,9 +160,11 @@ Separate the three relationship types (lineage, evidence, delivery) and make eve
 - **Evidence prerequisites**: multi-source `Edge.source` — what must converge before the edge fires
 - **Delivery**: the partial order implied by the edge DAG — structural, not overridable
 
-The bootloader becomes the 11th graph asset — a compiled constraint surface synthesised from specification, standards, and design, validated by F_D for currency and F_P for content. When the spec changes, `gen-gaps` catches the stale bootloader. No more silent drift.
+The bootloader is the 11th graph asset — a compiled constraint surface synthesised from specification, standards, and design, validated by F_D for currency and F_P for content. When the spec changes, `gen-gaps` catches the stale bootloader. No more silent drift.
 
-The graph becomes a clean DAG: 11 assets, 10 edges, four multi-source edges, no reflexive edges.
+The concrete agent entry/control files become a design concern rather than constitutional truth. Requirements can say that a bootstrap/control surface must exist and ship with the method; design decides whether that is realized through `CLAUDE.md`, `AGENTS.md`, a standalone compiled file, embedded sections, or another lawful carrier. Those carriers should contain only bare operating axioms plus routing to the deeper process documents.
+
+The graph is a clean DAG: 11 assets, 10 edges, four multi-source edges, no reflexive edges.
 
 ### Scope
 
@@ -184,12 +194,12 @@ graph TD
     IT -->|E10| UAT
 ```
 
-**Key changes from V1 pipeline:**
-- E5 + E6: module_decomp fans out to code and unit_tests in parallel (co-evolve removed)
-- E7: `[code, unit_tests] → integration_tests` — consistency proven here
-- E8: `[requirements, design, integration_tests] → bootloader` — new asset, leaf node
+**Key topology properties:**
+- E5 + E6: module_decomp fans out to code and unit_tests in parallel
+- E7: `[code, unit_tests] → integration_tests` — consistency is proven here
+- E8: `[requirements, design, integration_tests] → bootloader` — bootloader is a leaf asset
 - E9: `[design, integration_tests] → user_guide` — lineage is design, evidence is integration
-- E10: `[requirements, integration_tests] → uat_tests` — decoupled from user_guide
+- E10: `[requirements, integration_tests] → uat_tests` — UAT is decoupled from user_guide
 
 **New asset — bootloader:**
 - Compiled constraint surface for LLM consumption (~150-200 lines, 10:1 compression from source docs)
@@ -201,6 +211,10 @@ graph TD
 **Context model cleanup:**
 - `sdlc_bootloader` removed as edge context input (it is an output, not an input)
 - Source documents referenced directly as edge contexts (spec_requirements, spec_features, operating_standards)
+
+**Control-surface boundary:**
+- requirements own the need for authoritative agent bootstrap/control delivery
+- design owns concrete filenames, placement, and embedding topology for those surfaces
 
 ### Out of Scope
 

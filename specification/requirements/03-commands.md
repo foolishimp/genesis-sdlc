@@ -1,7 +1,7 @@
 # Command Requirements
 
 **Family**: REQ-F-CMD-*
-**Status**: Still needed
+**Status**: Active
 **Category**: Capability
 
 Command requirements define the named operational surfaces that expose the SDLC graph to users and automation.

@@ -1,7 +1,7 @@
 # UAT Requirements
 
 **Family**: REQ-F-UAT-*
-**Status**: Still needed
+**Status**: Active
 **Category**: Verification
 
 UAT requirements define the release-acceptance evidence surface and its human approval boundary.

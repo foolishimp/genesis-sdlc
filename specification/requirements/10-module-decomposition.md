@@ -1,7 +1,7 @@
 # Module Decomposition Requirements
 
 **Family**: REQ-F-MDECOMP-*
-**Status**: Still needed
+**Status**: Active
 **Category**: Capability
 
 Module decomposition requirements define the structural bridge between design and code construction.
