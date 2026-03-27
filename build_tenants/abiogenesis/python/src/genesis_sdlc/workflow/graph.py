@@ -16,7 +16,10 @@ from gtl.work_model import ContractRef, Job, Role
 
 from .assets import (
     BASE_CONTEXTS,
+    DESIGN_CONTEXTS,
+    FEATURE_CONTEXTS,
     BASE_NODES,
+    RELEASE_CONTEXTS,
     bootloader,
     code,
     design,
@@ -231,7 +234,7 @@ v_intent_requirements = GraphVector(
     target=requirements,
     operators=(human_gate,),
     evaluators=(eval_intent_fh,),
-    contexts=BASE_CONTEXTS,
+    contexts=FEATURE_CONTEXTS,
     rule=standard_gate,
 )
 v_requirements_feature_decomp = GraphVector(
@@ -240,7 +243,7 @@ v_requirements_feature_decomp = GraphVector(
     target=feature_decomp,
     operators=(python_constructor, deterministic_check),
     evaluators=(eval_feature_fd, eval_feature_fp),
-    contexts=BASE_CONTEXTS,
+    contexts=FEATURE_CONTEXTS,
 )
 v_feature_decomp_design = GraphVector(
     name="feature_decomp→design",
@@ -248,7 +251,7 @@ v_feature_decomp_design = GraphVector(
     target=design,
     operators=(python_constructor, human_gate),
     evaluators=(eval_design_fp, eval_design_fh),
-    contexts=BASE_CONTEXTS,
+    contexts=DESIGN_CONTEXTS,
     rule=standard_gate,
 )
 v_design_module_decomp = GraphVector(
@@ -257,7 +260,7 @@ v_design_module_decomp = GraphVector(
     target=module_decomp,
     operators=(python_constructor, human_gate, deterministic_check),
     evaluators=(eval_module_fd, eval_module_fp, eval_module_fh),
-    contexts=BASE_CONTEXTS,
+    contexts=DESIGN_CONTEXTS,
     rule=standard_gate,
 )
 v_module_decomp_code = GraphVector(
@@ -266,7 +269,7 @@ v_module_decomp_code = GraphVector(
     target=code,
     operators=(python_constructor, deterministic_check),
     evaluators=(eval_code_fd, eval_code_fp),
-    contexts=BASE_CONTEXTS,
+    contexts=DESIGN_CONTEXTS,
 )
 v_module_decomp_unit_tests = GraphVector(
     name="module_decomp→unit_tests",
@@ -274,7 +277,7 @@ v_module_decomp_unit_tests = GraphVector(
     target=unit_tests,
     operators=(python_constructor, deterministic_check),
     evaluators=(eval_unit_fd, eval_unit_fp),
-    contexts=BASE_CONTEXTS,
+    contexts=DESIGN_CONTEXTS,
 )
 v_integration_tests = GraphVector(
     name="[code, unit_tests]→integration_tests",
@@ -287,7 +290,7 @@ v_integration_tests = GraphVector(
         eval_integration_fp,
         eval_integration_fp_sandbox,
     ),
-    contexts=BASE_CONTEXTS,
+    contexts=DESIGN_CONTEXTS,
 )
 v_user_guide = GraphVector(
     name="[design, integration_tests]→user_guide",
@@ -295,7 +298,7 @@ v_user_guide = GraphVector(
     target=user_guide,
     operators=(python_constructor, deterministic_check),
     evaluators=(eval_guide_fd, eval_guide_fd_coverage, eval_guide_fp),
-    contexts=BASE_CONTEXTS,
+    contexts=RELEASE_CONTEXTS,
 )
 v_bootloader = GraphVector(
     name="[requirements, design, integration_tests]→bootloader",
@@ -310,7 +313,7 @@ v_bootloader = GraphVector(
         eval_bootloader_fp,
         eval_bootloader_fh,
     ),
-    contexts=BASE_CONTEXTS,
+    contexts=RELEASE_CONTEXTS,
     rule=standard_gate,
 )
 v_uat_tests = GraphVector(
@@ -319,7 +322,7 @@ v_uat_tests = GraphVector(
     target=uat_tests,
     operators=(human_gate,),
     evaluators=(eval_uat_fh,),
-    contexts=BASE_CONTEXTS,
+    contexts=RELEASE_CONTEXTS,
     rule=standard_gate,
 )
 
@@ -456,7 +459,7 @@ workflow_graph = Graph(
     outputs=(uat_tests, user_guide, bootloader),
     nodes=BASE_NODES,
     vectors=BASE_VECTORS,
-    contexts=BASE_CONTEXTS,
+    contexts=(),
     rules=BASE_RULES,
     tags=("genesis_sdlc", "base_process_workflow"),
 )

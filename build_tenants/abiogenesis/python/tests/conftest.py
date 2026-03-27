@@ -19,6 +19,7 @@ from run_archive import create_run_archive
 
 def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "e2e: sandbox end-to-end workflow test")
+    config.addinivalue_line("markers", "live_fp: live F_P qualification tests (requires agent CLI)")
     config.addinivalue_line("markers", "usecase_id(name): stable run-archive grouping for postmortem")
 
 

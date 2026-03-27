@@ -40,3 +40,14 @@ Fresh sandbox execution is scratch space. Postmortem requires a durable run reco
 - AC-4: Each archived run preserves operator-facing run metadata and summary artifacts, including subprocess logs and a convergence summary
 - AC-5: Archive materialization occurs before fixture teardown or sandbox cleanup
 - AC-6: Archived runs are immutable and non-overwriting; a later run does not destroy a prior archive
+
+### REQ-F-TEST-005 — Scenario qualification supports fake-lane and live-lane parity
+
+Workflow scenarios that depend on F_P closure or transport-sensitive behavior require both law-proof and real-agent proof.
+
+**Acceptance Criteria**:
+- AC-1: Scenario-oriented workflow tests distinguish fake-lane and live-lane qualification where F_P dispatch or transport-sensitive behavior is part of the scenario
+- AC-2: The fake lane proves workflow law over the scenario boundary without depending on live model quality or transport success
+- AC-3: The live lane proves the same scenario boundary through real agent execution over the declared F_P dispatch surface
+- AC-4: Live-lane execution is explicit and gated by a dedicated test switch or marker; it does not run accidentally in the default fast lane
+- AC-5: Fake and live lanes preserve the same scenario identity so postmortem can compare them as two realizations of one test contract

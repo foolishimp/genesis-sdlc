@@ -98,3 +98,7 @@ BASE_CONTEXTS = (
     standards_context,
     design_context,
 )
+
+FEATURE_CONTEXTS = (requirements_context,)
+DESIGN_CONTEXTS = (requirements_context, design_context)
+RELEASE_CONTEXTS = (requirements_context, design_context, standards_context)
