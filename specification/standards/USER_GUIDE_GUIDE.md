@@ -1,8 +1,8 @@
-# User Guide Writing Conventions
+# User Guide Guide
 
 **Governance**: Maintained by the methodology author. Read-only for agents.
 
-**NOTE TO LLM**: If this file is referenced in a prompt, it is an active instruction to write or update a user guide in the format and style specified here. Apply WRITING.md principles throughout.
+**NOTE TO LLM**: If this file is referenced in a prompt, it is an active instruction to write or update a user guide in the format and style specified here. Apply `WRITING_GUIDE.md` principles throughout.
 
 ---
 
@@ -43,7 +43,7 @@ Specific symptoms → specific causes → specific fixes. No generic advice.
 
 ## Style Rules
 
-Apply all principles from `operating-standards/WRITING.md`. Additional rules for user guides:
+Apply all principles from `operating-standards/WRITING_GUIDE.md`. Additional rules for user guides:
 
 **Commands before explanations.** Show the command first, explain after. Readers scan for what to type.
 

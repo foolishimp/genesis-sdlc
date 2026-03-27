@@ -1,4 +1,4 @@
-# Backlog Item Conventions
+# Backlog Guide
 
 **Governance**: Maintained by the methodology author. Read-only for agents.
 

@@ -1,4 +1,4 @@
-# Release Process Conventions
+# Release Guide
 
 **Governance**: Maintained by the methodology author. Read-only for agents.
 

@@ -1,4 +1,4 @@
-# Writing Principles for Human-Facing Documents
+# Writing Guide
 
 **Governance**: Maintained by the methodology author. Read-only for agents.
 

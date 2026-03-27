@@ -1,7 +1,7 @@
 # genesis_sdlc — Feature Decomposition
 
 **Traces to**: INT-001, INT-002, INT-003, INT-004
-**Requirements**: specification/requirements.md
+**Requirements**: specification/requirements/
 **REQ key registry**: builds/python/src/genesis_sdlc/sdlc_graph.py
 **Status**: Approved
 **Date**: 2026-03-20
@@ -166,7 +166,7 @@ Inserts `module_decomp` between `design` and `code`. Decomposes design into modu
 
 ### REQ-F-CUSTODY — Requirements Custody
 
-Fixes the critical bug where `instantiate()` hardcodes gsdlc's 33 REQ keys into every project. After this feature: `instantiate(slug, requirements=...)` accepts project-specific keys, the Layer 3 wrapper parses them from `specification/requirements.md`, and the installer scaffolds the file for new projects. No-requirements-file = empty list (zero requirements), never fallback to gsdlc's keys.
+Fixes the critical bug where `instantiate()` hardcodes gsdlc's 33 REQ keys into every project. After this feature: `instantiate(slug, requirements=...)` accepts project-specific keys, the Layer 3 wrapper parses them from `specification/requirements/`, and the installer scaffolds the requirement surface for new projects. No-requirements-surface = empty list (zero requirements), never fallback to gsdlc's keys.
 
 **Modules affected**: `sdlc_graph.py` (instantiate signature), `install.py` (wrapper template, scaffold)
 

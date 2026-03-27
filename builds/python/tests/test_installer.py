@@ -492,11 +492,11 @@ class TestAudit:
     def test_audit_detects_standard_drift(self, tmp_path):
         """Audit detects when an operating standard is modified."""
         _install(tmp_path, ["--project-slug", "test_proj"])
-        std = tmp_path / ".gsdlc" / "release" / "operating-standards" / "CONVENTIONS.md"
+        std = tmp_path / ".gsdlc" / "release" / "operating-standards" / "CONVENTIONS_GUIDE.md"
         std.write_text("tampered content")
         result = _install(tmp_path, ["--project-slug", "test_proj", "--audit"])
         assert result["status"] == "drift_detected"
-        assert "standard:CONVENTIONS.md" in result["audit"].get("drifted", [])
+        assert "standard:CONVENTIONS_GUIDE.md" in result["audit"].get("drifted", [])
 
     def test_audit_detects_missing_workflow(self, tmp_path):
         """Audit reports missing workflow release."""

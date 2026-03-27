@@ -58,7 +58,7 @@ Post naming: `YYYYMMDDTHHMMSS_CATEGORY_SUBJECT.md`. Categories: `REVIEW`, `STRAT
 
 ## Operating Standards
 
-Load from `.gsdlc/release/operating-standards/` before: writing posts (`CONVENTIONS.md`), backlog items (`BACKLOG.md`), human-facing docs (`WRITING.md`), user guides (`USER_GUIDE.md`), releases (`RELEASE.md`).
+Load from `.gsdlc/release/operating-standards/` before: writing posts (`CONVENTIONS_GUIDE.md`), backlog items (`BACKLOG_GUIDE.md`), human-facing docs (`WRITING_GUIDE.md`), user guides (`USER_GUIDE_GUIDE.md`), releases (`RELEASE_GUIDE.md`).
 
 ## Human Proxy Mode
 

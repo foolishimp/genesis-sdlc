@@ -212,7 +212,7 @@ graph TD
 ### Success Criteria
 
 1. `gen-gaps` on a converged workspace reports 10 edges, all delta=0
-2. Changing a REQ key in `requirements.md` causes delta>0 on the bootloader edge — F_D catches staleness
+2. Changing a REQ key in the live `requirements/` surface causes delta>0 on the bootloader edge — F_D catches staleness
 3. The bootloader F_D evaluators catch: wrong spec hash, wrong version, missing section, broken reference
 4. The graph renders as a clean DAG — no reflexive edges
 5. Clean install into an empty target produces 11 assets, 10 edges, all context paths resolve

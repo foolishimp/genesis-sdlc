@@ -216,7 +216,7 @@ class TestInstallStructure:
     def test_operating_standards_installed(self, sandbox):
         standards_dir = sandbox / ".gsdlc" / "release" / "operating-standards"
         assert standards_dir.exists()
-        for std in ["BACKLOG.md", "CONVENTIONS.md", "RELEASE.md"]:
+        for std in ["BACKLOG_GUIDE.md", "CONVENTIONS_GUIDE.md", "RELEASE_GUIDE.md"]:
             assert (standards_dir / std).exists(), f"Missing standard: {std}"
 
     def test_sdlc_bootloader_release_installed(self, sandbox):

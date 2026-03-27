@@ -1,4 +1,4 @@
-# Spec Writing Standard
+# Spec Guide
 
 **Governance**: Maintained by the methodology author. Read-only for agents. Propose changes via `STRATEGY` post.
 
