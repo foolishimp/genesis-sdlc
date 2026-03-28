@@ -3,7 +3,9 @@
 **Status**: Approved
 **Date**: 2026-03-28
 **Implements**: `REQ-F-CMD-*`, `REQ-F-CTRL-*`, `REQ-F-TEST-*`, `REQ-F-MVP-*`, `REQ-F-ASSURE-*`
+**Derives from**: `INT-008`; [20260328T162800_PROPOSAL_assurance-control-plane-0_9_9.md](/Users/jim/src/apps/genesis_sdlc/.ai-workspace/comments/codex/20260328T162800_PROPOSAL_assurance-control-plane-0_9_9.md)
 **Supersedes**: prior scattered operative runtime ownership across prompt-render and live-transport seams
+**Degenerate case**: while the wave is in flight, `src/genesis_sdlc/release/fp_prompt.py` and `tests/e2e/live_transport.py` may remain as read-model or qualification shims, but not as operative authorities
 
 ---
 

@@ -3,6 +3,9 @@
 **Status**: Approved
 **Date**: 2026-03-28
 **Implements**: `REQ-F-GRAPH-*`, `REQ-F-CMD-*`, `REQ-F-CUSTODY-*`, `REQ-F-TEST-*`
+**Derives from**: `INT-007`; live qualification and steel-thread implementation lessons in this variant
+**Supersedes**: ad hoc local coding practice for GTL/Python surfaces in `abiogenesis/python`
+**Degenerate case**: none; these standards do not retain an older coding style as a special case
 
 ---
 
