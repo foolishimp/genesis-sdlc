@@ -18,7 +18,10 @@ _PACKAGE_EXPORTS = {
 _TRANSFORM_EXPORTS = {
     "build_assessment_prompt",
     "build_constructive_prompt",
+    "edge_override_filename",
     "get_edge_transform_contract",
+    "load_project_edge_override",
+    "resolve_edge_transform_contract",
 }
 
 __all__ = sorted(_PACKAGE_EXPORTS | _TRANSFORM_EXPORTS)

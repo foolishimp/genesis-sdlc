@@ -13,9 +13,11 @@ interfaces:
   - install(target, source, audit_only=False)
   - load_project_requirements()
   - render_wrapper()
+  - render_effective_prompt(manifest_path)
   - synthesize_bootloader()
 source_files:
   - src/genesis_sdlc/release/install.py
   - src/genesis_sdlc/release/bootloader.py
+  - src/genesis_sdlc/release/fp_prompt.py
   - src/genesis_sdlc/release/wrapper.py
   - src/genesis_sdlc/release/territory.py

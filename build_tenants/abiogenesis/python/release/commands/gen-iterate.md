@@ -21,7 +21,14 @@ PYTHONPATH=.gsdlc/release:.genesis python -m genesis iterate --workspace .
 3. If the engine reports `fp_dispatch`:
    - read the manifest path from the engine output
    - inspect `.gsdlc/release/active-workflow.json` for `customization.fp_transport_agent`
-   - dispatch the bounded F_P work through that configured transport
+   - treat `specification/design/fp/` as the project-local F_P tuning surface
+   - render the effective bounded prompt from the manifest with:
+
+```bash
+PYTHONPATH=.gsdlc/release:.genesis python -m genesis_sdlc.release.fp_prompt --manifest <manifest_path> --workspace .
+```
+
+   - dispatch that rendered prompt through the configured transport
    - write the result JSON to the manifest's `result_path`
    - ingest it with:
 

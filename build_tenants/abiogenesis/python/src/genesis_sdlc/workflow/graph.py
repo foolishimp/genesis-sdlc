@@ -82,7 +82,7 @@ eval_module_fd = Evaluator(
     "Every feature stem appears in the module schedule and dependency DAG is acyclic.",
     binding=(
         "exec://python -m genesis_sdlc.evidence.fd_checks module_coverage "
-        "--modules-root build_tenants/abiogenesis/python/design/modules"
+        "--modules-root .gsdlc/release/design/modules"
     ),
 )
 eval_module_fp = Evaluator(
@@ -101,7 +101,7 @@ eval_code_fd = Evaluator(
     "All source files carry Implements traceability tags for the active requirement surface.",
     binding=(
         "exec://python -m genesis_sdlc.evidence.fd_checks implements_tags "
-        "--path build_tenants/abiogenesis/python/src"
+        "--path .gsdlc/release/genesis_sdlc"
     ),
 )
 eval_code_fp = Evaluator(
@@ -115,7 +115,7 @@ eval_unit_fd = Evaluator(
     "All unit-test files carry Validates traceability tags for the active requirement surface.",
     binding=(
         "exec://python -m genesis_sdlc.evidence.fd_checks validates_tags "
-        "--path build_tenants/abiogenesis/python/tests"
+        "--path .gsdlc/release/tests"
     ),
 )
 eval_unit_fp = Evaluator(
@@ -129,7 +129,7 @@ eval_integration_fd = Evaluator(
     "At least one e2e scenario exists for the integrated workflow surface.",
     binding=(
         "exec://python -m genesis_sdlc.evidence.fd_checks e2e_tests_exist "
-        "--path build_tenants/abiogenesis/python/tests"
+        "--path .gsdlc/release/tests"
     ),
 )
 eval_integration_fd_report = Evaluator(
@@ -157,7 +157,7 @@ eval_guide_fd = Evaluator(
     "The user guide is version-current and tags the active requirement surface.",
     binding=(
         "exec://python -m genesis_sdlc.evidence.fd_checks guide_version_current "
-        "--guide-path build_tenants/abiogenesis/python/release/USER_GUIDE.md "
+        "--guide-path .gsdlc/release/USER_GUIDE.md "
         "--version-path .gsdlc/release/active-workflow.json"
     ),
 )
@@ -167,7 +167,7 @@ eval_guide_fd_coverage = Evaluator(
     "The user guide carries the active requirement keys as traceability tags.",
     binding=(
         "exec://python -m genesis_sdlc.evidence.fd_checks guide_req_coverage "
-        "--guide-path build_tenants/abiogenesis/python/release/USER_GUIDE.md "
+        "--guide-path .gsdlc/release/USER_GUIDE.md "
         "--package-ref genesis_sdlc.workflow:package "
         "--active-workflow-path .gsdlc/release/active-workflow.json"
     ),
@@ -185,7 +185,7 @@ eval_bootloader_fd_1 = Evaluator(
         "exec://python -m genesis_sdlc.evidence.fd_checks spec_hash_current "
         "--package-ref genesis_sdlc.workflow:package "
         "--active-workflow-path .gsdlc/release/active-workflow.json "
-        "--bootloader-path build_tenants/abiogenesis/python/release/SDLC_BOOTLOADER.md"
+        "--bootloader-path .gsdlc/release/SDLC_BOOTLOADER.md"
     ),
 )
 eval_bootloader_fd_2 = Evaluator(
@@ -194,7 +194,7 @@ eval_bootloader_fd_2 = Evaluator(
     "The compiled bootloader version matches the active workflow version.",
     binding=(
         "exec://python -m genesis_sdlc.evidence.fd_checks version_current "
-        "--bootloader-path build_tenants/abiogenesis/python/release/SDLC_BOOTLOADER.md "
+        "--bootloader-path .gsdlc/release/SDLC_BOOTLOADER.md "
         "--version-path .gsdlc/release/active-workflow.json"
     ),
 )
@@ -204,7 +204,7 @@ eval_bootloader_fd_3 = Evaluator(
     "The compiled bootloader contains the mandatory sections.",
     binding=(
         "exec://python -m genesis_sdlc.evidence.fd_checks section_coverage_complete "
-        "--bootloader-path build_tenants/abiogenesis/python/release/SDLC_BOOTLOADER.md"
+        "--bootloader-path .gsdlc/release/SDLC_BOOTLOADER.md"
     ),
 )
 eval_bootloader_fd_4 = Evaluator(
@@ -213,7 +213,7 @@ eval_bootloader_fd_4 = Evaluator(
     "All workspace references emitted into the bootloader resolve.",
     binding=(
         "exec://python -m genesis_sdlc.evidence.fd_checks references_valid "
-        "--bootloader-path build_tenants/abiogenesis/python/release/SDLC_BOOTLOADER.md"
+        "--bootloader-path .gsdlc/release/SDLC_BOOTLOADER.md"
     ),
 )
 eval_bootloader_fp = Evaluator(

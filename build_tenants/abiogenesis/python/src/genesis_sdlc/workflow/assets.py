@@ -15,14 +15,14 @@ def _workspace_context(name: str, locator: str) -> Context:
 
 
 requirements_context = _workspace_context("requirements_surface", "specification/requirements/")
-standards_context = _workspace_context("standards_surface", "specification/standards/")
+standards_context = _workspace_context("standards_surface", ".gsdlc/release/operating-standards/")
 design_context = _workspace_context(
     "python_design_surface",
-    "build_tenants/abiogenesis/python/design/",
+    ".gsdlc/release/design/",
 )
 bootloader_synthesis_context = _workspace_context(
     "bootloader_synthesis_surface",
-    "build_tenants/abiogenesis/python/src/genesis_sdlc/release/bootloader.py",
+    ".gsdlc/release/genesis_sdlc/release/bootloader.py",
 )
 
 

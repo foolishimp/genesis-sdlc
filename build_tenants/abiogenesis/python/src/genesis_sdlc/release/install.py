@@ -2,6 +2,7 @@
 # Implements: REQ-F-BOOT-002
 # Implements: REQ-F-BOOT-003
 # Implements: REQ-F-BOOT-004
+# Implements: REQ-F-BOOT-011
 # Implements: REQ-F-CUSTODY-003
 # Implements: REQ-F-TERRITORY-001
 # Implements: REQ-F-TERRITORY-002
@@ -24,24 +25,26 @@ if __package__ in {None, ""}:
     from genesis_sdlc.evidence.docs import synthesize_user_guide
     from genesis_sdlc.release.bootloader import spec_hash, synthesize_bootloader
     from genesis_sdlc.release.territory import (
+        install_design_snapshot,
         install_operating_standards,
+        install_project_scaffold,
+        install_project_templates,
         install_runtime_package,
-        install_specification,
-        install_tenant_snapshot,
+        install_test_snapshot,
         install_versioned_snapshot,
-        scaffold_project_requirements,
     )
     from genesis_sdlc.release.wrapper import load_project_requirements, render_wrapper
 else:
     from ..evidence.docs import synthesize_user_guide
     from .bootloader import spec_hash, synthesize_bootloader
     from .territory import (
+        install_design_snapshot,
         install_operating_standards,
+        install_project_scaffold,
+        install_project_templates,
         install_runtime_package,
-        install_specification,
-        install_tenant_snapshot,
+        install_test_snapshot,
         install_versioned_snapshot,
-        scaffold_project_requirements,
     )
     from .wrapper import load_project_requirements, render_wrapper
 
@@ -176,8 +179,24 @@ def _write_active_workflow(target_root: Path, slug: str) -> Path:
             ".claude/commands/",
             "CLAUDE.md[SDLC_BOOTLOADER]",
         ],
+        "territory_boundary": {
+            "authoring_forbidden_on_default_install": [
+                "build_tenants/",
+                "specification/standards/",
+            ],
+            "release_managed": [
+                ".genesis/",
+                ".gsdlc/release/",
+                ".claude/commands/",
+            ],
+            "customization": [
+                "specification/",
+                ".gsdlc/release/active-workflow.json[customization]",
+            ],
+        },
         "customization": {
             "requirements_root": "specification/requirements",
+            "fp_customization_root": "specification/design/fp/edge-overrides",
             "fp_transport_agent": "claude",
         },
         "reset": {
@@ -199,6 +218,18 @@ def _write_active_workflow(target_root: Path, slug: str) -> Path:
     return active_path
 
 
+def _installed_slug(target_root: Path, fallback: str) -> str:
+    active_path = target_root / ".gsdlc" / "release" / "active-workflow.json"
+    if not active_path.exists():
+        return fallback
+    try:
+        payload = json.loads(active_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return fallback
+    slug = payload.get("slug")
+    return slug if isinstance(slug, str) and slug else fallback
+
+
 def _write_wrapper(target_root: Path, slug: str) -> Path:
     wrapper_path = target_root / ".gsdlc" / "release" / "gtl_spec" / "packages" / f"{slug}.py"
     wrapper_path.parent.mkdir(parents=True, exist_ok=True)
@@ -214,7 +245,7 @@ def _write_wrapper(target_root: Path, slug: str) -> Path:
 
 
 def _write_user_guide(target_root: Path, requirements: list[str]) -> Path:
-    guide_path = target_root / "build_tenants" / "abiogenesis" / "python" / "release" / "USER_GUIDE.md"
+    guide_path = target_root / ".gsdlc" / "release" / "USER_GUIDE.md"
     return synthesize_user_guide(guide_path, version=VERSION, requirements=requirements)
 
 
@@ -226,9 +257,6 @@ def _install_domain_bootloader(target_root: Path, requirements: list[str]) -> Pa
         output_path=release_bootloader,
         workspace_root=target_root,
     )
-
-    source_bootloader = target_root / "build_tenants" / "abiogenesis" / "python" / "release" / "SDLC_BOOTLOADER.md"
-    shutil.copy2(release_bootloader, source_bootloader)
     return release_bootloader
 
 
@@ -342,12 +370,32 @@ def install(
     source_root = resolve_source(str(source) if source is not None else None)
 
     if audit_only:
+        audit_slug = _installed_slug(target_root, slug)
         required = [
             target_root / ".genesis" / "genesis.yml",
             target_root / ".gsdlc" / "release" / "genesis.yml",
             target_root / ".gsdlc" / "release" / "active-workflow.json",
-            target_root / ".gsdlc" / "release" / "gtl_spec" / "packages" / f"{slug}.py",
+            target_root / ".gsdlc" / "release" / "gtl_spec" / "packages" / f"{audit_slug}.py",
             target_root / ".gsdlc" / "release" / "genesis_sdlc" / "workflow" / "package.py",
+            target_root / ".gsdlc" / "release" / "design" / "module_decomp.md",
+            target_root / ".gsdlc" / "release" / "tests",
+            target_root / ".gsdlc" / "release" / "USER_GUIDE.md",
+            target_root / ".gsdlc" / "release" / "SDLC_BOOTLOADER.md",
+            target_root / ".gsdlc" / "release" / "project-templates" / "INTENT_TEMPLATE.md",
+            target_root / ".gsdlc" / "release" / "project-templates" / "design" / "README_TEMPLATE.md",
+            target_root / ".gsdlc" / "release" / "project-templates" / "design" / "fp" / "README_TEMPLATE.md",
+            target_root / ".gsdlc" / "release" / "project-templates" / "design" / "fp" / "INTENT_TEMPLATE.md",
+            target_root / ".gsdlc" / "release" / "project-templates" / "design" / "fp" / "edge-overrides" / "README_TEMPLATE.md",
+            target_root / ".gsdlc" / "release" / "project-templates" / "design" / "fp" / "edge-overrides" / "EDGE_OVERRIDE_TEMPLATE.json",
+            target_root / ".gsdlc" / "release" / "project-templates" / "requirements" / "README_TEMPLATE.md",
+            target_root / ".gsdlc" / "release" / "project-templates" / "requirements" / "STARTER_REQUIREMENTS_TEMPLATE.md",
+            target_root / "specification" / "INTENT.md",
+            target_root / "specification" / "design" / "README.md",
+            target_root / "specification" / "design" / "fp" / "README.md",
+            target_root / "specification" / "design" / "fp" / "INTENT.md",
+            target_root / "specification" / "design" / "fp" / "edge-overrides" / "README.md",
+            target_root / "specification" / "requirements" / "README.md",
+            target_root / "specification" / "requirements" / "00-starter.md",
             target_root / ".claude" / "commands" / "gen-start.md",
             target_root / ".claude" / "commands" / "gen-gaps.md",
             target_root / ".claude" / "commands" / "gen-status.md",
@@ -356,13 +404,24 @@ def install(
             target_root / ".claude" / "commands" / ".genesis-installed",
         ]
         missing = [str(path.relative_to(target_root)) for path in required if not path.exists()]
-        return {"status": "ok" if not missing else "drift_detected", "missing": missing}
+        forbidden = [
+            target_root / "build_tenants",
+            target_root / "specification" / "standards",
+        ]
+        present_forbidden = [str(path.relative_to(target_root)) for path in forbidden if path.exists()]
+        return {
+            "status": "ok" if not missing and not present_forbidden else "drift_detected",
+            "slug": audit_slug,
+            "missing": missing,
+            "forbidden_present": present_forbidden,
+        }
 
     abg = _run_abiogenesis_install(source_root, target_root)
-    install_specification(source_root, target_root)
-    scaffold_project_requirements(target_root)
-    install_tenant_snapshot(source_root, target_root)
+    install_project_templates(source_root, target_root)
+    install_project_scaffold(source_root, target_root)
     install_runtime_package(source_root, target_root)
+    install_design_snapshot(source_root, target_root)
+    install_test_snapshot(source_root, target_root)
     version_dir = install_versioned_snapshot(source_root, target_root, VERSION)
     standards = install_operating_standards(source_root, target_root)
     contract_path = _write_runtime_contract(target_root, slug)

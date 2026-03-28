@@ -40,3 +40,13 @@ Command requirements define the named operational surfaces that expose the SDLC 
 - AC-4: `--auto` loops up to MAX_AUTO (50) iterations, stopping on: convergence, `fp_dispatched`, `fh_gate_pending`, `fd_gap`, or max iterations
 - AC-5: `--human-proxy` requires `--auto`; performs F_H evaluation per proxy protocol
 - AC-6: Exit codes: 0 (converged), 2 (fp_dispatched), 3 (fh_gate_pending), 4 (fd_gap), 5 (max_iterations)
+
+### REQ-F-CMD-004 — Project-local F_P customization is resolved from specification/design/fp/
+
+The installed operator path can derive an effective bounded F_P prompt from project-local customization without editing the managed release.
+
+**Acceptance Criteria**:
+- AC-1: The installed system defines `specification/design/fp/edge-overrides/` as the project-local surface for per-edge F_P customization
+- AC-2: The effective F_P prompt resolves project-local per-edge overrides before falling back to the installed default contract
+- AC-3: A project-local override can declare customization intent, requirement refs, design refs, and per-edge guidance or output-path adjustments
+- AC-4: The installed release exposes a helper that renders the effective F_P prompt from a manifest using the project-local override surface

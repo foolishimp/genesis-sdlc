@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 from pathlib import Path
 
 import pytest
@@ -21,7 +20,6 @@ from .live_transport import call_agent, has_agent
 from .minimal_project import (
     BOOTLOADER_ARTIFACT,
     BOOTLOADER_EDGE,
-    BOOTLOADER_RELEASE_COPY,
     DOWNSTREAM_RELEASE_EDGES,
     INTEGRATION_EDGE,
     UAT_EDGE,
@@ -99,7 +97,7 @@ def _qualify_live_edge(workspace: Path, manifest: dict, *, archive, agent: str) 
     if relative_artifact is None:
         raise KeyError(f"no live artifact target declared for edge: {edge}")
 
-    prompt = constructive_prompt(edge, manifest, artifact_path=relative_artifact)
+    prompt = constructive_prompt(edge, manifest, workspace=workspace, artifact_path=relative_artifact)
     artifact = workspace / relative_artifact
     artifact.parent.mkdir(parents=True, exist_ok=True)
 
@@ -117,11 +115,6 @@ def _qualify_live_edge(workspace: Path, manifest: dict, *, archive, agent: str) 
             scenario="live_qualification",
             sandbox_path=str(workspace),
         )
-
-    if edge == BOOTLOADER_EDGE and artifact.exists():
-        release_copy = workspace / BOOTLOADER_RELEASE_COPY
-        release_copy.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(artifact, release_copy)
 
     archive.copy_file(artifact, dest_name=default_archive_name(edge))
 
@@ -158,11 +151,6 @@ def _repair_live_fd_gap(workspace: Path, edge: str, *, archive, agent: str) -> N
     archive.capture_text(f"{safe_stem}_prompt.txt", prompt)
     response = call_agent(prompt, str(workspace), agent=agent, timeout=_edge_timeout(edge))
     archive.capture_text(f"{safe_stem}_raw_response.txt", response)
-
-    if edge == BOOTLOADER_EDGE and artifact.exists():
-        release_copy = workspace / BOOTLOADER_RELEASE_COPY
-        release_copy.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(artifact, release_copy)
 
     archive.copy_file(artifact, dest_name=f"repair_{artifact.name}")
 

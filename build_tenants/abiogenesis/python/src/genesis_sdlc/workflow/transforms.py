@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -66,6 +67,9 @@ class EdgeTransformContract:
     suggested_output: str
     guidance: str
     required_sections: tuple[str, ...] = ()
+    customization_intent: str = ""
+    requirement_refs: tuple[str, ...] = ()
+    design_refs: tuple[str, ...] = ()
 
 
 EDGE_TRANSFORM_CONTRACTS: dict[str, EdgeTransformContract] = {
@@ -135,7 +139,7 @@ EDGE_TRANSFORM_CONTRACTS: dict[str, EdgeTransformContract] = {
         target_asset="user_guide",
         artifact_kind="operator guide",
         authority_contexts=("requirements_surface", "python_design_surface", "standards_surface"),
-        suggested_output="build_tenants/abiogenesis/python/release/USER_GUIDE.md",
+        suggested_output=".gsdlc/release/USER_GUIDE.md",
         guidance="Compile an operator guide from design and integrated evidence, covering install, first session, the operating loop, and recovery.",
         required_sections=USER_GUIDE_SECTIONS,
     ),
@@ -144,7 +148,7 @@ EDGE_TRANSFORM_CONTRACTS: dict[str, EdgeTransformContract] = {
         target_asset="bootloader",
         artifact_kind="compiled domain bootloader",
         authority_contexts=("requirements_surface", "bootloader_synthesis_surface"),
-        suggested_output="build_tenants/abiogenesis/python/release/SDLC_BOOTLOADER.md",
+        suggested_output=".gsdlc/release/SDLC_BOOTLOADER.md",
         guidance=(
             "Compile the domain bootloader from the active requirement surface. "
             "Prefer the installed `genesis_sdlc.release.bootloader.synthesize_bootloader()` "
@@ -155,12 +159,89 @@ EDGE_TRANSFORM_CONTRACTS: dict[str, EdgeTransformContract] = {
 }
 
 
+def edge_override_filename(edge: str) -> str:
+    safe = (
+        edge.replace("[", "")
+        .replace("]", "")
+        .replace(", ", "__and__")
+        .replace("→", "__to__")
+        .replace(" ", "")
+    )
+    return f"{safe}.json"
+
+
+def _infer_workspace_root(start: Path | None = None) -> Path | None:
+    current = (start or Path.cwd()).resolve()
+    candidates = [current, *current.parents]
+    for parent in candidates:
+        if (parent / ".gsdlc" / "release" / "active-workflow.json").exists():
+            return parent
+        if (parent / "specification").exists() and (parent / ".gsdlc").exists():
+            return parent
+    return None
+
+
+def _fp_override_root(workspace_root: Path | None) -> Path | None:
+    if workspace_root is None:
+        return None
+    return workspace_root / "specification" / "design" / "fp" / "edge-overrides"
+
+
+def load_project_edge_override(edge: str, workspace_root: Path | None = None) -> dict[str, object] | None:
+    root = _fp_override_root(workspace_root)
+    if root is None:
+        return None
+    path = root / edge_override_filename(edge)
+    if not path.exists():
+        return None
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"edge override must be a JSON object: {path}")
+    return payload
+
+
+def resolve_edge_transform_contract(edge: str, workspace_root: Path | None = None) -> EdgeTransformContract | None:
+    base = EDGE_TRANSFORM_CONTRACTS.get(edge)
+    if base is None:
+        return None
+
+    override = load_project_edge_override(edge, workspace_root)
+    if override is None:
+        return base
+
+    payload = asdict(base)
+    payload["authority_contexts"] = tuple(payload["authority_contexts"])
+    payload["required_sections"] = tuple(payload["required_sections"])
+    payload["requirement_refs"] = tuple(payload["requirement_refs"])
+    payload["design_refs"] = tuple(payload["design_refs"])
+
+    if "authority_contexts" in override:
+        payload["authority_contexts"] = tuple(str(item) for item in override["authority_contexts"])
+    if "suggested_output" in override:
+        payload["suggested_output"] = str(override["suggested_output"])
+    if "required_sections" in override:
+        payload["required_sections"] = tuple(str(item) for item in override["required_sections"])
+    if "customization_intent" in override:
+        payload["customization_intent"] = str(override["customization_intent"])
+    if "requirement_refs" in override:
+        payload["requirement_refs"] = tuple(str(item) for item in override["requirement_refs"])
+    if "design_refs" in override:
+        payload["design_refs"] = tuple(str(item) for item in override["design_refs"])
+    if "guidance" in override:
+        payload["guidance"] = str(override["guidance"])
+    guidance_append = override.get("guidance_append")
+    if guidance_append:
+        payload["guidance"] = f"{payload['guidance']} {str(guidance_append)}".strip()
+
+    return EdgeTransformContract(**payload)
+
+
 def get_edge_transform_contract(edge: str) -> EdgeTransformContract | None:
-    return EDGE_TRANSFORM_CONTRACTS.get(edge)
+    return resolve_edge_transform_contract(edge)
 
 
-def transform_contract_manifest(edge: str) -> dict[str, object] | None:
-    contract = get_edge_transform_contract(edge)
+def transform_contract_manifest(edge: str, workspace_root: Path | None = None) -> dict[str, object] | None:
+    contract = resolve_edge_transform_contract(edge, workspace_root)
     return asdict(contract) if contract is not None else None
 
 
@@ -168,22 +249,32 @@ def build_constructive_prompt(
     edge: str,
     manifest: dict[str, object],
     *,
-    artifact_path: Path,
+    artifact_path: Path | None = None,
+    workspace_root: Path | None = None,
     extra_instructions: str | None = None,
 ) -> str:
-    contract = get_edge_transform_contract(edge)
+    contract = resolve_edge_transform_contract(edge, workspace_root or _infer_workspace_root())
     if contract is None:
         raise KeyError(f"no transform contract declared for edge: {edge}")
+    resolved_artifact = artifact_path or Path(contract.suggested_output)
 
     lines = [
         LIVE_MODE_PREAMBLE.rstrip(),
-        CONSTRUCTIVE_TURN_RULES.format(artifact_path=artifact_path).rstrip(),
+        CONSTRUCTIVE_TURN_RULES.format(artifact_path=resolved_artifact).rstrip(),
         f"Target asset: {contract.target_asset}",
         f"Artifact kind: {contract.artifact_kind}",
         f"Authority contexts: {', '.join(contract.authority_contexts)}",
         f"Suggested output: {contract.suggested_output}",
         contract.guidance,
     ]
+    if contract.customization_intent:
+        lines.append(f"Project customization intent: {contract.customization_intent}")
+    if contract.requirement_refs:
+        lines.append("Project requirement refs:")
+        lines.extend(f"- {ref}" for ref in contract.requirement_refs)
+    if contract.design_refs:
+        lines.append("Project design refs:")
+        lines.extend(f"- {ref}" for ref in contract.design_refs)
     if contract.required_sections:
         lines.append("The artifact must contain these exact sections:")
         lines.extend(f"- {section}" for section in contract.required_sections)
@@ -215,6 +306,9 @@ __all__ = [
     "USER_GUIDE_SECTIONS",
     "build_assessment_prompt",
     "build_constructive_prompt",
+    "edge_override_filename",
     "get_edge_transform_contract",
+    "load_project_edge_override",
+    "resolve_edge_transform_contract",
     "transform_contract_manifest",
 ]

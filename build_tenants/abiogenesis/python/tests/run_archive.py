@@ -170,6 +170,7 @@ class RunArchive:
             (Path(".genesis/genesis.yml"), "genesis.runtime.yml"),
             (Path(".gsdlc/release/genesis.yml"), "gsdlc.runtime.yml"),
             (Path(".gsdlc/release/active-workflow.json"), "active-workflow.json"),
+            (Path(".gsdlc/release/USER_GUIDE.md"), "USER_GUIDE.md"),
             (Path(".gsdlc/release/SDLC_BOOTLOADER.md"), "SDLC_BOOTLOADER.md"),
         ):
             self.copy_file(self.workspace / relative, dest_name=dest_name)

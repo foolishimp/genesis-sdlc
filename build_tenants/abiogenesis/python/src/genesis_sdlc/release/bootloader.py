@@ -23,11 +23,10 @@ def _active_docs(workspace_root: Path) -> list[str]:
     docs: list[str] = []
     preferred = [
         workspace_root / "specification" / "INTENT.md",
-        workspace_root / "specification" / "standards" / "SPEC_METHOD.md",
-        workspace_root / "specification" / "standards" / "GSDLC_METHOD.md",
-        workspace_root / "build_tenants" / "common" / "design" / "README.md",
-        workspace_root / "build_tenants" / "abiogenesis" / "python" / "design" / "README.md",
-        workspace_root / "build_tenants" / "abiogenesis" / "python" / "design" / "module_decomp.md",
+        workspace_root / ".gsdlc" / "release" / "operating-standards" / "SPEC_METHOD.md",
+        workspace_root / ".gsdlc" / "release" / "operating-standards" / "GSDLC_METHOD.md",
+        workspace_root / ".gsdlc" / "release" / "design" / "README.md",
+        workspace_root / ".gsdlc" / "release" / "design" / "module_decomp.md",
     ]
     for path in preferred:
         if path.exists():
@@ -39,7 +38,9 @@ def _active_docs(workspace_root: Path) -> list[str]:
 def _infer_workspace_root(path: Path) -> Path:
     resolved = path.resolve()
     for parent in resolved.parents:
-        if (parent / "specification").exists() and (parent / "build_tenants").exists():
+        if (parent / "specification").exists() and (
+            (parent / "build_tenants").exists() or (parent / ".gsdlc").exists()
+        ):
             return parent
     return resolved.parent
 

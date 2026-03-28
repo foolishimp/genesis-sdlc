@@ -6,9 +6,9 @@
 
 Bootstrap requirements govern how genesis_sdlc installs and validates its methodology surface and agent-facing bootstrap/control surfaces in a target project.
 
-### REQ-F-BOOT-001 — gen-install bootstraps target project with engine + methodology
+### REQ-F-BOOT-001 — gen-install bootstraps target project as a product install
 
-The installer copies the genesis engine and methodology into a target project so it can run without an installed package. It establishes the installed runtime surface: `.genesis/` (ABG kernel, immutable), `.gsdlc/release/` (gsdlc methodology release, immutable between reinstalls), `.ai-workspace/` (runtime evidence), and project-local `specification/` (constitutional source for the target project).
+The installer performs a product install, not a source snapshot. It establishes the installed runtime surface: `.genesis/` (ABG kernel, immutable), `.gsdlc/release/` (gsdlc methodology release, immutable between reinstalls), `.ai-workspace/` (runtime evidence), and project-local `specification/` (constitutional source for the target project).
 
 **Acceptance Criteria**:
 - AC-1: `install(target, source)` creates `.genesis/genesis/` with engine modules copied from the abiogenesis engine
@@ -20,6 +20,7 @@ The installer copies the genesis engine and methodology into a target project so
 - AC-7: Delivered bootstrap/control surfaces carry bare operating axioms and route the agent to the canonical released process documents
 - AC-8: Idempotent — re-running updates engine files and standards, preserves workspace state and local specs
 - AC-9: Emits `genesis_sdlc_installed` event on completion with version, spec_hash, and install outcome
+- AC-10: Default install excludes authoring-source territories such as `build_tenants/`; source snapshots require an explicit non-default mode
 
 ### REQ-F-BOOT-002 — .genesis/genesis.yml config resolves Package/Worker
 
@@ -87,8 +88,9 @@ The installed release does not invite arbitrary edits to managed artifacts. It e
 **Acceptance Criteria**:
 - AC-1: The installed active workflow declaration identifies the project requirement surface as the primary customization boundary
 - AC-2: The installed active workflow declaration exposes the selected F_P transport agent as a narrow runtime customization setting
-- AC-3: The installed active workflow declaration lists the managed install surfaces that should not be edited directly
-- AC-4: The customization surface is machine-readable and shipped with the installed release
+- AC-3: The installed active workflow declaration exposes the project-local F_P customization root used for edge-specific tuning
+- AC-4: The installed active workflow declaration lists the managed install surfaces that should not be edited directly
+- AC-5: The customization surface is machine-readable and shipped with the installed release
 
 ### REQ-F-BOOT-009 — Runtime reset clears execution state without destroying the installed release
 
@@ -99,3 +101,24 @@ Resetting workflow state is a supported operator action. It clears runtime evide
 - AC-2: Runtime reset preserves `.genesis/`, `.gsdlc/release/`, `.claude/commands/`, and project-local `specification/`
 - AC-3: Runtime reset returns structured JSON describing what was cleared and what was preserved
 - AC-4: Reinstall remains the managed reset path for system-owned install surfaces
+
+### REQ-F-BOOT-010 — Product install carries a declared territory boundary
+
+The installed workflow declares the difference between forbidden authoring territory, managed release territory, and project customization territory.
+
+**Acceptance Criteria**:
+- AC-1: The installed active workflow declaration contains a machine-readable list of authoring surfaces forbidden in the default install
+- AC-2: The installed active workflow declaration contains a machine-readable list of managed release surfaces
+- AC-3: The installed active workflow declaration contains a machine-readable list of project customization surfaces
+- AC-4: `--audit` reports drift when forbidden authoring surfaces are present in a default install
+
+### REQ-F-BOOT-011 — Product install scaffolds project structure from installed master templates
+
+The installed project-facing specification surface is scaffolded from immutable installed template documents, not copied from the framework's own working specification tree.
+
+**Acceptance Criteria**:
+- AC-1: Default install creates the standard project structure needed for first use, including `specification/INTENT.md` and `specification/requirements/`
+- AC-2: Immutable template documents are installed under `.gsdlc/release/` and used to scaffold the editable project-facing copies
+- AC-3: Default install does not copy `specification/standards/` into the target root
+- AC-4: Existing project-authored scaffold files are never overwritten on reinstall
+- AC-5: The scaffold includes a project-local `specification/design/fp/` surface for F_P customization intent and per-edge overrides

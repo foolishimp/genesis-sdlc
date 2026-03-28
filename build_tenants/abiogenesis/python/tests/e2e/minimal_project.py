@@ -21,9 +21,10 @@ from genesis_sdlc.evidence.coverage import (
 from genesis_sdlc.evidence.docs import assess_bootloader_artifact, assess_user_guide_artifact, synthesize_user_guide
 from genesis_sdlc.evidence.uat import write_sandbox_report
 from genesis_sdlc.release.bootloader import synthesize_bootloader
+from genesis_sdlc.release.fp_prompt import render_effective_prompt
 from genesis_sdlc.release.install import VERSION
 from genesis_sdlc.release.wrapper import load_project_requirements
-from genesis_sdlc.workflow.transforms import build_constructive_prompt
+from genesis_sdlc.workflow.transforms import build_constructive_prompt, edge_override_filename
 
 
 INTEGRATION_EDGE = "[code, unit_tests]→integration_tests"
@@ -38,9 +39,8 @@ MODULE_DECOMP_ARTIFACT = Path("output/module_decomp.md")
 CODE_ARTIFACT = Path("output/src/calculator.py")
 UNIT_TESTS_ARTIFACT = Path("output/tests/test_calculator.py")
 INTEGRATION_ARTIFACT = Path("output/tests/test_integration.py")
-USER_GUIDE_ARTIFACT = Path("build_tenants/abiogenesis/python/release/USER_GUIDE.md")
-BOOTLOADER_ARTIFACT = Path("build_tenants/abiogenesis/python/release/SDLC_BOOTLOADER.md")
-BOOTLOADER_RELEASE_COPY = Path(".gsdlc/release/SDLC_BOOTLOADER.md")
+USER_GUIDE_ARTIFACT = Path(".gsdlc/release/USER_GUIDE.md")
+BOOTLOADER_ARTIFACT = Path(".gsdlc/release/SDLC_BOOTLOADER.md")
 
 
 MINIMAL_INTENT = """# Intent
@@ -105,13 +105,59 @@ Acceptance Criteria
 """
 
 
+MINIMAL_DESIGN = """# Project Design
+
+This project is a tiny calculator qualification surface.
+
+## Components
+
+- calculator module
+- unit test module
+- integration test module
+
+## Guidance
+
+Prefer small files, direct imports, and deterministic test evidence.
+"""
+
+
+MINIMAL_FP_INTENT = """# F_P Customization Intent
+
+## Goal
+
+Keep each constructive turn tightly bounded to the minimal calculator project.
+
+## Requirement Mapping
+
+- REQ-PROJ-001
+- REQ-PROJ-002
+- REQ-PROJ-003
+- REQ-PROJ-004
+
+## Design Mapping
+
+- specification/design/README.md
+
+## Boundaries
+
+- Do not expand the project beyond the calculator scope.
+- Do not rewrite unrelated workspace files.
+"""
+
+
 def seed_minimal_project_spec(workspace: Path, *, archive=None) -> None:
     spec_root = workspace / "specification"
     requirements_root = spec_root / "requirements"
+    design_root = spec_root / "design"
+    fp_root = design_root / "fp"
+    overrides_root = fp_root / "edge-overrides"
 
     if requirements_root.exists():
         shutil.rmtree(requirements_root)
+    if design_root.exists():
+        shutil.rmtree(design_root)
     requirements_root.mkdir(parents=True, exist_ok=True)
+    overrides_root.mkdir(parents=True, exist_ok=True)
 
     (spec_root / "INTENT.md").write_text(MINIMAL_INTENT, encoding="utf-8")
     (requirements_root / "01-project-core.md").write_text(MINIMAL_REQUIREMENTS, encoding="utf-8")
@@ -119,10 +165,23 @@ def seed_minimal_project_spec(workspace: Path, *, archive=None) -> None:
         "# Project Requirements\n\nThis sandbox uses a minimal project requirement surface for qualification.\n",
         encoding="utf-8",
     )
+    (design_root / "README.md").write_text(MINIMAL_DESIGN, encoding="utf-8")
+    (fp_root / "README.md").write_text(
+        "# F_P Customization\n\nThis sandbox uses per-edge overrides to keep the workflow bounded to the calculator project.\n",
+        encoding="utf-8",
+    )
+    (fp_root / "INTENT.md").write_text(MINIMAL_FP_INTENT, encoding="utf-8")
+    (overrides_root / "README.md").write_text(
+        "# Edge Overrides\n\nOnly edge override files in this folder are loaded by the installed prompt helper.\n",
+        encoding="utf-8",
+    )
+    _write_fp_overrides(overrides_root)
 
     if archive is not None:
         archive.capture_text("seeded_INTENT.md", MINIMAL_INTENT)
         archive.capture_text("seeded_requirements_01-project-core.md", MINIMAL_REQUIREMENTS)
+        archive.capture_text("seeded_design_README.md", MINIMAL_DESIGN)
+        archive.capture_text("seeded_fp_INTENT.md", MINIMAL_FP_INTENT)
         archive.update_summary(
             seeded_project_spec=True,
             seeded_requirement_keys=["REQ-PROJ-001", "REQ-PROJ-002", "REQ-PROJ-003", "REQ-PROJ-004"],
@@ -201,9 +260,6 @@ def build_fake_artifact(edge: str, workspace: Path, manifest: dict | None = None
             output_path=artifact,
             workspace_root=workspace,
         )
-        release_copy = workspace / BOOTLOADER_RELEASE_COPY
-        release_copy.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(artifact, release_copy)
     return artifact
 
 
@@ -236,8 +292,12 @@ def default_archive_name(edge: str) -> str:
     return relative.name if relative is not None else "artifact.json"
 
 
-def constructive_prompt(edge: str, manifest: dict, *, artifact_path: Path) -> str:
-    return build_constructive_prompt(edge, manifest, artifact_path=artifact_path)
+def constructive_prompt(edge: str, manifest: dict, *, workspace: Path, artifact_path: Path) -> str:
+    return build_constructive_prompt(edge, manifest, artifact_path=artifact_path, workspace_root=workspace)
+
+
+def effective_prompt_from_manifest(manifest_path: Path, *, workspace: Path) -> str:
+    return render_effective_prompt(manifest_path, workspace)
 
 
 def fd_repair_prompt(edge: str, workspace: Path) -> str:
@@ -256,7 +316,44 @@ def fd_repair_prompt(edge: str, workspace: Path) -> str:
             ),
         },
         artifact_path=artifact,
+        workspace_root=workspace,
     )
+
+
+def _write_fp_overrides(overrides_root: Path) -> None:
+    design_ref = "specification/design/README.md"
+    edge_refs = {
+        "requirements→feature_decomp": ["REQ-PROJ-001", "REQ-PROJ-002", "REQ-PROJ-003", "REQ-PROJ-004"],
+        "feature_decomp→design": ["REQ-PROJ-001", "REQ-PROJ-002", "REQ-PROJ-004"],
+        "design→module_decomp": ["REQ-PROJ-001", "REQ-PROJ-002", "REQ-PROJ-003", "REQ-PROJ-004"],
+        "module_decomp→code": ["REQ-PROJ-001", "REQ-PROJ-002"],
+        "module_decomp→unit_tests": ["REQ-PROJ-003"],
+        INTEGRATION_EDGE: ["REQ-PROJ-004"],
+        USER_GUIDE_EDGE: ["REQ-PROJ-001", "REQ-PROJ-002", "REQ-PROJ-003", "REQ-PROJ-004"],
+        BOOTLOADER_EDGE: ["REQ-PROJ-001", "REQ-PROJ-002", "REQ-PROJ-003", "REQ-PROJ-004"],
+    }
+    for edge, artifact in {
+        "requirements→feature_decomp": FEATURE_DECOMP_ARTIFACT,
+        "feature_decomp→design": DESIGN_ARTIFACT,
+        "design→module_decomp": MODULE_DECOMP_ARTIFACT,
+        "module_decomp→code": CODE_ARTIFACT,
+        "module_decomp→unit_tests": UNIT_TESTS_ARTIFACT,
+        INTEGRATION_EDGE: INTEGRATION_ARTIFACT,
+        USER_GUIDE_EDGE: USER_GUIDE_ARTIFACT,
+        BOOTLOADER_EDGE: BOOTLOADER_ARTIFACT,
+    }.items():
+        payload = {
+            "edge": edge,
+            "customization_intent": "Keep this constructive turn bounded to the minimal calculator qualification project.",
+            "requirement_refs": edge_refs[edge],
+            "design_refs": [design_ref],
+            "guidance_append": "Prefer the seeded calculator scope, small files, and direct requirement traceability.",
+            "suggested_output": artifact.as_posix(),
+        }
+        (overrides_root / edge_override_filename(edge)).write_text(
+            json.dumps(payload, indent=2),
+            encoding="utf-8",
+        )
 
 
 def _write(path: Path, text: str) -> None:

@@ -1,0 +1,15 @@
+{
+  "edge": "requirements→feature_decomp",
+  "customization_intent": "Describe the project-specific aim for this edge.",
+  "requirement_refs": [
+    "REQ-PROJ-001"
+  ],
+  "design_refs": [
+    "specification/design/README.md"
+  ],
+  "guidance_append": "Describe how this project wants the edge handled.",
+  "suggested_output": "output/feature_decomp.md",
+  "required_sections": [
+    "# Feature Decomposition"
+  ]
+}

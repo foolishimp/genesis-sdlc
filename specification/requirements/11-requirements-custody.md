@@ -26,12 +26,12 @@ The generated wrapper must read the project's own requirement surface and pass i
 - AC-3: `_load_reqs()` returns an empty list if the folder does not exist
 - AC-4: Parsing is deterministic: files are read in lexicographic path order and REQ headers are matched with regex `### (REQ-[A-Z0-9-]+)` at start of line
 
-### REQ-F-CUSTODY-003 — Installer scaffolds specification/requirements/
+### REQ-F-CUSTODY-003 — Installer scaffolds specification/requirements/ from master templates
 
 New projects need a starter requirement surface so the custody chain has something to read.
 
 **Acceptance Criteria**:
 - AC-1: `install()` creates `specification/requirements/` if absent
-- AC-2: The scaffold contains a header and at least one example REQ key or starter family file as a template
+- AC-2: The scaffold contains a header and at least one example REQ key or starter family file sourced from the installed master template surface
 - AC-3: Existing requirement files are never overwritten
 - AC-4: The scaffold is created before wrapper generation so the chain is complete on first install
