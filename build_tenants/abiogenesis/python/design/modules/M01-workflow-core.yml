@@ -14,7 +14,6 @@ interfaces:
   - graph_manifest()
 source_files:
   - src/genesis_sdlc/workflow/assets.py
-  - src/genesis_sdlc/evidence/fd_checks.py
   - src/genesis_sdlc/workflow/graph.py
   - src/genesis_sdlc/workflow/package.py
   - src/genesis_sdlc/workflow/requirements.py

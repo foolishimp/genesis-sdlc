@@ -1,6 +1,6 @@
-id: MOD-004
+id: MOD-005
 name: backlog_homeostasis
-description: Owns backlog surfaces, ready-item projection, publish and monitoring interfaces, and the homeostatic return path to creche.
+description: Owns backlog surfaces, ready-item projection, publish and monitoring interfaces, and the homeostatic return path to creche. This module is outside the active 0.9.9 refactor wave.
 implements_features:
   - homeostasis.backlog
   - homeostasis.publish_loop
@@ -8,7 +8,7 @@ implements_features:
 dependencies:
   - workflow_core
   - release_bootstrap
-rank: 3
+rank: 4
 interfaces:
   - backlog_list()
   - backlog_promote()

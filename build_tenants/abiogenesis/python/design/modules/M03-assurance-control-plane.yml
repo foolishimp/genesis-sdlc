@@ -1,0 +1,27 @@
+id: MOD-003
+name: assurance_control_plane
+description: Owns resolved-runtime compilation, backend adapters, doctor, runtime-state handling, and the exclusive operative runtime path for commands and live qualification.
+implements_features:
+  - runtime.resolution
+  - runtime.backend_adapters
+  - runtime.invoke_backend
+  - runtime.doctor
+  - runtime.prompt_read_model
+dependencies:
+  - workflow_core
+  - release_bootstrap
+rank: 3
+interfaces:
+  - compile_resolved_runtime()
+  - load_resolved_runtime()
+  - probe_backends()
+  - invoke_backend(prompt, work_folder, backend, timeout)
+  - doctor()
+  - render_effective_prompt(manifest_path)
+source_files:
+  - src/genesis_sdlc/release/fp_prompt.py
+  - src/genesis_sdlc/runtime/resolve.py
+  - src/genesis_sdlc/runtime/state.py
+  - src/genesis_sdlc/runtime/backends.py
+  - src/genesis_sdlc/runtime/doctor.py
+  - src/genesis_sdlc/runtime/prompt_view.py

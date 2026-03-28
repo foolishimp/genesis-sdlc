@@ -2,7 +2,7 @@
 
 **Status**: Draft
 **Authority**: [Abiogenesis Python Variant](/Users/jim/src/apps/genesis_sdlc/build_tenants/abiogenesis/python/README.md)
-**Implements**: `REQ-F-GRAPH-*`, `REQ-F-CMD-*`, `REQ-F-GATE-*`, `REQ-F-TAG-*`, `REQ-F-COV-*`, `REQ-F-DOCS-*`, `REQ-F-TEST-*`, `REQ-F-UAT-*`, `REQ-F-CUSTODY-*`, `REQ-F-TERRITORY-*`, `REQ-F-BOOTDOC-*`, `REQ-F-BACKLOG-*`, `REQ-F-ECO-*`, `REQ-F-MVP-*`, `REQ-F-ASSURE-*`
+**Implements**: `REQ-F-GRAPH-*`, `REQ-F-CMD-*`, `REQ-F-GATE-*`, `REQ-F-TAG-*`, `REQ-F-COV-*`, `REQ-F-DOCS-*`, `REQ-F-TEST-*`, `REQ-F-UAT-*`, `REQ-F-CUSTODY-*`, `REQ-F-TERRITORY-*`, `REQ-F-BOOTDOC-*`, `REQ-F-BACKLOG-*`, `REQ-F-ECO-*`, `REQ-F-MVP-*`, `REQ-F-ASSURE-*`, `REQ-F-CTRL-*`
 **Purpose**: ABG and GTL design for the Abiogenesis/Python realization of genesis_sdlc
 
 ---
@@ -38,7 +38,7 @@ This variant also carries the wider ecosystem stages as adjacent lifecycle surfa
 - `monitoring`
 - `homeostatic_eval`
 
-These wider ecosystem stages are active requirement truth and sit beside the blocking workflow graph in this realization.
+These wider ecosystem stages are active requirement truth and sit beside the blocking workflow graph in this realization, but `backlog_homeostasis` remains outside the active `0.9.9` refactor wave.
 
 ---
 
@@ -70,6 +70,9 @@ The Python variant encodes the requirement surface as follows:
 - the exported package is assembled from multiple GTL `Module` declarations composed into one graph
 - evaluator programs run as Python-bound F_D, F_P, or F_H surfaces depending on regime
 - optional zoom, profile, consensus, and harvest behavior use `deferred_refinement`, `fan_out`, `fan_in`, and `gate` where the active requirements justify them
+- the assurance control plane compiles release defaults, project-local `specification/design/fp/` tuning, and runtime state into one resolved runtime artifact
+- backend adapters belong to the control plane, not to graph law
+- any rendered F_P prompt is a read model derived from the resolved runtime, not a separate operative path
 
 The lifecycle truth comes from `specification/requirements/`.
 
@@ -93,6 +96,12 @@ The target variant interface set is:
 - `load_project_requirements()`
 - `render_wrapper()`
 - `synthesize_bootloader()`
+- `compile_resolved_runtime()`
+- `load_resolved_runtime()`
+- `probe_backends()`
+- `invoke_backend(prompt, work_folder, backend, timeout)`
+- `doctor()`
+- `render_effective_prompt(manifest_path)`
 - `check_tags()`
 - `check_req_coverage()`
 - `sandbox_e2e_passed()`
@@ -125,6 +134,8 @@ The bundled assurance surface lives under `tests/` and provides:
 - live-lane qualification for real F_P execution
 - persistent run archives for postmortem and operator review
 
+Both product commands and qualification consume the same resolved runtime and backend adapter layer. The assurance harness is not allowed to remain a separate operative transport path once the control plane exists.
+
 This variant therefore treats qualification as part of the framework realization, not as an external demo harness.
 
 ---
@@ -132,6 +143,7 @@ This variant therefore treats qualification as part of the framework realization
 ## Variant ADRs
 
 - [ADR-001-gtl-python-coding-standards.md](/Users/jim/src/apps/genesis_sdlc/build_tenants/abiogenesis/python/design/adrs/ADR-001-gtl-python-coding-standards.md)
+- [ADR-002-assurance-control-plane.md](/Users/jim/src/apps/genesis_sdlc/build_tenants/abiogenesis/python/design/adrs/ADR-002-assurance-control-plane.md)
 
 ---
 
@@ -143,3 +155,4 @@ This variant therefore treats qualification as part of the framework realization
 - [14-ecosystem-lifecycle.md](/Users/jim/src/apps/genesis_sdlc/specification/requirements/14-ecosystem-lifecycle.md)
 - [15-mvp.md](/Users/jim/src/apps/genesis_sdlc/specification/requirements/15-mvp.md)
 - [16-assurance.md](/Users/jim/src/apps/genesis_sdlc/specification/requirements/16-assurance.md)
+- [17-control-plane.md](/Users/jim/src/apps/genesis_sdlc/specification/requirements/17-control-plane.md)
