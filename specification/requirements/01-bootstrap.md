@@ -12,12 +12,12 @@ The installer performs a product install, not a source snapshot. It establishes 
 
 **Acceptance Criteria**:
 - AC-1: `install(target, source)` creates `.genesis/genesis/` with engine modules copied from the abiogenesis engine
-- AC-2: Creates `.genesis/genesis.yml` pointing to `gtl_spec.packages.<slug>:package` and `gtl_spec.packages.<slug>:worker` with `pythonpath: [.gsdlc/release]`
+- AC-2: Creates `.genesis/genesis.yml` pointing to `gtl_spec.packages.<slug>:package` and `gtl_spec.packages.<slug>:worker` with `pythonpath: [.gsdlc/release]`, where `worker` is the installed runtime worker router or dispatch surface rather than a concrete vendor worker identity
 - AC-3: Creates `.ai-workspace/` directory structure (events/, features/active/, features/completed/, comments/, reviews/)
 - AC-4: Installs operating standards from `specification/standards/` into `.gsdlc/release/operating-standards/`
 - AC-5: Installs command files from plugin sources into `.claude/commands/`
-- AC-6: Installs or updates the supported agent bootstrap/control surfaces defined by the active design
-- AC-7: Delivered bootstrap/control surfaces carry bare operating axioms and route the agent to the canonical released process documents
+- AC-6: Installs or updates the supported agent bootstrap/control surfaces defined by the active design, including `CLAUDE.md` and `AGENTS.md` when those carriers are part of the active release
+- AC-7: Delivered bootstrap/control surfaces carry bare operating axioms and route the agent to the canonical released process documents rather than replacing the compiled bootloader as a source of truth
 - AC-8: Idempotent — re-running updates engine files and standards, preserves workspace state and local specs
 - AC-9: Emits `genesis_sdlc_installed` event on completion with version, spec_hash, and install outcome
 - AC-10: Default install excludes authoring-source territories such as `build_tenants/`; source snapshots require an explicit non-default mode
@@ -30,6 +30,7 @@ The engine reads its Package and Worker from a config file at startup.
 - AC-1: `genesis.yml` contains `package:` and `worker:` fields as Python import paths (`module:var`)
 - AC-2: Missing `genesis.yml` produces an informative error, not a crash
 - AC-3: Engine resolves Package and Worker via `importlib` from the configured path
+- AC-4: In a multi-worker realization, the exported `worker:` surface is the runtime dispatch or routing surface consumed by ABG, not itself the final concrete worker assignment
 
 ### REQ-F-BOOT-003 — Installer copies released spec into .gsdlc/release/spec/ as immutable layer
 
@@ -64,7 +65,7 @@ The installer can verify that a deployment is consistent with the version it cla
 
 **Acceptance Criteria**:
 - AC-1: `install(target, audit_only=True)` returns structured JSON with per-component findings (ok, drifted, missing, error)
-- AC-2: Checks content hashes of workflow release, commands, operating standards, bootstrap/control-surface artifacts, and immutable spec shim against build source
+- AC-2: Checks content hashes of workflow release, commands, operating standards, bootstrap/control-surface artifacts including `CLAUDE.md` and `AGENTS.md` when supported, and immutable spec shim against build source
 - AC-3: Checks version consistency across active-workflow.json, manifest.json, and commands stamp
 - AC-4: Verifies genesis.yml package/worker references resolve via import (not just exist as files)
 - AC-5: Verifies Layer 3 wrapper content matches expected template for the installed version
@@ -87,7 +88,7 @@ The installed release does not invite arbitrary edits to managed artifacts. It e
 
 **Acceptance Criteria**:
 - AC-1: The installed active workflow declaration identifies the project requirement surface as the primary customization boundary
-- AC-2: The installed active workflow declaration exposes the installed default F_P backend or transport hint without claiming to be the final per-run backend selection
+- AC-2: The installed active workflow declaration exposes the installed default worker-assignment hint without claiming to be the final per-run worker or backend selection
 - AC-3: The installed active workflow declaration exposes the project-local F_P customization root used for edge-specific tuning
 - AC-4: The installed active workflow declaration lists the managed install surfaces that should not be edited directly
 - AC-5: The customization surface is machine-readable and shipped with the installed release

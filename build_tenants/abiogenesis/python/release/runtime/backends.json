@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "backends": {
+    "claude": {
+      "transport": "abg_agent",
+      "agent": "claude",
+      "failure_model": "transport_error",
+      "capabilities": {
+        "interactive_cli": true,
+        "workspace_write": true,
+        "full_auto": false
+      }
+    },
+    "codex": {
+      "transport": "codex_exec",
+      "agent": "codex",
+      "failure_model": "transport_error",
+      "capabilities": {
+        "interactive_cli": true,
+        "workspace_write": true,
+        "full_auto": true
+      }
+    },
+    "gemini": {
+      "transport": "abg_agent",
+      "agent": "gemini",
+      "failure_model": "transport_error",
+      "capabilities": {
+        "interactive_cli": true,
+        "workspace_write": true,
+        "full_auto": true
+      }
+    }
+  }
+}

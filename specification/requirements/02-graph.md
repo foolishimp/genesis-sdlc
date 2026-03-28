@@ -53,3 +53,13 @@ Each lifecycle asset defines its own stability conditions.
 - AC-1: Every lifecycle asset in a conformant realization has a non-empty `markov` list of named conditions
 - AC-2: Markov conditions are surfaced in the operative output contract for that asset
 - AC-3: An asset is stable when all markov conditions are met and all edge evaluators pass
+
+### REQ-F-GRAPH-003 — The workflow exposes role-bearing jobs as a constitutional execution surface
+
+The graph defines lifecycle law, and the workflow execution surface defines which generic roles are required to realize that law. Worker assignment is downstream of this role surface; it does not invent roles ad hoc.
+
+**Acceptance Criteria**:
+- AC-1: A conformant realization exposes a machine-readable registry of declared workflow roles
+- AC-2: A conformant realization exposes role-bearing executable jobs or equivalent execution contracts that bind required role ids to lifecycle work
+- AC-3: At least one declared role is responsible for constructive `F_P` realization, rather than binding workers directly to edges with no constitutional role surface
+- AC-4: Worker coverage and assignment validate against the declared role surface, not against ad hoc backend names or environment defaults

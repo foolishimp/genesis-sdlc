@@ -1,12 +1,15 @@
 id: MOD-003
 name: assurance_control_plane
-description: Owns resolved-runtime compilation, backend adapters, doctor, runtime-state handling, and the exclusive operative runtime path for commands and live qualification.
+description: Owns resolved-runtime compilation, worker assignment, the backend adapter contract, runtime provenance, doctor, runtime-state handling, and the exclusive operative runtime path for commands and live qualification. It defines the schemas and adapter semantics shipped via the release runtime carrier, while assuming selected vendor CLIs are already installed and authenticated.
 implements_features:
   - runtime.resolution
+  - runtime.worker_assignment
+  - runtime.worker_dispatch
   - runtime.backend_adapters
-  - runtime.invoke_backend
+  - runtime.adapter_contract
   - runtime.doctor
   - runtime.prompt_read_model
+  - runtime.provenance
 dependencies:
   - workflow_core
   - release_bootstrap
@@ -14,10 +17,38 @@ rank: 3
 interfaces:
   - compile_resolved_runtime()
   - load_resolved_runtime()
+  - load_worker_registry()
+  - resolve_worker_assignments()
+  - invoke_worker_turn(role, prompt, work_folder, timeout)
+  - load_backend_registry()
   - probe_backends()
-  - invoke_backend(prompt, work_folder, backend, timeout)
+  - normalize_backend_result(raw_result, backend)
+  - describe_backend_failure(raw_failure, backend)
+  - backend_capabilities(backend)
   - doctor()
   - render_effective_prompt(manifest_path)
+contracts:
+  worker_assignment:
+    shipped_carrier: .gsdlc/release/runtime/
+    records:
+      - worker_id
+      - roles
+      - backend
+      - capabilities
+      - source_layer
+      - source_path
+  backend_adapter:
+    shipped_carrier: .gsdlc/release/runtime/
+    methods:
+      - probe()
+      - invoke(prompt, work_folder, timeout)
+      - normalize(raw_result)
+      - failure_model(raw_failure)
+      - capabilities()
+    assumptions:
+      - selected backend CLI is already installed
+      - selected backend CLI is already authenticated
+    note: backend invocation is an internal adapter seam beneath the public worker/role dispatch interface
 source_files:
   - src/genesis_sdlc/release/fp_prompt.py
   - src/genesis_sdlc/runtime/resolve.py

@@ -35,4 +35,5 @@ The archived qualification surface must make it possible to answer what was buil
 - AC-1: A run archive preserves the produced artifacts plus the manifest/result material needed to show what was built
 - AC-2: A run archive preserves convergence state, including edge-level gap status and final `total_delta`, so completeness can be answered directly
 - AC-3: A run archive preserves deterministic findings, assessed events, human approvals, and integration/UAT evidence so correctness can be answered directly
-- AC-4: The archive makes clear that assurance is downstream of the active intent and requirement surfaces and does not substitute for their truth
+- AC-4: A run archive preserves engine build identity, assigned worker identity, and backend identity for constructive turns, and reports disagreement explicitly when those provenance surfaces do not align
+- AC-5: The archive makes clear that assurance is downstream of the active intent and requirement surfaces and does not substitute for their truth

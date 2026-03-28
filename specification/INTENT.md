@@ -427,3 +427,55 @@ The control plane governs the execution envelope, not the substantive solution s
 3. Backend execution is expressed through a product adapter contract rather than hardcoded transport branching
 4. `doctor` can explain runtime readiness as a separate concern from release-integrity audit
 5. The control plane is complete enough to serve as the foundation for a later second-order memory system rather than embedding that logic prematurely
+
+---
+
+## INT-009 — Multiple Workers And Role Assignment Are First-Class Runtime Configuration
+
+### Problem
+
+GTL and ABG already distinguish roles, executable jobs, and worker capability, but the current genesis_sdlc realization still collapses execution to one exported worker surface plus one winning backend hint. That is enough for a proof lane, but it is not enough for a real product.
+
+The missing question is not "can one agent run the workflow?" It is:
+
+- which worker is assigned to which role?
+- which backend is bound to that worker?
+- where is that assignment configured, resolved, and proven?
+- how do archives answer who actually performed a constructive turn?
+
+Without that layer, `claude`, `codex`, and future workers such as `gemini` are not yet first-class runtime citizens. The product remains effectively single-worker even when it can switch backend transport.
+
+### Value Proposition
+
+genesis_sdlc treats the next execution refactor as explicit worker assignment over the control plane:
+
+- graph law keeps generic roles such as `constructor`
+- the installed runtime exposes declared workers and their role coverage
+- the control plane resolves `role -> worker -> backend` into the resolved runtime artifact
+- product commands and qualification bind the active worker from that resolved assignment
+- archives and events distinguish engine build identity from assigned worker identity and backend identity
+
+This preserves the declarative framework boundary while making multiple concrete workers real configuration rather than ad hoc branching.
+
+### Scope
+
+- expose declared workers and default role assignments as installed runtime configuration
+- allow runtime/session override of role assignment without mutating install-managed declarations
+- compile worker assignment and backend binding into the resolved runtime artifact, with backend identity derived from the winning worker assignment
+- make commands and qualification consume that resolved worker assignment
+- preserve distinct provenance for engine build, assigned worker, and transport backend
+
+### Out of Scope
+
+- automatic worker optimization or learning between vendors
+- forcing all vendors to have identical capabilities
+- turning worker preference into constitutional project truth
+- changing graph law just to add a new worker implementation
+
+### Success Criteria
+
+1. The active runtime can declare and resolve more than one concrete worker without graph changes
+2. Worker assignment is explicit, inspectable, and provenance-bearing in the resolved runtime
+3. Product commands and live qualification bind workers through the same resolved assignment path
+4. Archives can answer engine build identity, assigned worker identity, and backend identity separately
+5. Adding a new conforming worker does not require rewriting the lifecycle graph

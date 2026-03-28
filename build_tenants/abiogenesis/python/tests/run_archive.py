@@ -30,7 +30,7 @@ def _git_commit() -> str:
     try:
         result = subprocess.run(
             ["git", "rev-parse", "HEAD"],
-            cwd=str(_VARIANT_ROOT.parents[3]),
+            cwd=str(_VARIANT_ROOT.parents[2]),
             capture_output=True,
             text=True,
             timeout=5,
@@ -40,6 +40,19 @@ def _git_commit() -> str:
     if result.returncode != 0:
         return "unknown"
     return result.stdout.strip() or "unknown"
+
+
+def _report_reason(report: Any | None) -> str | None:
+    if report is None:
+        return None
+    longreprtext = getattr(report, "longreprtext", None)
+    if isinstance(longreprtext, str) and longreprtext.strip():
+        return longreprtext.strip().splitlines()[-1]
+    longrepr = getattr(report, "longrepr", None)
+    if longrepr is None:
+        return None
+    text = str(longrepr).strip()
+    return text.splitlines()[-1] if text else None
 
 
 @dataclass
@@ -111,13 +124,16 @@ class RunArchive:
     def update_summary(self, **data: Any) -> None:
         self.summary_overrides.update(data)
 
-    def finalize(self, *, test_passed: bool) -> None:
+    def finalize(self, *, test_passed: bool, outcome: str, outcome_stage: str | None = None, outcome_reason: str | None = None) -> None:
         if self._finalized:
             return
         self._finalized = True
 
         summary = self._build_summary()
         summary["test_passed"] = test_passed
+        summary["test_outcome"] = outcome
+        summary["outcome_stage"] = outcome_stage
+        summary["outcome_reason"] = outcome_reason
         (self.run_dir / "summary.json").write_text(
             json.dumps(summary, indent=2),
             encoding="utf-8",
@@ -128,6 +144,9 @@ class RunArchive:
             "test_name": self.test_name,
             "timestamp": self.timestamp,
             "test_passed": test_passed,
+            "test_outcome": outcome,
+            "outcome_stage": outcome_stage,
+            "outcome_reason": outcome_reason,
             "source_commit": _git_commit(),
             "python": sys.executable,
             "notes": self.notes,
@@ -154,6 +173,26 @@ class RunArchive:
                     events.append(json.loads(line))
         summary["total_events"] = len(events)
         summary["event_types"] = sorted({event["event_type"] for event in events})
+        summary["event_worker_ids"] = sorted(
+            {
+                str(data["worker_id"])
+                for event in events
+                if isinstance(event, dict)
+                and isinstance((data := event.get("data")), dict)
+                and isinstance(data.get("worker_id"), str)
+                and data.get("worker_id")
+            }
+        )
+        summary["event_build_ids"] = sorted(
+            {
+                str(data["build"])
+                for event in events
+                if isinstance(event, dict)
+                and isinstance((data := event.get("data")), dict)
+                and isinstance(data.get("build"), str)
+                and data.get("build")
+            }
+        )
 
         manifests_dir = self.workspace / ".ai-workspace" / "fp_manifests"
         results_dir = self.workspace / ".ai-workspace" / "fp_results"
@@ -161,11 +200,61 @@ class RunArchive:
         summary["result_files"] = sorted(f.name for f in results_dir.glob("*.json")) if results_dir.exists() else []
 
         summary.update(self.summary_overrides)
+        selected_assignments = summary.get("selected_assignments")
+        if not isinstance(selected_assignments, dict):
+            role_assignments = summary.get("role_assignments")
+            if isinstance(role_assignments, dict):
+                selected_assignments = role_assignments
+        selected_workers: set[str] = set()
+        selected_backends: set[str] = set()
+        if isinstance(selected_assignments, dict):
+            for assignment in selected_assignments.values():
+                if not isinstance(assignment, dict):
+                    continue
+                worker_id = assignment.get("worker_id")
+                backend = assignment.get("backend")
+                if isinstance(worker_id, str) and worker_id:
+                    selected_workers.add(worker_id)
+                if isinstance(backend, str) and backend:
+                    selected_backends.add(backend)
+        selected_worker = summary.get("selected_worker") or summary.get("transport_agent")
+        selected_backend = summary.get("selected_backend")
+        if isinstance(selected_worker, str) and selected_worker:
+            selected_workers.add(selected_worker)
+        if isinstance(selected_backend, str) and selected_backend:
+            selected_backends.add(selected_backend)
+        if selected_workers:
+            summary["selected_workers"] = sorted(selected_workers)
+        if selected_backends:
+            summary["selected_backends"] = sorted(selected_backends)
+        if selected_workers:
+            event_worker_ids = [wid for wid in summary.get("event_worker_ids", []) if isinstance(wid, str)]
+            event_build_ids = [bid for bid in summary.get("event_build_ids", []) if isinstance(bid, str)]
+            provenance_warnings: list[str] = []
+            if set(event_worker_ids) != selected_workers:
+                provenance_warnings.append(
+                    "event worker_id values do not match the resolved selected_workers set; runtime worker attribution is split across archive surfaces"
+                )
+            if set(event_build_ids) != selected_workers:
+                provenance_warnings.append(
+                    "event build values do not match the resolved selected_workers set; installed engine build id differs from the resolved worker assignment"
+                )
+            if provenance_warnings:
+                summary["worker_provenance_consistent"] = False
+                summary["provenance_warnings"] = provenance_warnings
+            else:
+                summary["worker_provenance_consistent"] = True
+        if selected_backends:
+            summary["backend_identity"] = sorted(selected_backends)
         return summary
 
     def _copy_workspace_artifacts(self) -> None:
         for relative, dest_name in (
             (Path(".ai-workspace/events/events.jsonl"), "events.jsonl"),
+            (Path(".ai-workspace/runtime/resolved-runtime.json"), "resolved-runtime.json"),
+            (Path(".ai-workspace/runtime/doctor.json"), "doctor.json"),
+            (Path(".gsdlc/release/runtime/workers.json"), "workers.json"),
+            (Path(".gsdlc/release/runtime/role-assignments.json"), "role-assignments.json"),
             (Path(".ai-workspace/uat/sandbox_report.json"), "sandbox_report.json"),
             (Path(".genesis/genesis.yml"), "genesis.runtime.yml"),
             (Path(".gsdlc/release/genesis.yml"), "gsdlc.runtime.yml"),

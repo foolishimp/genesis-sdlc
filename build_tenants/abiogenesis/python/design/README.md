@@ -2,7 +2,7 @@
 
 **Status**: Draft
 **Authority**: [Abiogenesis Python Variant](/Users/jim/src/apps/genesis_sdlc/build_tenants/abiogenesis/python/README.md)
-**Implements**: `REQ-F-GRAPH-*`, `REQ-F-CMD-*`, `REQ-F-GATE-*`, `REQ-F-TAG-*`, `REQ-F-COV-*`, `REQ-F-DOCS-*`, `REQ-F-TEST-*`, `REQ-F-UAT-*`, `REQ-F-CUSTODY-*`, `REQ-F-TERRITORY-*`, `REQ-F-BOOTDOC-*`, `REQ-F-BACKLOG-*`, `REQ-F-ECO-*`, `REQ-F-MVP-*`, `REQ-F-ASSURE-*`, `REQ-F-CTRL-*`
+**Implements**: `REQ-F-GRAPH-*`, `REQ-F-CMD-*`, `REQ-F-GATE-*`, `REQ-F-TAG-*`, `REQ-F-COV-*`, `REQ-F-DOCS-*`, `REQ-F-TEST-*`, `REQ-F-UAT-*`, `REQ-F-CUSTODY-*`, `REQ-F-TERRITORY-*`, `REQ-F-BOOTDOC-*`, `REQ-F-BACKLOG-*`, `REQ-F-ECO-*`, `REQ-F-MVP-*`, `REQ-F-ASSURE-*`, `REQ-F-CTRL-*`, `REQ-F-WORKER-*`
 **Purpose**: ABG and GTL design for the Abiogenesis/Python realization of genesis_sdlc
 
 ---
@@ -66,12 +66,17 @@ The Python variant encodes the requirement surface as follows:
 
 - lifecycle assets are GTL `Node` declarations
 - lifecycle edges are GTL jobs with explicit evaluator sets
+- lifecycle jobs expose generic workflow roles as constitutional execution law
 - multi-source edges are modeled as `GraphVector` boundaries rather than hidden inside one operator
 - the exported package is assembled from multiple GTL `Module` declarations composed into one graph
+- the exported `worker` surface is a runtime dispatch/router boundary rather than a hidden singleton vendor worker
 - evaluator programs run as Python-bound F_D, F_P, or F_H surfaces depending on regime
 - optional zoom, profile, consensus, and harvest behavior use `deferred_refinement`, `fan_out`, `fan_in`, and `gate` where the active requirements justify them
 - the assurance control plane compiles release defaults, project-local `specification/design/fp/` tuning, and runtime state into one resolved runtime artifact
+- `release_bootstrap` publishes the install-managed runtime carrier under `.gsdlc/release/runtime/`, including backend and worker registry defaults, while `assurance_control_plane` owns the schemas, worker-assignment rules, adapter contract, and operative consumers inside that carrier
 - backend adapters belong to the control plane, not to graph law
+- backend identity is derived from the winning worker assignment rather than resolved as a co-equal selector
+- for `0.9.9`, declared workers assume their bound vendor CLI is already installed and authenticated; the variant standardizes invocation and evidence, not backend provisioning
 - any rendered F_P prompt is a read model derived from the resolved runtime, not a separate operative path
 
 The lifecycle truth comes from `specification/requirements/`.
@@ -98,8 +103,14 @@ The target variant interface set is:
 - `synthesize_bootloader()`
 - `compile_resolved_runtime()`
 - `load_resolved_runtime()`
+- `load_worker_registry()`
+- `resolve_worker_assignments()`
+- `invoke_worker_turn(role, prompt, work_folder, timeout)`
+- `load_backend_registry()`
 - `probe_backends()`
-- `invoke_backend(prompt, work_folder, backend, timeout)`
+- `normalize_backend_result(raw_result, backend)`
+- `describe_backend_failure(raw_failure, backend)`
+- `backend_capabilities(backend)`
 - `doctor()`
 - `render_effective_prompt(manifest_path)`
 - `check_tags()`
@@ -136,6 +147,8 @@ The bundled assurance surface lives under `tests/` and provides:
 
 Both product commands and qualification consume the same resolved runtime and backend adapter layer. The assurance harness is not allowed to remain a separate operative transport path once the control plane exists.
 
+Run archives must preserve engine build identity, assigned worker identity, and transport backend identity as distinct provenance surfaces. The variant does not collapse those three layers into one field.
+
 This variant therefore treats qualification as part of the framework realization, not as an external demo harness.
 
 ---
@@ -156,3 +169,4 @@ This variant therefore treats qualification as part of the framework realization
 - [15-mvp.md](/Users/jim/src/apps/genesis_sdlc/specification/requirements/15-mvp.md)
 - [16-assurance.md](/Users/jim/src/apps/genesis_sdlc/specification/requirements/16-assurance.md)
 - [17-control-plane.md](/Users/jim/src/apps/genesis_sdlc/specification/requirements/17-control-plane.md)
+- [18-workers.md](/Users/jim/src/apps/genesis_sdlc/specification/requirements/18-workers.md)

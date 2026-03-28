@@ -92,6 +92,22 @@ def reset_runtime_sandbox(
     )
 
 
+def audit_real_sandbox(
+    target: Path,
+    *,
+    slug: str = "sandbox_project",
+    archive: RunArchive | None = None,
+) -> dict[str, Any]:
+    return _run_installer(
+        target,
+        "--project-slug",
+        slug,
+        "--audit",
+        archive=archive,
+        label="genesis_sdlc audit",
+    )
+
+
 def installed_env(workspace: Path) -> dict[str, str]:
     env = os.environ.copy()
     paths = [

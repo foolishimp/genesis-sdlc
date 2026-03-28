@@ -26,6 +26,7 @@ The live requirement surface is stored as requirement families under this folder
 | `15-mvp.md` | REQ-F-MVP-* | Release Qualification | Active |
 | `16-assurance.md` | REQ-F-ASSURE-* | Release Qualification | Active |
 | `17-control-plane.md` | REQ-F-CTRL-* | Runtime Control | Active |
+| `18-workers.md` | REQ-F-WORKER-* | Runtime Control | Active |
 
 ## Notes
 

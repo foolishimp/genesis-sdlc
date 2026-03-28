@@ -33,6 +33,8 @@ from .assets import (
     unit_tests,
     user_guide,
 )
+from .roles import workflow_job_roles as declared_workflow_job_roles
+from .roles import workflow_role_manifest as declared_workflow_role_manifest
 
 
 python_constructor = Operator("python_constructor", F_P, "agent://genesis_sdlc/python")
@@ -345,57 +347,75 @@ BASE_VECTORS = (
     v_uat_tests,
 )
 
-role_constructor = Role(name="constructor", tags=("f_p", "python"))
+_ROLE_INDEX = {
+    str(role["id"]): Role(
+        name=str(role["name"]),
+        tags=tuple(role["tags"]),
+        id=str(role["id"]),
+    )
+    for role in declared_workflow_role_manifest()
+}
+_JOB_ROLE_MAP = declared_workflow_job_roles()
+
+role_constructor = _ROLE_INDEX["constructor"]
+role_implementer = _ROLE_INDEX["implementer"]
+
+
+def _roles_for_job(job_name: str) -> tuple[Role, ...]:
+    role_ids = _JOB_ROLE_MAP.get(job_name)
+    if role_ids is None:
+        raise KeyError(f"workflow job role mapping missing for {job_name}")
+    return tuple(_ROLE_INDEX[role_id] for role_id in role_ids)
 
 job_intent_requirements = Job(
     name="intent→requirements",
     contracts=(ContractRef(kind="graph_vector", target_id=v_intent_requirements.id),),
-    roles=(),
+    roles=_roles_for_job("intent→requirements"),
 )
 job_requirements_feature_decomp = Job(
     name="requirements→feature_decomp",
     contracts=(ContractRef(kind="graph_vector", target_id=v_requirements_feature_decomp.id),),
-    roles=(role_constructor,),
+    roles=_roles_for_job("requirements→feature_decomp"),
 )
 job_feature_decomp_design = Job(
     name="feature_decomp→design",
     contracts=(ContractRef(kind="graph_vector", target_id=v_feature_decomp_design.id),),
-    roles=(role_constructor,),
+    roles=_roles_for_job("feature_decomp→design"),
 )
 job_design_module_decomp = Job(
     name="design→module_decomp",
     contracts=(ContractRef(kind="graph_vector", target_id=v_design_module_decomp.id),),
-    roles=(role_constructor,),
+    roles=_roles_for_job("design→module_decomp"),
 )
 job_module_decomp_code = Job(
     name="module_decomp→code",
     contracts=(ContractRef(kind="graph_vector", target_id=v_module_decomp_code.id),),
-    roles=(role_constructor,),
+    roles=_roles_for_job("module_decomp→code"),
 )
 job_module_decomp_unit_tests = Job(
     name="module_decomp→unit_tests",
     contracts=(ContractRef(kind="graph_vector", target_id=v_module_decomp_unit_tests.id),),
-    roles=(role_constructor,),
+    roles=_roles_for_job("module_decomp→unit_tests"),
 )
 job_integration_tests = Job(
     name="[code, unit_tests]→integration_tests",
     contracts=(ContractRef(kind="graph_vector", target_id=v_integration_tests.id),),
-    roles=(role_constructor,),
+    roles=_roles_for_job("[code, unit_tests]→integration_tests"),
 )
 job_user_guide = Job(
     name="[design, integration_tests]→user_guide",
     contracts=(ContractRef(kind="graph_vector", target_id=v_user_guide.id),),
-    roles=(role_constructor,),
+    roles=_roles_for_job("[design, integration_tests]→user_guide"),
 )
 job_bootloader = Job(
     name="[requirements, design, integration_tests]→bootloader",
     contracts=(ContractRef(kind="graph_vector", target_id=v_bootloader.id),),
-    roles=(role_constructor,),
+    roles=_roles_for_job("[requirements, design, integration_tests]→bootloader"),
 )
 job_uat_tests = Job(
     name="[requirements, integration_tests]→uat_tests",
     contracts=(ContractRef(kind="graph_vector", target_id=v_uat_tests.id),),
-    roles=(),
+    roles=_roles_for_job("[requirements, integration_tests]→uat_tests"),
 )
 
 
@@ -448,7 +468,7 @@ BASE_EVALUATORS = (
 )
 
 BASE_RULES = (standard_gate,)
-BASE_ROLES = (role_constructor,)
+BASE_ROLES = tuple(_ROLE_INDEX.values())
 BASE_REFINEMENT_BOUNDARIES = tuple(
     deferred_refinement(
         vector.name,
@@ -457,6 +477,31 @@ BASE_REFINEMENT_BOUNDARIES = tuple(
     )
     for vector in BASE_VECTORS
 )
+
+
+def workflow_role_manifest() -> list[dict[str, object]]:
+    return declared_workflow_role_manifest()
+
+
+def workflow_job_manifest() -> list[dict[str, object]]:
+    return [
+        {
+            "name": job.name,
+            "roles": [role.id for role in job.roles],
+            "contracts": [
+                {
+                    "kind": contract.kind,
+                    "target_id": contract.target_id,
+                }
+                for contract in job.contracts
+            ],
+        }
+        for job in BASE_JOBS
+    ]
+
+
+def workflow_job_roles() -> dict[str, tuple[str, ...]]:
+    return declared_workflow_job_roles()
 
 workflow_graph = Graph(
     name="genesis_sdlc_base_process_workflow",

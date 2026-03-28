@@ -1,6 +1,6 @@
 id: MOD-002
 name: release_bootstrap
-description: Owns install, audit, wrapper generation, project scaffold publication, territory separation, bootloader compilation, and the install-managed release declaration for methodology delivery.
+description: Owns install, audit, wrapper generation, project scaffold publication, territory separation, bootloader compilation, the install-managed release declaration, and publication of the shipped runtime carrier for methodology delivery, including worker defaults.
 implements_features:
   - release.install
   - release.wrapper_generation
@@ -8,6 +8,8 @@ implements_features:
   - release.territory_boundary
   - release.command_carrier
   - release.project_templates
+  - release.runtime_carrier
+  - release.worker_registry
 dependencies:
   - workflow_core
 rank: 2
@@ -21,8 +23,15 @@ source_files:
   - src/genesis_sdlc/release/bootloader.py
   - src/genesis_sdlc/release/wrapper.py
   - src/genesis_sdlc/release/territory.py
+  - release/active-workflow.json
   - release/commands/gen-iterate.md
   - release/commands/gen-review.md
+  - release/runtime/backends.json
+  - release/runtime/adapter-contract.json
+  - release/runtime/workers.json
+  - release/runtime/role-assignments.json
+publishes_surfaces:
+  - .gsdlc/release/runtime/
 consumes_surfaces:
   - repo://specification/standards/templates/INTENT_TEMPLATE.md
   - repo://specification/standards/templates/requirements/README_TEMPLATE.md

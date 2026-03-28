@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "workers": {
+    "claude_code": {
+      "worker_id": "claude_code",
+      "roles": [
+        "constructor",
+        "implementer"
+      ],
+      "backend": "claude",
+      "capabilities": {
+        "interactive_cli": true,
+        "workspace_write": true,
+        "full_auto": false
+      }
+    },
+    "codex": {
+      "worker_id": "codex",
+      "roles": [
+        "constructor",
+        "implementer"
+      ],
+      "backend": "codex",
+      "capabilities": {
+        "interactive_cli": true,
+        "workspace_write": true,
+        "full_auto": true
+      }
+    },
+    "gemini": {
+      "worker_id": "gemini",
+      "roles": [
+        "constructor",
+        "implementer"
+      ],
+      "backend": "gemini",
+      "capabilities": {
+        "interactive_cli": true,
+        "workspace_write": true,
+        "full_auto": true
+      }
+    }
+  }
+}

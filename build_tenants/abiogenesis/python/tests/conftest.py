@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -19,6 +20,23 @@ if str(_TESTS_DIR) not in sys.path:
     sys.path.insert(0, str(_TESTS_DIR))
 
 from run_archive import create_run_archive
+
+
+def _report_outcome(node: pytest.Item) -> tuple[bool, str, str | None, str | None]:
+    setup = getattr(node, "rep_setup", None)
+    call = getattr(node, "rep_call", None)
+    teardown = getattr(node, "rep_teardown", None)
+
+    for stage, report in (("setup", setup), ("call", call), ("teardown", teardown)):
+        if report is None:
+            continue
+        if report.failed:
+            reason = getattr(report, "longreprtext", None) or str(getattr(report, "longrepr", ""))
+            return False, "failed", stage, reason.strip() or None
+        if report.skipped:
+            reason = getattr(report, "longreprtext", None) or str(getattr(report, "longrepr", ""))
+            return False, "skipped", stage, reason.strip() or None
+    return True, "passed", "call" if call is not None else None, None
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -37,8 +55,13 @@ def run_archive(request: pytest.FixtureRequest):
 
     archive = create_run_archive(usecase_id, request.node.name)
     yield archive
-    test_passed = not hasattr(request.node, "rep_call") or request.node.rep_call.passed
-    archive.finalize(test_passed=test_passed)
+    test_passed, outcome, outcome_stage, outcome_reason = _report_outcome(request.node)
+    archive.finalize(
+        test_passed=test_passed,
+        outcome=outcome,
+        outcome_stage=outcome_stage,
+        outcome_reason=outcome_reason,
+    )
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)

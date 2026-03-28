@@ -37,7 +37,7 @@ Fresh sandbox execution is scratch space. Postmortem requires a durable run reco
 - AC-1: Every sandbox-backed e2e scenario supports a persistent run archive under a stable, non-temporary `test_runs/` root
 - AC-2: Archive paths are scenario-oriented and encode at minimum use-case identity plus sortable run timestamp
 - AC-3: Each archived run preserves the full sandbox workspace needed for replay-free postmortem
-- AC-4: Each archived run preserves operator-facing run metadata and summary artifacts, including subprocess logs and a convergence summary
+- AC-4: Each archived run preserves operator-facing run metadata and summary artifacts, including subprocess logs, convergence summary, outcome classification, and worker/backend provenance
 - AC-5: Archive materialization occurs before fixture teardown or sandbox cleanup
 - AC-6: Archived runs are immutable and non-overwriting; a later run does not destroy a prior archive
 

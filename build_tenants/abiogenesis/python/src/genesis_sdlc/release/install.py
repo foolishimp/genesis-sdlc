@@ -23,12 +23,15 @@ if __package__ in {None, ""}:
     if str(_SRC_ROOT) not in sys.path:
         sys.path.insert(0, str(_SRC_ROOT))
     from genesis_sdlc.evidence.docs import synthesize_user_guide
+    from genesis_sdlc.runtime.resolve import compile_resolved_runtime
+    from genesis_sdlc.runtime.state import ensure_runtime_state_dir
     from genesis_sdlc.release.bootloader import spec_hash, synthesize_bootloader
     from genesis_sdlc.release.territory import (
         install_design_snapshot,
         install_operating_standards,
         install_project_scaffold,
         install_project_templates,
+        install_runtime_carrier,
         install_runtime_package,
         install_test_snapshot,
         install_versioned_snapshot,
@@ -36,12 +39,15 @@ if __package__ in {None, ""}:
     from genesis_sdlc.release.wrapper import load_project_requirements, render_wrapper
 else:
     from ..evidence.docs import synthesize_user_guide
+    from ..runtime.resolve import compile_resolved_runtime
+    from ..runtime.state import ensure_runtime_state_dir
     from .bootloader import spec_hash, synthesize_bootloader
     from .territory import (
         install_design_snapshot,
         install_operating_standards,
         install_project_scaffold,
         install_project_templates,
+        install_runtime_carrier,
         install_runtime_package,
         install_test_snapshot,
         install_versioned_snapshot,
@@ -59,6 +65,7 @@ _RUNTIME_RESET_DIRS = (
     Path(".ai-workspace/features"),
     Path(".ai-workspace/fp_manifests"),
     Path(".ai-workspace/fp_results"),
+    Path(".ai-workspace/runtime"),
     Path(".ai-workspace/reviews"),
     Path(".ai-workspace/uat"),
 )
@@ -178,6 +185,7 @@ def _write_active_workflow(target_root: Path, slug: str) -> Path:
             ".gsdlc/release/",
             ".claude/commands/",
             "CLAUDE.md[SDLC_BOOTLOADER]",
+            "AGENTS.md[SDLC_BOOTLOADER]",
         ],
         "territory_boundary": {
             "authoring_forbidden_on_default_install": [
@@ -193,11 +201,17 @@ def _write_active_workflow(target_root: Path, slug: str) -> Path:
                 "specification/",
                 ".gsdlc/release/active-workflow.json[customization]",
             ],
+            "runtime_state": [
+                ".ai-workspace/runtime/",
+            ],
         },
         "customization": {
             "requirements_root": "specification/requirements",
             "fp_customization_root": "specification/design/fp/edge-overrides",
-            "fp_transport_agent": "claude",
+            "default_worker_assignments": {
+                "constructor": "claude_code",
+                "implementer": "claude_code",
+            },
         },
         "reset": {
             "runtime": {
@@ -260,26 +274,72 @@ def _install_domain_bootloader(target_root: Path, requirements: list[str]) -> Pa
     return release_bootloader
 
 
-def _install_control_surface(target_root: Path) -> str:
-    claude_md = target_root / "CLAUDE.md"
-    section = (
+def _default_worker_assignments(target_root: Path) -> dict[str, str]:
+    active_workflow = target_root / ".gsdlc" / "release" / "active-workflow.json"
+    if not active_workflow.exists():
+        return {}
+    try:
+        payload = json.loads(active_workflow.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+    customization = payload.get("customization", {})
+    if not isinstance(customization, dict):
+        return {}
+    assignments = customization.get("default_worker_assignments", {})
+    if not isinstance(assignments, dict):
+        return {}
+    return {
+        str(role_id): str(worker_id)
+        for role_id, worker_id in assignments.items()
+        if isinstance(role_id, str) and role_id and isinstance(worker_id, str) and worker_id
+    }
+
+
+def _control_surface_section(target_root: Path) -> str:
+    default_assignments = _default_worker_assignments(target_root)
+    default_assignment_lines = "\n".join(
+        f"- `{role_id}` -> `{worker_id}`" for role_id, worker_id in sorted(default_assignments.items())
+    ) or "- No default worker assignments declared."
+    return (
         f"{_BOOTLOADER_START}\n"
         "The installed genesis_sdlc release is active.\n"
         "Read workspace://.gsdlc/release/SDLC_BOOTLOADER.md first, then follow its referenced docs.\n"
+        "\n"
+        "Installed axioms:\n"
+        "- Specification defines project truth; design surfaces define realization.\n"
+        "- The only lawful operative path is the resolved runtime at workspace://.ai-workspace/runtime/resolved-runtime.json.\n"
+        "- One edge traversal binds one role and one worker assignment.\n"
+        "- Backend identity is derived from worker assignment, not selected independently.\n"
+        "- Managed methodology surfaces live under workspace://.gsdlc/release/; project customization lives under workspace://specification/.\n"
+        "- Runtime/session state lives under workspace://.ai-workspace/runtime/; when it differs from release defaults, the resolved runtime wins.\n"
+        "\n"
+        "Default role assignments for this install:\n"
+        f"{default_assignment_lines}\n"
         f"{_BOOTLOADER_END}\n"
     )
-    if claude_md.exists():
-        text = claude_md.read_text(encoding="utf-8")
+
+
+def _upsert_control_surface(path: Path, section: str) -> str:
+    if path.exists():
+        text = path.read_text(encoding="utf-8")
         if _BOOTLOADER_START in text and _BOOTLOADER_END in text:
             start = text.index(_BOOTLOADER_START)
             end = text.index(_BOOTLOADER_END) + len(_BOOTLOADER_END)
             updated = text[:start] + section + text[end:]
-            claude_md.write_text(updated, encoding="utf-8")
+            path.write_text(updated, encoding="utf-8")
             return "updated"
-        claude_md.write_text(text.rstrip() + "\n\n" + section, encoding="utf-8")
+        path.write_text(text.rstrip() + "\n\n" + section, encoding="utf-8")
         return "appended"
-    claude_md.write_text(section, encoding="utf-8")
+    path.write_text(section, encoding="utf-8")
     return "created"
+
+
+def _install_control_surfaces(target_root: Path) -> dict[str, str]:
+    section = _control_surface_section(target_root)
+    return {
+        "claude_md": _upsert_control_surface(target_root / "CLAUDE.md", section),
+        "agents_md": _upsert_control_surface(target_root / "AGENTS.md", section),
+    }
 
 
 def _install_commands(source_root: Path, target_root: Path) -> list[str]:
@@ -380,6 +440,10 @@ def install(
             target_root / ".gsdlc" / "release" / "design" / "module_decomp.md",
             target_root / ".gsdlc" / "release" / "tests",
             target_root / ".gsdlc" / "release" / "USER_GUIDE.md",
+            target_root / ".gsdlc" / "release" / "runtime" / "backends.json",
+            target_root / ".gsdlc" / "release" / "runtime" / "adapter-contract.json",
+            target_root / ".gsdlc" / "release" / "runtime" / "workers.json",
+            target_root / ".gsdlc" / "release" / "runtime" / "role-assignments.json",
             target_root / ".gsdlc" / "release" / "SDLC_BOOTLOADER.md",
             target_root / ".gsdlc" / "release" / "project-templates" / "INTENT_TEMPLATE.md",
             target_root / ".gsdlc" / "release" / "project-templates" / "design" / "README_TEMPLATE.md",
@@ -395,7 +459,7 @@ def install(
             target_root / "specification" / "design" / "fp" / "INTENT.md",
             target_root / "specification" / "design" / "fp" / "edge-overrides" / "README.md",
             target_root / "specification" / "requirements" / "README.md",
-            target_root / "specification" / "requirements" / "00-starter.md",
+            target_root / "AGENTS.md",
             target_root / ".claude" / "commands" / "gen-start.md",
             target_root / ".claude" / "commands" / "gen-gaps.md",
             target_root / ".claude" / "commands" / "gen-status.md",
@@ -420,6 +484,7 @@ def install(
     install_project_templates(source_root, target_root)
     install_project_scaffold(source_root, target_root)
     install_runtime_package(source_root, target_root)
+    install_runtime_carrier(source_root, target_root)
     install_design_snapshot(source_root, target_root)
     install_test_snapshot(source_root, target_root)
     version_dir = install_versioned_snapshot(source_root, target_root, VERSION)
@@ -432,7 +497,9 @@ def install(
     requirements = load_project_requirements(target_root)
     guide_path = _write_user_guide(target_root, requirements)
     bootloader_path = _install_domain_bootloader(target_root, requirements)
-    control_surface = _install_control_surface(target_root)
+    control_surfaces = _install_control_surfaces(target_root)
+    ensure_runtime_state_dir(target_root)
+    resolved_runtime = compile_resolved_runtime(target_root)
     _emit_install_event(target_root, slug, requirements)
 
     return {
@@ -448,10 +515,13 @@ def install(
         "commands": commands,
         "guide": str(guide_path.relative_to(target_root)),
         "bootloader": str(bootloader_path.relative_to(target_root)),
+        "resolved_runtime": ".ai-workspace/runtime/resolved-runtime.json",
         "versioned_release": str(version_dir.relative_to(target_root)),
         "operating_standards": standards,
-        "claude_md": control_surface,
+        **control_surfaces,
         "requirements_loaded": len(requirements),
+        "selected_assignments": resolved_runtime.get("role_assignments", {}),
+        "role_assignments": resolved_runtime.get("role_assignments", {}),
     }
 
 

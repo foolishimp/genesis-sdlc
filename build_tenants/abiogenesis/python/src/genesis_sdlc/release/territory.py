@@ -73,6 +73,12 @@ def install_project_templates(source_root: Path, target_root: Path) -> None:
     _copy_tree(src, dst)
 
 
+def install_runtime_carrier(source_root: Path, target_root: Path) -> None:
+    src = source_root / "build_tenants" / "abiogenesis" / "python" / "release" / "runtime"
+    dst = target_root / ".gsdlc" / "release" / "runtime"
+    _copy_tree(src, dst)
+
+
 def install_versioned_snapshot(source_root: Path, target_root: Path, version: str) -> Path:
     version_dir = (
         target_root
@@ -136,11 +142,3 @@ def install_operating_standards(source_root: Path, target_root: Path) -> list[st
         shutil.copy2(path, standards_dst / path.name)
         installed.append(path.name)
     return installed
-    starter = requirements_dir / "00-starter.md"
-    if not starter.exists():
-        starter.write_text(
-            "# Starter Requirements\n\n"
-            "### REQ-F-STARTER-001 — Replace me\n\n"
-            "Describe the first project-specific requirement.\n",
-            encoding="utf-8",
-        )

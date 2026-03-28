@@ -8,7 +8,7 @@ Bootloader asset requirements define how the SDLC bootloader becomes a convergen
 
 ### REQ-F-BOOTDOC-001 — bootloader is a compiled graph asset with F_D currency validation
 
-The bootloader is a derived document — a compiled constraint surface synthesised from specification, standards, and design. It is a graph asset with its own edge, evaluators, and convergence lifecycle. It is not a primary source. It may be released as a standalone artifact and/or embedded into supported agent control surfaces, but those carrier files are design choices rather than requirement truth.
+The bootloader is a derived document — a compiled constraint surface synthesised from specification, standards, and design. It is a graph asset with its own edge, evaluators, and convergence lifecycle. It is not a primary source. It may be released as a standalone artifact and/or embedded into supported agent control surfaces such as `CLAUDE.md` and `AGENTS.md`, but those carrier files are delivery choices rather than requirement truth.
 
 **Acceptance Criteria**:
 - AC-1: `bootloader` is an asset in the Package with ID format `BOOT-{SEQ}` and lineage `[requirements, design]`
@@ -28,13 +28,14 @@ Four deterministic evaluators catch staleness. All computable without LLM invoca
 
 ### REQ-F-BOOTDOC-003 — F_P regenerates bootloader from source documents
 
-The bootloader is synthesised from three authored planes, not hand-maintained. F_P regenerates all content; F_D validates the structure. Control-surface carrier files consume this compiled artifact; they do not replace it as a source of truth.
+The bootloader is synthesised from three authored planes, not hand-maintained. F_P regenerates all content; F_D validates the structure. Control-surface carrier files such as `CLAUDE.md` and `AGENTS.md` consume this compiled artifact; they do not replace it as a source of truth.
 
 **Acceptance Criteria**:
 - AC-1: F_P evaluator `synthesize_bootloader` regenerates the bootloader from specification, standards, and design documents
 - AC-2: Fixed section structure — sections are invariant, content within each section is synthesised
 - AC-3: Size budget: ~150-200 lines (10:1 compression from source documents)
 - AC-4: Each section carries `workspace://` references for depth — the bootloader orients, source documents provide detail
+- AC-5: Supported agent control-surface carriers consume the compiled bootloader as their routing target and may embed only a small stable axiom set plus that routing
 
 ### REQ-F-BOOTDOC-004 — Bootloader is a leaf node with no downstream dependents
 

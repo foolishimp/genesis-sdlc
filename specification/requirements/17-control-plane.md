@@ -32,10 +32,11 @@ The graph owns that an edge requires `F_P`. The control plane owns how an allowe
 
 **Acceptance Criteria**:
 - AC-1: The installed release ships backend schema and adapter surfaces under `.gsdlc/release/runtime/`
-- AC-2: Concrete backend choice is resolved from runtime state under `.ai-workspace/runtime/`, not from project-truth specification surfaces
+- AC-2: Concrete backend choice is resolved from runtime state under `.ai-workspace/runtime/` as a consequence of the winning worker assignment, not as a co-equal authority independent of worker binding or from project-truth specification surfaces
 - AC-3: Each backend adapter defines `probe`, `invoke`, `normalize`, `failure_model`, and `capabilities`
 - AC-4: The winning backend for a given run is visible in the resolved runtime artifact even if the installed release declaration also carries a shipped default hint
 - AC-5: Qualification proves the product adapter layer itself rather than a parallel hardcoded transport branch
+- AC-6: For `0.9.9`, a declared backend is assumed to be preinstalled and preauthenticated if selected for use; the control plane proves invocation, normalization, and readiness over that declared tool, but does not own backend installation or authentication bootstrap
 
 ### REQ-F-CTRL-004 — Edge runtime profiles are compiled from defaults, project tuning, and runtime policy
 
@@ -56,6 +57,7 @@ Install audit and runtime doctor answer different questions and must remain sepa
 - AC-2: `doctor` reports runtime readiness, including runtime resolution, backend availability, manifest/result-store health, and archive readiness
 - AC-3: `doctor` returns structured findings that distinguish release drift from runtime unavailability or misconfiguration
 - AC-4: `doctor` operates over the same resolved runtime and backend adapter layer used by the live command path
+- AC-5: For `0.9.9`, doctor may assume backend installation and authentication are external prerequisites and report them only as readiness findings rather than trying to provision or repair them
 
 ### REQ-F-CTRL-006 — Command-carrier flow consumes the resolved runtime
 

@@ -21,7 +21,10 @@ from genesis_sdlc.evidence.coverage import (
 from genesis_sdlc.evidence.docs import assess_bootloader_artifact, assess_user_guide_artifact, synthesize_user_guide
 from genesis_sdlc.evidence.uat import write_sandbox_report
 from genesis_sdlc.release.bootloader import synthesize_bootloader
-from genesis_sdlc.release.fp_prompt import render_effective_prompt
+from genesis_sdlc.runtime.prompt_view import (
+    render_effective_prompt,
+    render_effective_prompt_from_manifest,
+)
 from genesis_sdlc.release.install import VERSION
 from genesis_sdlc.release.wrapper import load_project_requirements
 from genesis_sdlc.workflow.transforms import build_constructive_prompt, edge_override_filename
@@ -293,7 +296,11 @@ def default_archive_name(edge: str) -> str:
 
 
 def constructive_prompt(edge: str, manifest: dict, *, workspace: Path, artifact_path: Path) -> str:
-    return build_constructive_prompt(edge, manifest, artifact_path=artifact_path, workspace_root=workspace)
+    return render_effective_prompt_from_manifest(
+        manifest,
+        workspace_root=workspace,
+        artifact_override=artifact_path,
+    )
 
 
 def effective_prompt_from_manifest(manifest_path: Path, *, workspace: Path) -> str:

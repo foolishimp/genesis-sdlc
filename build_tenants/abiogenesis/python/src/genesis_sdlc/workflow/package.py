@@ -17,8 +17,10 @@ from .graph import (
     BASE_REFINEMENT_BOUNDARIES,
     BASE_ROLES,
     BASE_RULES,
+    workflow_job_manifest,
     workflow_graph,
 )
+from .roles import workflow_role_manifest
 from .requirements import find_requirements_root, load_local_requirements, requirement_manifest
 from .transforms import transform_contract_manifest
 
@@ -37,6 +39,7 @@ def instantiate(
     }
     if requirement_root is not None:
         metadata["requirement_root"] = str(requirement_root)
+    metadata["semantic_role_ids"] = [str(role["id"]) for role in workflow_role_manifest()]
     return Module(
         name=slug,
         graphs=(workflow_graph,),
@@ -94,6 +97,8 @@ def graph_manifest(bound_module: Module | None = None, requirement_root: Path | 
             }
             for vector in workflow_graph.vectors
         ],
+        "roles": workflow_role_manifest(),
+        "jobs": workflow_job_manifest(),
     }
 
 
@@ -101,9 +106,10 @@ module = instantiate()
 package = module
 
 worker = Worker(
-    id="abiogenesis_python",
+    id="abiogenesis_python_router",
     can_execute=module_to_executable_jobs(module),
     role_ids=tuple(role.id for role in BASE_ROLES),
+    authority_ref="runtime://role-dispatch",
 )
 
 

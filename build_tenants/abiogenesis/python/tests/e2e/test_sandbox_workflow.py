@@ -22,6 +22,12 @@ from pathlib import Path
 
 import pytest
 
+from genesis_sdlc.runtime.backends import load_backend_registry
+from genesis_sdlc.runtime.doctor import doctor
+from genesis_sdlc.runtime.prompt_view import render_effective_prompt_from_manifest
+from genesis_sdlc.runtime.resolve import invoke_worker_turn, load_resolved_runtime, load_worker_registry
+from genesis_sdlc.runtime.state import write_session_overrides
+
 from .minimal_project import (
     build_fake_artifact,
     edge_assessments,
@@ -29,7 +35,7 @@ from .minimal_project import (
     seed_minimal_project_spec,
     write_result_file,
 )
-from .sandbox_runtime import install_real_sandbox, reset_runtime_sandbox, run_genesis
+from .sandbox_runtime import audit_real_sandbox, install_real_sandbox, reset_runtime_sandbox, run_genesis
 
 
 @pytest.mark.e2e
@@ -46,6 +52,10 @@ def test_install_bootstraps_real_sandbox_and_gap_scan(run_archive) -> None:
     assert (workspace / ".gsdlc" / "release" / "design" / "module_decomp.md").is_file()
     assert (workspace / ".gsdlc" / "release" / "tests").is_dir()
     assert (workspace / ".gsdlc" / "release" / "USER_GUIDE.md").is_file()
+    assert (workspace / ".gsdlc" / "release" / "runtime" / "backends.json").is_file()
+    assert (workspace / ".gsdlc" / "release" / "runtime" / "adapter-contract.json").is_file()
+    assert (workspace / ".gsdlc" / "release" / "runtime" / "workers.json").is_file()
+    assert (workspace / ".gsdlc" / "release" / "runtime" / "role-assignments.json").is_file()
     assert (workspace / ".gsdlc" / "release" / "project-templates" / "INTENT_TEMPLATE.md").is_file()
     assert (workspace / ".gsdlc" / "release" / "project-templates" / "design" / "README_TEMPLATE.md").is_file()
     assert (workspace / ".gsdlc" / "release" / "project-templates" / "design" / "fp" / "README_TEMPLATE.md").is_file()
@@ -64,6 +74,7 @@ def test_install_bootstraps_real_sandbox_and_gap_scan(run_archive) -> None:
     assert (workspace / "specification" / "design" / "fp" / "edge-overrides" / "README.md").is_file()
     assert (workspace / "specification" / "requirements" / "README.md").is_file()
     assert (workspace / "specification" / "requirements" / "00-starter.md").is_file()
+    assert (workspace / ".ai-workspace" / "runtime" / "resolved-runtime.json").is_file()
     assert not (workspace / "build_tenants").exists()
     assert not (workspace / "specification" / "standards").exists()
     assert (workspace / ".claude" / "commands" / "gen-start.md").is_file()
@@ -78,12 +89,38 @@ def test_install_bootstraps_real_sandbox_and_gap_scan(run_archive) -> None:
     )
     assert active_workflow["customization"]["requirements_root"] == "specification/requirements"
     assert active_workflow["customization"]["fp_customization_root"] == "specification/design/fp/edge-overrides"
-    assert active_workflow["customization"]["fp_transport_agent"] == "claude"
+    assert active_workflow["customization"]["default_worker_assignments"]["constructor"] == "claude_code"
+    assert active_workflow["customization"]["default_worker_assignments"]["implementer"] == "claude_code"
     assert ".claude/commands/" in active_workflow["managed_surfaces"]
     assert ".genesis/" in active_workflow["managed_surfaces"]
     assert ".gsdlc/release/" in active_workflow["managed_surfaces"]
     assert "build_tenants/" in active_workflow["territory_boundary"]["authoring_forbidden_on_default_install"]
     assert "specification/standards/" in active_workflow["territory_boundary"]["authoring_forbidden_on_default_install"]
+    assert ".ai-workspace/runtime/" in active_workflow["territory_boundary"]["runtime_state"]
+
+    resolved_runtime = json.loads(
+        (workspace / ".ai-workspace" / "runtime" / "resolved-runtime.json").read_text(encoding="utf-8")
+    )
+    constructor_assignment = resolved_runtime["role_assignments"]["constructor"]
+    assert constructor_assignment["worker_id"] == "claude_code"
+    assert constructor_assignment["backend"] == "claude"
+    assert constructor_assignment["provenance"]["source_layer"] == "release_declaration"
+    implementer_assignment = resolved_runtime["role_assignments"]["implementer"]
+    assert implementer_assignment["worker_id"] == "claude_code"
+    assert implementer_assignment["backend"] == "claude"
+    assert implementer_assignment["provenance"]["source_layer"] == "release_declaration"
+    registry = load_backend_registry(workspace)
+    assert registry["contract"]["required_methods"] == [
+        "probe",
+        "invoke",
+        "normalize",
+        "failure_model",
+        "capabilities",
+    ]
+    worker_registry = load_worker_registry(workspace)
+    assert "claude_code" in worker_registry["workers"]
+    assert worker_registry["role_assignments"]["constructor"] == "claude_code"
+    assert worker_registry["role_assignments"]["implementer"] == "claude_code"
 
     result = run_genesis(workspace, "gaps", archive=run_archive, label="genesis gaps")
     assert result.returncode == 0, result.stderr
@@ -278,3 +315,159 @@ def test_reset_runtime_preserves_installed_surfaces(run_archive) -> None:
     assert not list((workspace / ".ai-workspace" / "events").glob("*"))
     assert not list((workspace / ".ai-workspace" / "fp_results").glob("*"))
     assert not list((workspace / ".ai-workspace" / "reviews").glob("*"))
+    assert (workspace / ".ai-workspace" / "runtime").is_dir()
+    assert not list((workspace / ".ai-workspace" / "runtime").glob("*"))
+
+    audit = audit_real_sandbox(workspace, archive=run_archive)
+    assert audit["status"] == "ok"
+
+
+@pytest.mark.e2e
+@pytest.mark.usecase_id("runtime_invalid_backend")
+def test_invalid_runtime_backend_override_fails_at_compile(run_archive) -> None:
+    workspace = run_archive.workspace
+    install_real_sandbox(workspace, archive=run_archive)
+    seed_minimal_project_spec(workspace, archive=run_archive)
+    run_archive.note("scenario", lane="runtime_invalid_backend")
+
+    write_session_overrides(workspace, {"worker_assignments": {"constructor": "typo_worker"}})
+
+    with pytest.raises(ValueError, match="not declared"):
+        load_resolved_runtime(workspace)
+
+
+@pytest.mark.e2e
+@pytest.mark.usecase_id("runtime_role_assignment")
+def test_resolved_runtime_assigns_workers_by_role_and_edge(run_archive) -> None:
+    workspace = run_archive.workspace
+    install_real_sandbox(workspace, archive=run_archive)
+    seed_minimal_project_spec(workspace, archive=run_archive)
+    run_archive.note("scenario", lane="runtime_role_assignment")
+
+    write_session_overrides(
+        workspace,
+        {
+            "worker_assignments": {
+                "constructor": "claude_code",
+                "implementer": "codex",
+            }
+        },
+    )
+
+    resolved_runtime = load_resolved_runtime(workspace)
+    run_archive.capture_json("resolved_runtime_role_assignment.json", resolved_runtime)
+
+    constructor_assignment = resolved_runtime["role_assignments"]["constructor"]
+    implementer_assignment = resolved_runtime["role_assignments"]["implementer"]
+    code_profile = resolved_runtime["edges"]["module_decomp→code"]["profile"]
+    design_profile = resolved_runtime["edges"]["feature_decomp→design"]["profile"]
+
+    assert constructor_assignment["worker_id"] == "claude_code"
+    assert constructor_assignment["backend"] == "claude"
+    assert implementer_assignment["worker_id"] == "codex"
+    assert implementer_assignment["backend"] == "codex"
+    assert design_profile["role_id"] == "constructor"
+    assert design_profile["worker_id"] == "claude_code"
+    assert design_profile["backend"] == "claude"
+    assert code_profile["role_id"] == "implementer"
+    assert code_profile["worker_id"] == "codex"
+    assert code_profile["backend"] == "codex"
+
+
+@pytest.mark.e2e
+@pytest.mark.usecase_id("runtime_doctor")
+def test_doctor_reports_runtime_misconfiguration_as_structured_findings(run_archive) -> None:
+    workspace = run_archive.workspace
+    install_real_sandbox(workspace, archive=run_archive)
+    seed_minimal_project_spec(workspace, archive=run_archive)
+    run_archive.note("scenario", lane="runtime_doctor")
+
+    write_session_overrides(workspace, {"worker_assignments": {"constructor": "typo_worker"}})
+
+    payload = doctor(workspace)
+    run_archive.capture_json("doctor_misconfiguration.json", payload)
+
+    assert payload["status"] == "degraded"
+    assert payload["resolved_runtime_available"] is False
+    assert payload["role_assignments"] == {}
+    assert payload["backend_probes"]["claude"]["transport"] == "abg_agent"
+    assert any(
+        finding["kind"] == "runtime_misconfiguration" and "not declared" in finding["message"]
+        for finding in payload["findings"]
+    )
+    assert (workspace / ".ai-workspace" / "runtime" / "doctor.json").is_file()
+
+
+@pytest.mark.e2e
+@pytest.mark.usecase_id("runtime_adapter_contract")
+def test_backend_invocation_returns_normalized_adapter_payload(run_archive, monkeypatch) -> None:
+    workspace = run_archive.workspace
+    install_real_sandbox(workspace, archive=run_archive)
+    run_archive.note("scenario", lane="runtime_adapter_contract", worker="codex", role="constructor")
+
+    class _CompletedProcess:
+        returncode = 0
+        stdout = "  normalized response  \n"
+        stderr = ""
+
+    monkeypatch.setattr("genesis_sdlc.runtime.backends.subprocess.run", lambda *args, **kwargs: _CompletedProcess())
+
+    write_session_overrides(workspace, {"worker_assignments": {"constructor": "codex"}})
+
+    payload = invoke_worker_turn(
+        "constructor",
+        "Write a normalized response",
+        workspace,
+        timeout=5,
+        workspace_root=workspace,
+    )
+    run_archive.capture_json("normalized_backend_payload.json", payload)
+
+    assert payload["worker_id"] == "codex"
+    assert payload["role_id"] == "constructor"
+    assert payload["backend"] == "codex"
+    assert payload["content"] == "normalized response"
+    assert payload["capabilities"]["full_auto"] is True
+
+
+@pytest.mark.e2e
+@pytest.mark.usecase_id("runtime_prompt_view")
+def test_effective_prompt_uses_artifact_override_consistently(run_archive) -> None:
+    workspace = run_archive.workspace
+    install_real_sandbox(workspace, archive=run_archive)
+    seed_minimal_project_spec(workspace, archive=run_archive)
+    run_archive.note("scenario", lane="runtime_prompt_view")
+
+    approve = run_genesis(
+        workspace,
+        "emit-event",
+        "--type",
+        "approved",
+        "--data",
+        json.dumps(
+            {
+                "kind": "fh_intent",
+                "edge": "intent→requirements",
+                "actor": "human",
+            }
+        ),
+        archive=run_archive,
+        label="emit approved fh_intent for prompt view",
+    )
+    assert approve.returncode == 0, approve.stderr
+
+    iterate = run_genesis(workspace, "iterate", archive=run_archive, label="genesis iterate for prompt view")
+    assert iterate.returncode == 0, iterate.stderr
+    payload = json.loads(iterate.stdout)
+    manifest_path = Path(payload["fp_manifest_path"])
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    prompt = render_effective_prompt_from_manifest(
+        manifest,
+        workspace_root=workspace,
+        artifact_override=Path("output/override.md"),
+    )
+    run_archive.capture_text("prompt_view_override.txt", prompt)
+
+    assert "Write the target artifact to: output/override.md" in prompt
+    assert "Suggested output: output/override.md" in prompt

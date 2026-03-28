@@ -20,15 +20,20 @@ PYTHONPATH=.gsdlc/release:.genesis python -m genesis iterate --workspace .
 
 3. If the engine reports `fp_dispatch`:
    - read the manifest path from the engine output
-   - inspect `.gsdlc/release/active-workflow.json` for `customization.fp_transport_agent`
+   - treat `.gsdlc/release/active-workflow.json` as the install-managed default hint only
    - treat `specification/design/fp/` as the project-local F_P tuning surface
+   - treat `.ai-workspace/runtime/` as the mutable runtime/session state surface
    - render the effective bounded prompt from the manifest with:
 
 ```bash
 PYTHONPATH=.gsdlc/release:.genesis python -m genesis_sdlc.release.fp_prompt --manifest <manifest_path> --workspace .
 ```
 
-   - dispatch that rendered prompt through the configured transport
+   - dispatch that rendered prompt through the backend selected by the resolved runtime under `.ai-workspace/runtime/resolved-runtime.json`
+   - treat worker assignment as primary:
+     - resolve the winning `role -> worker -> backend` mapping from `.ai-workspace/runtime/resolved-runtime.json`
+     - dispatch through the selected worker for the constructive role
+     - treat backend choice as derived from that worker assignment, not as a separate selector
    - write the result JSON to the manifest's `result_path`
    - ingest it with:
 
