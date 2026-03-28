@@ -2,7 +2,7 @@
 
 **Status**: Draft
 **Authority**: [Abiogenesis Python Variant Design](/Users/jim/src/apps/genesis_sdlc/build_tenants/abiogenesis/python/design/README.md)
-**Implements**: `REQ-F-MDECOMP-*`, `REQ-F-GRAPH-*`, `REQ-F-CMD-*`, `REQ-F-GATE-*`, `REQ-F-TAG-*`, `REQ-F-COV-*`, `REQ-F-DOCS-*`, `REQ-F-TEST-*`, `REQ-F-UAT-*`, `REQ-F-CUSTODY-*`, `REQ-F-TERRITORY-*`, `REQ-F-BOOTDOC-*`, `REQ-F-BACKLOG-*`, `REQ-F-ECO-*`
+**Implements**: `REQ-F-MDECOMP-*`, `REQ-F-GRAPH-*`, `REQ-F-CMD-*`, `REQ-F-GATE-*`, `REQ-F-TAG-*`, `REQ-F-COV-*`, `REQ-F-DOCS-*`, `REQ-F-TEST-*`, `REQ-F-UAT-*`, `REQ-F-CUSTODY-*`, `REQ-F-TERRITORY-*`, `REQ-F-BOOTDOC-*`, `REQ-F-BACKLOG-*`, `REQ-F-ECO-*`, `REQ-F-MVP-*`, `REQ-F-ASSURE-*`
 **Purpose**: Module schedule for the Abiogenesis/Python realization of genesis_sdlc
 
 ---
@@ -45,6 +45,8 @@ Responsibilities:
 - integration/E2E evidence
 - UAT gate support
 - bootloader currency checks
+- bundled assurance qualification across fake and live lanes
+- persistent run-archive preservation for postmortem and operator review
 
 ### Component: `backlog_homeostasis`
 
@@ -89,8 +91,9 @@ Responsibilities:
 1. `workflow_core` forms the stable package boundary exported to ABG.
 2. `release_bootstrap` depends directly on `workflow_core`.
 3. `evidence_acceptance` depends on workflow and release surfaces because it validates both.
-4. `backlog_homeostasis` depends on workflow and release surfaces because `publish` and the return path operate on released artifacts and their operational signals.
-5. The module YAML set under `design/modules/` is the schedule surface for implementation.
+4. `evidence_acceptance` also carries the bundled assurance subsystem that exercises the active tenant as installed rather than certifying a parallel demo surface.
+5. `backlog_homeostasis` depends on workflow and release surfaces because `publish` and the return path operate on released artifacts and their operational signals.
+6. The module YAML set under `design/modules/` is the schedule surface for implementation.
 
 ---
 
@@ -111,7 +114,7 @@ flowchart TD
 
 1. `workflow_core` defines the node and edge manifest exported to ABG.
 2. `release_bootstrap` sits directly on those stable interfaces.
-3. `evidence_acceptance` validates the workflow and release surfaces.
+3. `evidence_acceptance` validates the workflow and release surfaces and operates the bundled qualification harness.
 4. `backlog_homeostasis` closes the return path to `creche` and encodes the post-acceptance lifecycle stages.
 
 This is a leaf-to-root build order. Lower-rank modules provide the stable interfaces that higher-rank modules build against.
@@ -124,7 +127,7 @@ This is a leaf-to-root build order. Lower-rank modules provide the stable interf
 |---|---|---|
 | `workflow_core` | `workflow.base_graph`, `workflow.markov_contracts`, `workflow.requirements_registry` | `REQ-F-GRAPH-*`, `REQ-F-CUSTODY-*`, `REQ-F-MDECOMP-005` |
 | `release_bootstrap` | `release.install`, `release.wrapper_generation`, `release.bootloader_compile`, `release.territory_boundary` | `REQ-F-BOOT-*`, `REQ-F-CUSTODY-*`, `REQ-F-TERRITORY-*`, `REQ-F-BOOTDOC-003` |
-| `evidence_acceptance` | `evidence.traceability`, `evidence.documentation`, `evidence.integration_uat`, `evidence.bootloader_validation` | `REQ-F-TAG-*`, `REQ-F-COV-*`, `REQ-F-DOCS-*`, `REQ-F-TEST-*`, `REQ-F-UAT-*`, `REQ-F-BOOTDOC-*` |
+| `evidence_acceptance` | `evidence.traceability`, `evidence.documentation`, `evidence.integration_uat`, `evidence.bootloader_validation`, `evidence.assurance` | `REQ-F-TAG-*`, `REQ-F-COV-*`, `REQ-F-DOCS-*`, `REQ-F-TEST-*`, `REQ-F-UAT-*`, `REQ-F-BOOTDOC-*`, `REQ-F-MVP-*`, `REQ-F-ASSURE-*` |
 | `backlog_homeostasis` | `homeostasis.backlog`, `homeostasis.publish_loop`, `homeostasis.monitoring_return` | `REQ-F-BACKLOG-*`, `REQ-F-ECO-*` |
 
 Paths listed in `design/modules/*.yml` under `source_files` are anchored at `build_tenants/abiogenesis/python/`.

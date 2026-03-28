@@ -68,3 +68,34 @@ The installer can verify that a deployment is consistent with the version it cla
 - AC-4: Verifies genesis.yml package/worker references resolve via import (not just exist as files)
 - AC-5: Verifies Layer 3 wrapper content matches expected template for the installed version
 - AC-6: Returns `status: "ok"` only when all checks pass; `status: "drift_detected"` otherwise
+
+### REQ-F-BOOT-007 — The installed command carrier is a composed surface
+
+The installed `.claude/commands/` directory is a derived composition of engine-owned and domain-owned command carriers.
+
+**Acceptance Criteria**:
+- AC-1: The installed command carrier includes the engine-owned commands `gen-start`, `gen-gaps`, and `gen-status`
+- AC-2: The installed command carrier includes the gsdlc-owned commands `gen-iterate` and `gen-review`
+- AC-3: The command carrier is written to `.claude/commands/` as a managed surface on install or reinstall
+- AC-4: Installer writes a command stamp describing the installed command set and version
+- AC-5: Reinstall removes stale `gen-*.md` command files that are no longer part of the active command set
+
+### REQ-F-BOOT-008 — The installed workflow exposes a narrow customization surface
+
+The installed release does not invite arbitrary edits to managed artifacts. It exposes a small declared customization surface.
+
+**Acceptance Criteria**:
+- AC-1: The installed active workflow declaration identifies the project requirement surface as the primary customization boundary
+- AC-2: The installed active workflow declaration exposes the selected F_P transport agent as a narrow runtime customization setting
+- AC-3: The installed active workflow declaration lists the managed install surfaces that should not be edited directly
+- AC-4: The customization surface is machine-readable and shipped with the installed release
+
+### REQ-F-BOOT-009 — Runtime reset clears execution state without destroying the installed release
+
+Resetting workflow state is a supported operator action. It clears runtime evidence and transient execution state while preserving the installed methodology and project truth.
+
+**Acceptance Criteria**:
+- AC-1: A runtime reset operation clears execution-state surfaces under `.ai-workspace/`
+- AC-2: Runtime reset preserves `.genesis/`, `.gsdlc/release/`, `.claude/commands/`, and project-local `specification/`
+- AC-3: Runtime reset returns structured JSON describing what was cleared and what was preserved
+- AC-4: Reinstall remains the managed reset path for system-owned install surfaces

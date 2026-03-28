@@ -1,5 +1,6 @@
 # Validates: REQ-F-TEST-001
 # Validates: REQ-F-TEST-004
+# Validates: REQ-F-ASSURE-002
 """Pytest markers for the Abiogenesis/Python tenant tests."""
 
 from __future__ import annotations

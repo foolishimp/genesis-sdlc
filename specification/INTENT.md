@@ -319,3 +319,57 @@ intent -> requirements -> feature_decomp -> design -> module_decomp
 2. A minimal project specification can converge from `intent` through `uat_tests`
 3. Fake-lane and live-lane qualification both prove that same frozen workflow boundary
 4. The MVP target is posted in the active specification surface rather than held only in tests or commentary
+
+---
+
+## INT-007 — Dual Provenance And Bundled Assurance
+
+### Problem
+
+The first three questions any serious operator asks are:
+
+1. What did it build?
+2. Did it build everything?
+3. Is it correct?
+
+Those questions cannot be answered strongly if one proof path does all the work. If code, tests, and release evidence all derive from the same narrow surface, the system drifts toward self-certification.
+
+There is also a deeper assumption boundary: assurance can only prove realization against the active intent and requirement surfaces. It cannot rescue a project whose intent or requirements are themselves wrong.
+
+### Value Proposition
+
+genesis_sdlc carries two complementary provenance paths inside one workflow:
+
+- a design path: `design -> module_decomp -> code` and `design -> module_decomp -> unit_tests`
+- a requirements-facing path: `requirements -> integration_tests -> user_guide -> uat_tests`
+
+These paths meet at integration and release acceptance:
+
+- `integration_tests` proves the design realization behaves as required in one runnable flow
+- `user_guide` and `uat_tests` prove the operator-facing release surface against the active requirement truth
+
+The framework also carries a bundled assurance surface that can qualify the workflow in two ways:
+
+- fake-lane proof for workflow law
+- live-lane proof for real F_P execution
+
+Persistent run archives preserve the evidence needed to answer the three operator questions directly.
+
+### Scope
+
+- The dual-proof model is part of the 1.0 workflow rationale
+- The assurance surface is bundled with the active build tenant rather than treated as an external demo harness
+- Qualification archives preserve artifact provenance, convergence status, and correctness evidence
+
+### Out of Scope
+
+- Proving that approved intent or requirements are business-correct in the first place
+- Treating one proof path as sufficient for all three operator questions
+- Making the assurance surface a separate product outside the framework
+
+### Success Criteria
+
+1. The active specification distinguishes the design realization path from the requirements-facing acceptance path
+2. Qualification archives can answer what was built, whether the frozen workflow fully converged, and what evidence certified correctness
+3. Fake-lane and live-lane qualification remain two realizations of one assurance contract, not unrelated test styles
+4. The bundled assurance surface is described in active design rather than implied only by the test tree

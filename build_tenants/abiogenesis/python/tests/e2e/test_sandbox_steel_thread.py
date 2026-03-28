@@ -2,6 +2,8 @@
 # Validates: REQ-F-GATE-001
 # Validates: REQ-F-GRAPH-001
 # Validates: REQ-F-TEST-001
+# Validates: REQ-F-MVP-002
+# Validates: REQ-F-ASSURE-002
 """Light steel-thread test over the real genesis_sdlc workflow."""
 
 from __future__ import annotations

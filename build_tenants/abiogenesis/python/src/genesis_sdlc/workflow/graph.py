@@ -16,6 +16,7 @@ from gtl.work_model import ContractRef, Job, Role
 
 from .assets import (
     BASE_CONTEXTS,
+    BOOTLOADER_CONTEXTS,
     DESIGN_CONTEXTS,
     FEATURE_CONTEXTS,
     BASE_NODES,
@@ -317,7 +318,7 @@ v_bootloader = GraphVector(
         eval_bootloader_fp,
         eval_bootloader_fh,
     ),
-    contexts=RELEASE_CONTEXTS,
+    contexts=BOOTLOADER_CONTEXTS,
     rule=standard_gate,
 )
 v_uat_tests = GraphVector(

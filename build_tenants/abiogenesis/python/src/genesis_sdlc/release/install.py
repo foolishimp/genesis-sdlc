@@ -49,6 +49,16 @@ else:
 VERSION = "1.0.0rc1"
 _BOOTLOADER_START = "<!-- SDLC_BOOTLOADER_START -->"
 _BOOTLOADER_END = "<!-- SDLC_BOOTLOADER_END -->"
+_ENGINE_COMMANDS = ("gen-start", "gen-gaps", "gen-status")
+_DOMAIN_COMMANDS = ("gen-iterate", "gen-review")
+_RUNTIME_RESET_DIRS = (
+    Path(".ai-workspace/events"),
+    Path(".ai-workspace/features"),
+    Path(".ai-workspace/fp_manifests"),
+    Path(".ai-workspace/fp_results"),
+    Path(".ai-workspace/reviews"),
+    Path(".ai-workspace/uat"),
+)
 
 
 def _repo_root_from_file() -> Path | None:
@@ -73,6 +83,29 @@ def _abiogenesis_installer(source_root: Path) -> Path:
     if not installer.exists():
         raise FileNotFoundError(f"abiogenesis installer not found: {installer}")
     return installer
+
+
+def _abiogenesis_command_dir(source_root: Path) -> Path:
+    command_dir = (
+        source_root.parent
+        / "abiogenesis"
+        / "builds"
+        / "claude_code"
+        / ".claude-plugin"
+        / "plugins"
+        / "genesis"
+        / "commands"
+    )
+    if not command_dir.exists():
+        raise FileNotFoundError(f"abiogenesis commands not found: {command_dir}")
+    return command_dir
+
+
+def _domain_command_dir(source_root: Path) -> Path:
+    command_dir = source_root / "build_tenants" / "abiogenesis" / "python" / "release" / "commands"
+    if not command_dir.exists():
+        raise FileNotFoundError(f"genesis_sdlc commands not found: {command_dir}")
+    return command_dir
 
 
 def _run_abiogenesis_install(source_root: Path, target_root: Path) -> dict[str, object]:
@@ -137,6 +170,29 @@ def _write_active_workflow(target_root: Path, slug: str) -> Path:
         "slug": slug,
         "package": f"gtl_spec.packages.{slug}:package",
         "worker": f"gtl_spec.packages.{slug}:worker",
+        "managed_surfaces": [
+            ".genesis/",
+            ".gsdlc/release/",
+            ".claude/commands/",
+            "CLAUDE.md[SDLC_BOOTLOADER]",
+        ],
+        "customization": {
+            "requirements_root": "specification/requirements",
+            "fp_transport_agent": "claude",
+        },
+        "reset": {
+            "runtime": {
+                "mode": "reset-runtime",
+                "clears": [str(path) for path in _RUNTIME_RESET_DIRS],
+            },
+            "managed": {
+                "mode": "reinstall",
+                "preserves": [
+                    "specification/",
+                    ".ai-workspace/comments/",
+                ],
+            },
+        },
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
     active_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -198,6 +254,66 @@ def _install_control_surface(target_root: Path) -> str:
     return "created"
 
 
+def _install_commands(source_root: Path, target_root: Path) -> list[str]:
+    commands_dir = target_root / ".claude" / "commands"
+    commands_dir.mkdir(parents=True, exist_ok=True)
+
+    command_sources = (
+        (_ENGINE_COMMANDS, _abiogenesis_command_dir(source_root)),
+        (_DOMAIN_COMMANDS, _domain_command_dir(source_root)),
+    )
+    active_files = {f"{name}.md" for names, _ in command_sources for name in names}
+
+    for stale in commands_dir.glob("gen-*.md"):
+        if stale.name not in active_files:
+            stale.unlink()
+
+    installed: list[str] = []
+    for names, root in command_sources:
+        for name in names:
+            src = root / f"{name}.md"
+            if not src.exists():
+                raise FileNotFoundError(f"command source missing: {src}")
+            shutil.copy2(src, commands_dir / f"{name}.md")
+            installed.append(name)
+
+    stamp = commands_dir / ".genesis-installed"
+    stamp.write_text(
+        json.dumps(
+            {
+                "version": VERSION,
+                "installed": installed,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    return installed
+
+
+def reset_runtime(target: Path) -> dict[str, object]:
+    target_root = target.resolve()
+    cleared: list[str] = []
+    for relative in _RUNTIME_RESET_DIRS:
+        path = target_root / relative
+        if path.exists():
+            shutil.rmtree(path)
+            cleared.append(str(relative))
+        path.mkdir(parents=True, exist_ok=True)
+    return {
+        "status": "runtime_reset",
+        "target": str(target_root),
+        "cleared": cleared,
+        "preserved": [
+            ".genesis/",
+            ".gsdlc/release/",
+            ".claude/commands/",
+            "specification/",
+        ],
+    }
+
+
 def _emit_install_event(target_root: Path, slug: str, requirements: list[str]) -> None:
     events_dir = target_root / ".ai-workspace" / "events"
     events_dir.mkdir(parents=True, exist_ok=True)
@@ -232,6 +348,12 @@ def install(
             target_root / ".gsdlc" / "release" / "active-workflow.json",
             target_root / ".gsdlc" / "release" / "gtl_spec" / "packages" / f"{slug}.py",
             target_root / ".gsdlc" / "release" / "genesis_sdlc" / "workflow" / "package.py",
+            target_root / ".claude" / "commands" / "gen-start.md",
+            target_root / ".claude" / "commands" / "gen-gaps.md",
+            target_root / ".claude" / "commands" / "gen-status.md",
+            target_root / ".claude" / "commands" / "gen-iterate.md",
+            target_root / ".claude" / "commands" / "gen-review.md",
+            target_root / ".claude" / "commands" / ".genesis-installed",
         ]
         missing = [str(path.relative_to(target_root)) for path in required if not path.exists()]
         return {"status": "ok" if not missing else "drift_detected", "missing": missing}
@@ -247,6 +369,7 @@ def install(
     _wire_kernel_contract(target_root)
     active_workflow = _write_active_workflow(target_root, slug)
     wrapper_path = _write_wrapper(target_root, slug)
+    commands = _install_commands(source_root, target_root)
     requirements = load_project_requirements(target_root)
     guide_path = _write_user_guide(target_root, requirements)
     bootloader_path = _install_domain_bootloader(target_root, requirements)
@@ -263,6 +386,7 @@ def install(
         "active_workflow": str(active_workflow.relative_to(target_root)),
         "runtime_contract": str(contract_path.relative_to(target_root)),
         "wrapper": str(wrapper_path.relative_to(target_root)),
+        "commands": commands,
         "guide": str(guide_path.relative_to(target_root)),
         "bootloader": str(bootloader_path.relative_to(target_root)),
         "versioned_release": str(version_dir.relative_to(target_root)),
@@ -278,19 +402,23 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--source")
     parser.add_argument("--project-slug", default="sandbox_project")
     parser.add_argument("--audit", action="store_true")
+    parser.add_argument("--reset-runtime", action="store_true")
     return parser
 
 
 def main() -> int:
     args = build_parser().parse_args()
-    payload = install(
-        Path(args.target),
-        source=Path(args.source).resolve() if args.source else None,
-        slug=args.project_slug,
-        audit_only=args.audit,
-    )
+    if args.reset_runtime:
+        payload = reset_runtime(Path(args.target))
+    else:
+        payload = install(
+            Path(args.target),
+            source=Path(args.source).resolve() if args.source else None,
+            slug=args.project_slug,
+            audit_only=args.audit,
+        )
     print(json.dumps(payload, indent=2))
-    return 0 if payload.get("status") in {"installed", "ok"} else 1
+    return 0 if payload.get("status") in {"installed", "ok", "runtime_reset"} else 1
 
 
 if __name__ == "__main__":

@@ -25,11 +25,11 @@ _SOURCE_ROOT = _VARIANT_ROOT.parents[2]
 _INSTALLER = _VARIANT_ROOT / "src" / "genesis_sdlc" / "release" / "install.py"
 
 
-def install_real_sandbox(
+def _run_installer(
     target: Path,
-    *,
-    slug: str = "sandbox_project",
+    *args: str,
     archive: RunArchive | None = None,
+    label: str = "genesis_sdlc install",
 ) -> dict[str, Any]:
     result = subprocess.run(
         [
@@ -39,28 +39,57 @@ def install_real_sandbox(
             str(target),
             "--source",
             str(_SOURCE_ROOT),
-            "--project-slug",
-            slug,
+            *args,
         ],
         capture_output=True,
         text=True,
         timeout=180,
     )
     if archive is not None:
-        archive.log_subprocess("genesis_sdlc install", result)
+        archive.log_subprocess(label, result)
     assert result.returncode == 0, (
-        f"genesis_sdlc install failed (exit {result.returncode})\n"
+        f"{label} failed (exit {result.returncode})\n"
         f"stdout:\n{result.stdout}\n\nstderr:\n{result.stderr}"
     )
     payload = json.loads(result.stdout)
     if archive is not None:
-        archive.capture_json("install_result.json", payload)
+        archive.capture_json(f"{label.replace(' ', '_')}.json", payload)
+    return payload
+
+
+def install_real_sandbox(
+    target: Path,
+    *,
+    slug: str = "sandbox_project",
+    archive: RunArchive | None = None,
+) -> dict[str, Any]:
+    payload = _run_installer(
+        target,
+        "--project-slug",
+        slug,
+        archive=archive,
+        label="genesis_sdlc install",
+    )
+    if archive is not None:
         archive.update_summary(
             installer_status=payload.get("status"),
             installer_target=payload.get("target"),
             project_slug=payload.get("project_slug"),
         )
     return payload
+
+
+def reset_runtime_sandbox(
+    target: Path,
+    *,
+    archive: RunArchive | None = None,
+) -> dict[str, Any]:
+    return _run_installer(
+        target,
+        "--reset-runtime",
+        archive=archive,
+        label="genesis_sdlc reset-runtime",
+    )
 
 
 def installed_env(workspace: Path) -> dict[str, str]:

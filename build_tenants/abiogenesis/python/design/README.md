@@ -2,7 +2,7 @@
 
 **Status**: Draft
 **Authority**: [Abiogenesis Python Variant](/Users/jim/src/apps/genesis_sdlc/build_tenants/abiogenesis/python/README.md)
-**Implements**: `REQ-F-GRAPH-*`, `REQ-F-CMD-*`, `REQ-F-GATE-*`, `REQ-F-TAG-*`, `REQ-F-COV-*`, `REQ-F-DOCS-*`, `REQ-F-TEST-*`, `REQ-F-UAT-*`, `REQ-F-CUSTODY-*`, `REQ-F-TERRITORY-*`, `REQ-F-BOOTDOC-*`, `REQ-F-BACKLOG-*`, `REQ-F-ECO-*`
+**Implements**: `REQ-F-GRAPH-*`, `REQ-F-CMD-*`, `REQ-F-GATE-*`, `REQ-F-TAG-*`, `REQ-F-COV-*`, `REQ-F-DOCS-*`, `REQ-F-TEST-*`, `REQ-F-UAT-*`, `REQ-F-CUSTODY-*`, `REQ-F-TERRITORY-*`, `REQ-F-BOOTDOC-*`, `REQ-F-BACKLOG-*`, `REQ-F-ECO-*`, `REQ-F-MVP-*`, `REQ-F-ASSURE-*`
 **Purpose**: ABG and GTL design for the Abiogenesis/Python realization of genesis_sdlc
 
 ---
@@ -108,6 +108,27 @@ These interfaces are assigned to modules in [module_decomp.md](/Users/jim/src/ap
 
 ---
 
+## Assurance Model
+
+This variant carries a bundled assurance surface alongside the workflow itself.
+
+The assurance model preserves two provenance paths:
+
+- the design realization path: `design -> module_decomp -> code` and `design -> module_decomp -> unit_tests`
+- the requirements-facing acceptance path: `requirements -> integration_tests -> user_guide -> uat_tests`
+
+`integration_tests` is the join between those paths. It proves that the realized code and tests behave as required in one runnable scenario. `user_guide` and `uat_tests` then close the operator-facing release path against the active requirement surface.
+
+The bundled assurance surface lives under `tests/` and provides:
+
+- fake-lane qualification for workflow law
+- live-lane qualification for real F_P execution
+- persistent run archives for postmortem and operator review
+
+This variant therefore treats qualification as part of the framework realization, not as an external demo harness.
+
+---
+
 ## Variant ADRs
 
 - [ADR-001-gtl-python-coding-standards.md](/Users/jim/src/apps/genesis_sdlc/build_tenants/abiogenesis/python/design/adrs/ADR-001-gtl-python-coding-standards.md)
@@ -120,3 +141,5 @@ These interfaces are assigned to modules in [module_decomp.md](/Users/jim/src/ap
 - [10-module-decomposition.md](/Users/jim/src/apps/genesis_sdlc/specification/requirements/10-module-decomposition.md)
 - [13-bootloader-asset.md](/Users/jim/src/apps/genesis_sdlc/specification/requirements/13-bootloader-asset.md)
 - [14-ecosystem-lifecycle.md](/Users/jim/src/apps/genesis_sdlc/specification/requirements/14-ecosystem-lifecycle.md)
+- [15-mvp.md](/Users/jim/src/apps/genesis_sdlc/specification/requirements/15-mvp.md)
+- [16-assurance.md](/Users/jim/src/apps/genesis_sdlc/specification/requirements/16-assurance.md)

@@ -1,5 +1,7 @@
 # Validates: REQ-F-TEST-001
 # Validates: REQ-F-TEST-005
+# Validates: REQ-F-MVP-002
+# Validates: REQ-F-ASSURE-001
 """Minimal project fixture and artifact materializers for workflow qualification."""
 
 from __future__ import annotations

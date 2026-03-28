@@ -143,9 +143,13 @@ EDGE_TRANSFORM_CONTRACTS: dict[str, EdgeTransformContract] = {
         edge="[requirements, design, integration_tests]→bootloader",
         target_asset="bootloader",
         artifact_kind="compiled domain bootloader",
-        authority_contexts=("requirements_surface", "python_design_surface", "standards_surface"),
+        authority_contexts=("requirements_surface", "bootloader_synthesis_surface"),
         suggested_output="build_tenants/abiogenesis/python/release/SDLC_BOOTLOADER.md",
-        guidance="Compile the domain bootloader from the active specification, standards, and design surfaces.",
+        guidance=(
+            "Compile the domain bootloader from the active requirement surface. "
+            "Prefer the installed `genesis_sdlc.release.bootloader.synthesize_bootloader()` "
+            "helper or produce an equivalent exact compilation."
+        ),
         required_sections=BOOTLOADER_SECTIONS,
     ),
 }

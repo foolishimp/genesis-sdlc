@@ -5,6 +5,8 @@
 # Validates: REQ-F-BOOTDOC-001
 # Validates: REQ-F-TEST-001
 # Validates: REQ-F-TEST-005
+# Validates: REQ-F-MVP-003
+# Validates: REQ-F-ASSURE-003
 """Full-cycle sandbox qualification through release acceptance."""
 
 from __future__ import annotations

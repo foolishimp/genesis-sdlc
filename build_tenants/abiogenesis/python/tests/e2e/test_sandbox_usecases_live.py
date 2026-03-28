@@ -2,6 +2,8 @@
 # Validates: REQ-F-TEST-001
 # Validates: REQ-F-TEST-004
 # Validates: REQ-F-TEST-005
+# Validates: REQ-F-MVP-003
+# Validates: REQ-F-ASSURE-002
 """Live qualification lane for sandbox-backed workflow scenarios."""
 
 from __future__ import annotations
@@ -42,6 +44,19 @@ def _live_agent() -> str:
     return os.environ.get("GSDLC_LIVE_AGENT", "codex")
 
 
+def _configured_live_agent(workspace: Path) -> str:
+    override = os.environ.get("GSDLC_LIVE_AGENT")
+    if override:
+        return override
+    active_workflow = workspace / ".gsdlc" / "release" / "active-workflow.json"
+    if active_workflow.exists():
+        payload = json.loads(active_workflow.read_text(encoding="utf-8"))
+        configured = payload.get("customization", {}).get("fp_transport_agent")
+        if isinstance(configured, str) and configured:
+            return configured
+    return "claude"
+
+
 def _live_enabled() -> bool:
     return os.environ.get("CODEX_LIVE_FP") == "1" and has_agent(_live_agent())
 
@@ -52,6 +67,10 @@ def _word_count(text: str) -> int:
 
 def _safe_stem(edge: str) -> str:
     return edge.replace("→", "_").replace("[", "").replace("]", "").replace(", ", "_").replace(" ", "")
+
+
+def _edge_timeout(edge: str) -> int:
+    return 600 if edge == BOOTLOADER_EDGE else 360
 
 
 def _run_json(workspace: Path, *args: str, archive=None, label: str | None = None) -> dict:
@@ -89,7 +108,7 @@ def _qualify_live_edge(workspace: Path, manifest: dict, *, archive, agent: str) 
     archive.capture_json(f"{safe_stem}_manifest.json", manifest)
     archive.update_summary(prompt_words=_word_count(prompt), transport_agent=agent)
 
-    response = call_agent(prompt, str(workspace), agent=agent, timeout=360)
+    response = call_agent(prompt, str(workspace), agent=agent, timeout=_edge_timeout(edge))
     archive.capture_text(f"{safe_stem}_raw_response.txt", response)
 
     if edge == INTEGRATION_EDGE:
@@ -137,7 +156,7 @@ def _repair_live_fd_gap(workspace: Path, edge: str, *, archive, agent: str) -> N
 
     safe_stem = _safe_stem(f"{edge}_repair")
     archive.capture_text(f"{safe_stem}_prompt.txt", prompt)
-    response = call_agent(prompt, str(workspace), agent=agent, timeout=360)
+    response = call_agent(prompt, str(workspace), agent=agent, timeout=_edge_timeout(edge))
     archive.capture_text(f"{safe_stem}_raw_response.txt", response)
 
     if edge == BOOTLOADER_EDGE and artifact.exists():
@@ -155,7 +174,7 @@ def _repair_live_fd_gap(workspace: Path, edge: str, *, archive, agent: str) -> N
 )
 def test_workflow_advances_from_fh_gate_to_live_fp_qualification(run_archive) -> None:
     workspace = run_archive.workspace
-    agent = _live_agent()
+    agent = _configured_live_agent(workspace)
     install_real_sandbox(workspace, archive=run_archive)
     seed_minimal_project_spec(workspace, archive=run_archive)
     run_archive.note("scenario", lane="live", edge="requirements→feature_decomp", agent=agent)
@@ -207,7 +226,7 @@ def test_workflow_advances_from_fh_gate_to_live_fp_qualification(run_archive) ->
 )
 def test_light_steel_thread_live_qualification_through_integration_tests(run_archive) -> None:
     workspace = run_archive.workspace
-    agent = _live_agent()
+    agent = _configured_live_agent(workspace)
     install_real_sandbox(workspace, slug="steel_thread", archive=run_archive)
     seed_minimal_project_spec(workspace, archive=run_archive)
     run_archive.note("scenario", lane="live", through_edge=INTEGRATION_EDGE, agent=agent)
@@ -291,7 +310,7 @@ def test_light_steel_thread_live_qualification_through_integration_tests(run_arc
 )
 def test_full_cycle_live_qualification_through_uat_acceptance(run_archive) -> None:
     workspace = run_archive.workspace
-    agent = _live_agent()
+    agent = _configured_live_agent(workspace)
     install_real_sandbox(workspace, slug="full_cycle", archive=run_archive)
     seed_minimal_project_spec(workspace, archive=run_archive)
     run_archive.note("scenario", lane="live", through_edge=UAT_EDGE, agent=agent)

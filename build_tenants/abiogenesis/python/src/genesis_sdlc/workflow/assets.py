@@ -20,6 +20,10 @@ design_context = _workspace_context(
     "python_design_surface",
     "build_tenants/abiogenesis/python/design/",
 )
+bootloader_synthesis_context = _workspace_context(
+    "bootloader_synthesis_surface",
+    "build_tenants/abiogenesis/python/src/genesis_sdlc/release/bootloader.py",
+)
 
 
 intent = Node(
@@ -97,8 +101,10 @@ BASE_CONTEXTS = (
     requirements_context,
     standards_context,
     design_context,
+    bootloader_synthesis_context,
 )
 
 FEATURE_CONTEXTS = (requirements_context,)
 DESIGN_CONTEXTS = (requirements_context, design_context)
 RELEASE_CONTEXTS = (requirements_context, design_context, standards_context)
+BOOTLOADER_CONTEXTS = (requirements_context, bootloader_synthesis_context)

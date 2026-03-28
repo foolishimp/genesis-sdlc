@@ -1,5 +1,7 @@
 # Validates: REQ-F-TEST-001
 # Validates: REQ-F-TEST-004
+# Validates: REQ-F-ASSURE-002
+# Validates: REQ-F-ASSURE-003
 """Persistent run archive for sandbox-backed tenant tests."""
 
 from __future__ import annotations
