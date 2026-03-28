@@ -76,3 +76,14 @@ The assurance control plane governs which runtime may act, under what constraint
 - AC-3: Backend adapters choose transport mechanics and normalize results, but do not redefine graph law, evaluator semantics, gate semantics, or acceptance criteria
 - AC-4: Backend preference or availability is runtime policy, not project truth
 - AC-5: No runtime-control surface may override constitutional lifecycle law or evaluator outcomes declared by the active specification
+
+### REQ-F-CTRL-008 — The control-plane path is the only lawful operative runtime path
+
+Once the assurance control plane exists, it replaces co-equal legacy runtime branches. Transitional mixed state may exist during refactor, but it is not a lawful steady-state product model.
+
+**Acceptance Criteria**:
+- AC-1: Product commands and live qualification consume runtime behavior through the control-plane compile and backend adapter layer
+- AC-2: Legacy direct prompt-assembly or transport-branch runtime paths are deleted once superseded
+- AC-3: Any remaining prompt-render or inspection helper is derived from the resolved runtime as a read model, not a separate operative authority
+- AC-4: Mixed old/new runtime models are permitted only as transient refactor state, not as a stable conforming release shape
+- AC-5: `0.9.9` defines no legacy operative compatibility path; any future compatibility surface would require a separate explicit requirement

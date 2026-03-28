@@ -34,3 +34,4 @@ The frozen workflow must be provable both as workflow law and as real agent-driv
 - AC-2: The MVP workflow has a live-lane qualification that proves that same end-to-end boundary through real F_P execution
 - AC-3: Fake and live qualification preserve a shared scenario identity so their runs can be compared postmortem
 - AC-4: Successful MVP qualification yields a converged end state for the base workflow with `total_delta: 0`
+- AC-5: Once the assurance control plane exists, MVP live qualification runs through the resolved runtime and backend adapter path rather than a legacy runtime branch

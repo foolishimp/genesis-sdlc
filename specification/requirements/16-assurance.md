@@ -25,6 +25,7 @@ Assurance is part of the framework realization. It is not a detached demo harnes
 - AC-2: Qualification supports both fake-lane and live-lane execution over the same scenario identities
 - AC-3: Qualification runs against the active framework surface rather than a parallel mock-only implementation
 - AC-4: Persistent run archives are produced for postmortem and operator review
+- AC-5: Once the assurance control plane exists, qualification consumes the same resolved runtime and backend adapter layer used by the live product path
 
 ### REQ-F-ASSURE-003 — Run archives answer the three operator questions
 

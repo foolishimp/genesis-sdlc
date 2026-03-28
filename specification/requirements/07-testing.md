@@ -51,3 +51,4 @@ Workflow scenarios that depend on F_P closure or transport-sensitive behavior re
 - AC-3: The live lane proves the same scenario boundary through real agent execution over the declared F_P dispatch surface
 - AC-4: Live-lane execution is explicit and gated by a dedicated test switch or marker; it does not run accidentally in the default fast lane
 - AC-5: Fake and live lanes preserve the same scenario identity so postmortem can compare them as two realizations of one test contract
+- AC-6: Once the control-plane compile and backend adapter layer exist, live qualification executes through that same resolved runtime and adapter layer rather than a parallel hardcoded transport path

@@ -41,12 +41,13 @@ Command requirements define the named operational surfaces that expose the SDLC 
 - AC-5: `--human-proxy` requires `--auto`; performs F_H evaluation per proxy protocol
 - AC-6: Exit codes: 0 (converged), 2 (fp_dispatched), 3 (fh_gate_pending), 4 (fd_gap), 5 (max_iterations)
 
-### REQ-F-CMD-004 — Project-local F_P customization is resolved from specification/design/fp/
+### REQ-F-CMD-004 — Project-local F_P customization is compiled through the control plane
 
-The installed operator path can derive an effective bounded F_P prompt from project-local customization without editing the managed release.
+The installed operator path resolves project-local F_P customization through the control-plane compile rather than through a separate legacy prompt-assembly path.
 
 **Acceptance Criteria**:
 - AC-1: The installed system defines `specification/design/fp/edge-overrides/` as the project-local surface for per-edge F_P customization
-- AC-2: The effective F_P prompt resolves project-local per-edge overrides before falling back to the installed default contract
+- AC-2: Project-local per-edge overrides are compiled into the effective edge runtime profile before falling back to installed defaults
 - AC-3: A project-local override can declare customization intent, requirement refs, design refs, and per-edge guidance or output-path adjustments
-- AC-4: The installed release exposes a helper that renders the effective F_P prompt from a manifest using the project-local override surface
+- AC-4: If the installed release exposes a helper that renders an effective F_P prompt, that helper derives its output from the resolved runtime or compiled edge runtime profile and remains a read model rather than a separate operative path
+- AC-5: Once the control-plane compile exists, direct legacy prompt assembly is not a conforming runtime path
