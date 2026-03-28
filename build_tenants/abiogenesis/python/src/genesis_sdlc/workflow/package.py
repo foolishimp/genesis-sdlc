@@ -20,6 +20,7 @@ from .graph import (
     workflow_graph,
 )
 from .requirements import find_requirements_root, load_local_requirements, requirement_manifest
+from .transforms import transform_contract_manifest
 
 
 def instantiate(
@@ -89,6 +90,7 @@ def graph_manifest(bound_module: Module | None = None, requirement_root: Path | 
                 else [vector.source.name],
                 "target": vector.target.name,
                 "evaluators": [ev.name for ev in vector.evaluators],
+                "transform_contract": transform_contract_manifest(vector.name),
             }
             for vector in workflow_graph.vectors
         ],

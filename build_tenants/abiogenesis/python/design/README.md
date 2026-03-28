@@ -56,6 +56,8 @@ Concrete implementation surfaces live under this variant, typically as:
 - `tests/`
 - `release/`
 
+Variant-local design decisions that are stable enough to ratify sit under `design/adrs/`.
+
 ---
 
 ## ABG And GTL Encoding
@@ -103,6 +105,12 @@ The target variant interface set is:
 - `homeostatic_eval()`
 
 These interfaces are assigned to modules in [module_decomp.md](/Users/jim/src/apps/genesis_sdlc/build_tenants/abiogenesis/python/design/module_decomp.md).
+
+---
+
+## Variant ADRs
+
+- [ADR-001-gtl-python-coding-standards.md](/Users/jim/src/apps/genesis_sdlc/build_tenants/abiogenesis/python/design/adrs/ADR-001-gtl-python-coding-standards.md)
 
 ---
 

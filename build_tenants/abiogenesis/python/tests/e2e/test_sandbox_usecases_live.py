@@ -13,6 +13,15 @@ from pathlib import Path
 
 import pytest
 
+from genesis_sdlc.workflow.transforms import (
+    DESIGN_SECTIONS,
+    FEATURE_DECOMP_SECTIONS,
+    MODULE_DECOMP_SECTIONS,
+    build_assessment_prompt,
+    build_constructive_prompt,
+    get_edge_transform_contract,
+)
+
 from .live_transport import call_agent, has_agent
 from .sandbox_runtime import install_real_sandbox, run_genesis
 
@@ -33,6 +42,10 @@ _MODULE_DECOMP_ARTIFACT = Path("output/module_decomp.md")
 _CODE_ARTIFACT = Path("output/src/calculator.py")
 _UNIT_TESTS_ARTIFACT = Path("output/tests/test_calculator.py")
 _INTEGRATION_ARTIFACT = Path("output/tests/test_integration.py")
+
+
+def _word_count(text: str) -> int:
+    return len(text.split())
 
 
 _MINIMAL_INTENT = """# Intent
@@ -189,11 +202,7 @@ def _judge_feature_decomp(artifact: Path, required_keys: list[str]) -> list[dict
         ]
 
     text = artifact.read_text(encoding="utf-8")
-    missing_headers = [
-        header
-        for header in ("# Feature Decomposition", "## Features", "## Dependency Order", "## Coverage Map")
-        if header not in text
-    ]
+    missing_headers = [header for header in FEATURE_DECOMP_SECTIONS if header not in text]
     if missing_headers:
         return [
             {
@@ -213,8 +222,7 @@ def _judge_feature_decomp(artifact: Path, required_keys: list[str]) -> list[dict
             }
         ]
 
-    required_terms = ("add", "multiply", "integration")
-    missing_terms = [term for term in required_terms if term not in text.lower()]
+    missing_terms = [term for term in ("add", "multiply", "integration") if term not in text.lower()]
     if missing_terms:
         return [
             {
@@ -331,54 +339,10 @@ def _judge_integration_artifact(artifact: Path) -> list[dict]:
     ]
 
 
-def _feature_decomp_prompt(manifest: dict, artifact_path: Path) -> str:
-    return (
-        "[LIVE QUALIFICATION MODE]\n"
-        "This is a bounded constructive F_P turn for the requirements→feature_decomp edge.\n"
-        f"Write the feature decomposition artifact to: {artifact_path}\n"
-        "Do not write the assessment result JSON yourself.\n"
-        "Do not modify any other workspace files.\n"
-        "The artifact must contain these exact sections:\n"
-        "- # Feature Decomposition\n"
-        "- ## Features\n"
-        "- ## Dependency Order\n"
-        "- ## Coverage Map\n"
-        "Use the project requirements in the manifest context as the authority surface.\n"
-        "Keep the decomposition minimal and specific to the tiny calculator project.\n\n"
-        f"{manifest['prompt']}"
-    )
-
-
-def _bounded_artifact_prompt(
-    manifest: dict,
-    *,
-    artifact_path: Path,
-    instructions: str,
-) -> str:
-    return (
-        "[LIVE QUALIFICATION MODE]\n"
-        "This is a bounded constructive F_P turn.\n"
-        f"Write the target artifact to: {artifact_path}\n"
-        "Do not write the assessment result JSON yourself.\n"
-        "Do not modify any other workspace files.\n"
-        f"{instructions}\n\n"
-        f"{manifest['prompt']}"
-    )
-
-
 def _dispatch_live_fp(workspace: Path, manifest: dict, *, archive, agent: str, stem: str) -> None:
     run_archive = archive
     run_archive.capture_json(f"{stem}_manifest.json", manifest)
-    qualification_prompt = (
-        "[LIVE QUALIFICATION MODE]\n"
-        "This is a bounded F_P qualification turn.\n"
-        "Use the supplied manifest context as the authority surface for this turn.\n"
-        f"Write the required assessment JSON to: {manifest['result_path']}\n"
-        "Do not modify any other workspace files unless the manifest provides an explicit output path for them.\n"
-        "If the manifest context is sufficient, write a pass assessment with concise evidence and stop.\n"
-        "If the manifest context is insufficient, write a fail assessment with concise evidence and stop.\n\n"
-        f"{manifest['prompt']}"
-    )
+    qualification_prompt = build_assessment_prompt(manifest)
     run_archive.capture_text(f"{stem}_prompt.txt", qualification_prompt)
 
     response = call_agent(
@@ -411,8 +375,13 @@ def _qualify_feature_decomp_live(workspace: Path, manifest: dict, *, archive, ag
     if not artifact_path.exists():
         artifact_path.write_text("# Feature Decomposition\n", encoding="utf-8")
 
-    prompt = _feature_decomp_prompt(manifest, _FEATURE_DECOMP_ARTIFACT)
+    prompt = build_constructive_prompt(
+        manifest["edge"],
+        manifest,
+        artifact_path=_FEATURE_DECOMP_ARTIFACT,
+    )
     archive.capture_text("feature_decomp_live_prompt.txt", prompt)
+    archive.update_summary(prompt_words=_word_count(prompt))
     response = call_agent(prompt, str(workspace), agent=agent, timeout=240)
     archive.capture_text("feature_decomp_live_raw_response.txt", response)
 
@@ -439,6 +408,35 @@ def _qualify_feature_decomp_live(workspace: Path, manifest: dict, *, archive, ag
     assert assess.returncode == 0, assess.stderr
 
 
+def _design_assessments(artifact: Path) -> list[dict]:
+    return _judge_headers_and_requirements(
+        artifact,
+        evaluator="design_complete",
+        headers=DESIGN_SECTIONS,
+        required_terms=("add", "multiply", "unit test", "integration"),
+        evidence_label="design artifact defines components, interfaces, decomposition, and sequencing for the calculator project.",
+    )
+
+
+def _module_decomp_assessments(artifact: Path) -> list[dict]:
+    return _judge_headers_and_requirements(
+        artifact,
+        evaluator="module_schedule",
+        headers=MODULE_DECOMP_SECTIONS,
+        required_terms=("calculator", "tests", "dependency"),
+        evidence_label="module decomposition artifact defines modules, dependencies, and build order.",
+    )
+
+
+_CONSTRUCTIVE_ARTIFACTS = {
+    "feature_decomp→design": (_DESIGN_ARTIFACT, "design.md", _design_assessments),
+    "design→module_decomp": (_MODULE_DECOMP_ARTIFACT, "module_decomp.md", _module_decomp_assessments),
+    "module_decomp→code": (_CODE_ARTIFACT, "calculator.py", _judge_code_artifact),
+    "module_decomp→unit_tests": (_UNIT_TESTS_ARTIFACT, "test_calculator.py", _judge_unit_tests_artifact),
+    INTEGRATION_EDGE: (_INTEGRATION_ARTIFACT, "test_integration.py", _judge_integration_artifact),
+}
+
+
 def _qualify_live_edge(workspace: Path, manifest: dict, *, archive, agent: str) -> None:
     edge = manifest["edge"]
 
@@ -446,99 +444,29 @@ def _qualify_live_edge(workspace: Path, manifest: dict, *, archive, agent: str) 
         _qualify_feature_decomp_live(workspace, manifest, archive=archive, agent=agent)
         return
 
-    if edge == "feature_decomp→design":
-        artifact = workspace / _DESIGN_ARTIFACT
-        prompt = _bounded_artifact_prompt(
-            manifest,
-            artifact_path=_DESIGN_ARTIFACT,
-            instructions=(
-                "Write a concise design document for the calculator project with these exact sections:\n"
-                "- # Design\n"
-                "- ## Components\n"
-                "- ## Interfaces\n"
-                "- ## Decomposition\n"
-                "- ## Dependency Chain\n"
-                "- ## Sequencing\n"
-                "Mention add, multiply, unit tests, and integration."
-            ),
-        )
-        assessments = lambda: _judge_headers_and_requirements(
-            artifact,
-            evaluator="design_complete",
-            headers=("# Design", "## Components", "## Interfaces", "## Decomposition", "## Dependency Chain", "## Sequencing"),
-            required_terms=("add", "multiply", "unit test", "integration"),
-            evidence_label="design artifact defines components, interfaces, decomposition, and sequencing for the calculator project.",
-        )
-    elif edge == "design→module_decomp":
-        artifact = workspace / _MODULE_DECOMP_ARTIFACT
-        prompt = _bounded_artifact_prompt(
-            manifest,
-            artifact_path=_MODULE_DECOMP_ARTIFACT,
-            instructions=(
-                "Write a concise module decomposition document with these exact sections:\n"
-                "- # Module Decomposition\n"
-                "- ## Modules\n"
-                "- ## Dependencies\n"
-                "- ## Build Order\n"
-                "Include one code module and one tests module for the calculator project."
-            ),
-        )
-        assessments = lambda: _judge_headers_and_requirements(
-            artifact,
-            evaluator="module_schedule",
-            headers=("# Module Decomposition", "## Modules", "## Dependencies", "## Build Order"),
-            required_terms=("calculator", "tests", "dependency"),
-            evidence_label="module decomposition artifact defines modules, dependencies, and build order.",
-        )
-    elif edge == "module_decomp→code":
-        artifact = workspace / _CODE_ARTIFACT
-        prompt = _bounded_artifact_prompt(
-            manifest,
-            artifact_path=_CODE_ARTIFACT,
-            instructions=(
-                "Write a minimal Python module that defines add(a, b) and multiply(a, b). "
-                "Keep it small and importable."
-            ),
-        )
-        assessments = lambda: _judge_code_artifact(artifact)
-    elif edge == "module_decomp→unit_tests":
-        artifact = workspace / _UNIT_TESTS_ARTIFACT
-        prompt = _bounded_artifact_prompt(
-            manifest,
-            artifact_path=_UNIT_TESTS_ARTIFACT,
-            instructions=(
-                "Write pytest unit tests for add and multiply. "
-                "Import from `calculator` and cover positive and negative examples."
-            ),
-        )
-        assessments = lambda: _judge_unit_tests_artifact(artifact)
-    elif edge == INTEGRATION_EDGE:
-        artifact = workspace / _INTEGRATION_ARTIFACT
-        prompt = _bounded_artifact_prompt(
-            manifest,
-            artifact_path=_INTEGRATION_ARTIFACT,
-            instructions=(
-                "Write one pytest integration test that imports add and multiply from `calculator` "
-                "and uses both operations in a single scenario."
-            ),
-        )
-        assessments = lambda: _judge_integration_artifact(artifact)
-    else:
+    contract = get_edge_transform_contract(edge)
+    artifact_spec = _CONSTRUCTIVE_ARTIFACTS.get(edge)
+    if contract is None or artifact_spec is None:
         _dispatch_live_fp(workspace, manifest, archive=archive, agent=agent, stem=edge.replace("→", "_"))
         return
 
+    artifact_path, archive_name, judge = artifact_spec
+    artifact = workspace / artifact_path
+    prompt = build_constructive_prompt(edge, manifest, artifact_path=artifact_path)
     artifact.parent.mkdir(parents=True, exist_ok=True)
     response = call_agent(prompt, str(workspace), agent=agent, timeout=240)
     safe_stem = edge.replace("→", "_").replace("[", "").replace("]", "").replace(", ", "_").replace(" ", "")
     archive.capture_text(f"{safe_stem}_prompt.txt", prompt)
     archive.capture_text(f"{safe_stem}_raw_response.txt", response)
-    archive.copy_file(artifact, dest_name=artifact.name)
+    archive.capture_json(f"{safe_stem}_manifest.json", manifest)
+    archive.copy_file(artifact, dest_name=archive_name)
+    archive.update_summary(prompt_words=_word_count(prompt))
 
     if edge == INTEGRATION_EDGE:
         _write_passing_sandbox_report(workspace)
 
     result_path = Path(manifest["result_path"])
-    assessed_payload = assessments()
+    assessed_payload = judge(artifact)
     _write_result_file(
         result_path,
         edge=edge,
@@ -606,7 +534,6 @@ def test_workflow_advances_from_fh_gate_to_live_fp_qualification(run_archive) ->
         manifest_id=manifest["manifest_id"],
         transport_agent=agent,
         result_path=manifest["result_path"],
-        prompt_words=manifest.get("prompt_words"),
     )
 
     _qualify_feature_decomp_live(workspace, manifest, archive=run_archive, agent=agent)

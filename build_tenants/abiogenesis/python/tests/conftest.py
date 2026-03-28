@@ -11,6 +11,9 @@ import pytest
 
 
 _TESTS_DIR = Path(__file__).resolve().parent
+_VARIANT_SRC = _TESTS_DIR.parent / "src"
+if str(_VARIANT_SRC) not in sys.path:
+    sys.path.insert(0, str(_VARIANT_SRC))
 if str(_TESTS_DIR) not in sys.path:
     sys.path.insert(0, str(_TESTS_DIR))
 
