@@ -16,6 +16,7 @@ from pathlib import Path
 
 import pytest
 
+from .minimal_project import build_fake_artifact, edge_assessments, seed_minimal_project_spec, write_result_file
 from .sandbox_runtime import install_real_sandbox, run_genesis
 
 
@@ -68,6 +69,7 @@ def test_iterate_blocks_on_initial_human_gate(run_archive) -> None:
 def test_workflow_advances_from_fh_gate_to_fp_dispatch(run_archive) -> None:
     workspace = run_archive.workspace
     install_real_sandbox(workspace, archive=run_archive)
+    seed_minimal_project_spec(workspace, archive=run_archive)
     run_archive.note("scenario", lane="fp_dispatch", edge="requirements→feature_decomp")
 
     approve = run_genesis(
@@ -105,25 +107,24 @@ def test_workflow_advances_from_fh_gate_to_fp_dispatch(run_archive) -> None:
     assert manifest["edge"] == "requirements→feature_decomp"
     assert [item["name"] for item in manifest["failing_evaluators"]] == ["feature_decomp_complete"]
 
+    artifact = build_fake_artifact(manifest["edge"], workspace, manifest)
+    run_archive.copy_file(artifact, dest_name=artifact.name)
+    result_path = Path(manifest["result_path"])
+    write_result_file(
+        result_path,
+        edge=manifest["edge"],
+        actor="sandbox_tester",
+        assessments=edge_assessments(manifest["edge"], workspace, manifest),
+    )
+    run_archive.capture_json("fp_dispatch_result.json", json.loads(result_path.read_text(encoding="utf-8")))
+
     assessed = run_genesis(
         workspace,
-        "emit-event",
-        "--type",
-        "assessed",
-        "--data",
-        json.dumps(
-            {
-                "kind": "fp",
-                "edge": "requirements→feature_decomp",
-                "evaluator": "feature_decomp_complete",
-                "actor": "sandbox_tester",
-                "result": "pass",
-                "evidence": "feature decomposition accepted for sandbox progression",
-                "spec_hash": manifest["spec_hash"],
-            }
-        ),
+        "assess-result",
+        "--result",
+        str(result_path),
         archive=run_archive,
-        label="emit assessed fp feature_decomp_complete",
+        label="genesis assess-result requirements→feature_decomp",
     )
     assert assessed.returncode == 0, assessed.stderr
 

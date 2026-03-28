@@ -23,6 +23,7 @@ The live requirement surface is stored as requirement families under this folder
 | `12-territory-model.md` | REQ-F-TERRITORY-* | Constraint / Guarantee | Active |
 | `13-bootloader-asset.md` | REQ-F-BOOTDOC-* | Verification | Active |
 | `14-ecosystem-lifecycle.md` | REQ-F-ECO-* | Capability | Active |
+| `15-mvp.md` | REQ-F-MVP-* | Release Qualification | Active |
 
 ## Notes
 

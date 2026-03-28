@@ -21,6 +21,7 @@ if __package__ in {None, ""}:
     _SRC_ROOT = Path(__file__).resolve().parents[2]
     if str(_SRC_ROOT) not in sys.path:
         sys.path.insert(0, str(_SRC_ROOT))
+    from genesis_sdlc.evidence.docs import synthesize_user_guide
     from genesis_sdlc.release.bootloader import spec_hash, synthesize_bootloader
     from genesis_sdlc.release.territory import (
         install_operating_standards,
@@ -32,6 +33,7 @@ if __package__ in {None, ""}:
     )
     from genesis_sdlc.release.wrapper import load_project_requirements, render_wrapper
 else:
+    from ..evidence.docs import synthesize_user_guide
     from .bootloader import spec_hash, synthesize_bootloader
     from .territory import (
         install_operating_standards,
@@ -157,41 +159,17 @@ def _write_wrapper(target_root: Path, slug: str) -> Path:
 
 def _write_user_guide(target_root: Path, requirements: list[str]) -> Path:
     guide_path = target_root / "build_tenants" / "abiogenesis" / "python" / "release" / "USER_GUIDE.md"
-    guide_path.parent.mkdir(parents=True, exist_ok=True)
-    lines = [
-        "# Genesis SDLC User Guide",
-        "",
-        f"Version: {VERSION}",
-        "",
-        "## Install",
-        "",
-        "Run the ABG installer first, then genesis_sdlc install into the target workspace.",
-        "",
-        "## First Session",
-        "",
-        "Bootstrap the workspace, inspect gaps, then iterate the next edge.",
-        "",
-        "## Operating Loop",
-        "",
-        "Use `genesis gaps`, `genesis iterate`, and `genesis start` against the installed workspace.",
-        "",
-        "## Recovery",
-        "",
-        "Repair missing files, restore references, then rerun gap analysis.",
-        "",
-    ]
-    if requirements:
-        lines.append("## Requirement Tags")
-        lines.append("")
-        lines.extend(f"- {req}" for req in requirements[:10])
-        lines.append("")
-    guide_path.write_text("\n".join(lines), encoding="utf-8")
-    return guide_path
+    return synthesize_user_guide(guide_path, version=VERSION, requirements=requirements)
 
 
 def _install_domain_bootloader(target_root: Path, requirements: list[str]) -> Path:
     release_bootloader = target_root / ".gsdlc" / "release" / "SDLC_BOOTLOADER.md"
-    synthesize_bootloader(requirements=requirements, version=VERSION, output_path=release_bootloader)
+    synthesize_bootloader(
+        requirements=requirements,
+        version=VERSION,
+        output_path=release_bootloader,
+        workspace_root=target_root,
+    )
 
     source_bootloader = target_root / "build_tenants" / "abiogenesis" / "python" / "release" / "SDLC_BOOTLOADER.md"
     shutil.copy2(release_bootloader, source_bootloader)

@@ -278,3 +278,44 @@ This makes the SDLC explicitly homeostatic rather than a pipeline that terminate
 2. The specification distinguishes development workflow from operational lifecycle
 3. Operational observation has an explicit return path into pre-intent incubation
 4. The ecosystem lifecycle is definable without prescribing one automation stack
+
+---
+
+## INT-006 — MVP Freezes The 1.0 Base Workflow And Makes It Operational
+
+### Problem
+
+Without an explicit MVP boundary, the framework can keep absorbing adjacent concerns instead of proving the current workflow as a working product. That causes release drift: scope expands while the real base-process path remains only partially operational.
+
+### Value Proposition
+
+genesis_sdlc treats MVP as a scope freeze over the 1.0 base workflow and proves that frozen workflow operationally:
+
+```text
+intent -> requirements -> feature_decomp -> design -> module_decomp
+       -> code -> unit_tests -> integration_tests -> user_guide
+       -> bootloader -> uat_tests
+```
+
+- the active feature set is frozen at the 1.0 base workflow
+- MVP is proved by real install-and-converge qualification, not by document completeness alone
+- later ecosystem stages remain valid lifecycle truth, but they do not block the MVP boundary
+
+### Scope
+
+- The MVP boundary is the 1.0 base workflow through `uat_tests`
+- MVP requires the workflow to install into a fresh sandbox and converge over a minimal project specification
+- MVP includes fake-lane and live-lane qualification for the active workflow
+
+### Out of Scope
+
+- Phase 2 ecosystem stages after `uat_tests`
+- `backlog_homeostasis` as an RC-blocking implementation target
+- Expanding the active feature set beyond the frozen 1.0 workflow
+
+### Success Criteria
+
+1. A fresh sandbox install exposes the active workflow without manual patching
+2. A minimal project specification can converge from `intent` through `uat_tests`
+3. Fake-lane and live-lane qualification both prove that same frozen workflow boundary
+4. The MVP target is posted in the active specification surface rather than held only in tests or commentary

@@ -44,7 +44,7 @@ MODULE_DECOMP_SECTIONS = (
     "## Build Order",
 )
 USER_GUIDE_SECTIONS = (
-    "## Install",
+    "## Installation",
     "## First Session",
     "## Operating Loop",
     "## Recovery",
@@ -135,7 +135,7 @@ EDGE_TRANSFORM_CONTRACTS: dict[str, EdgeTransformContract] = {
         target_asset="user_guide",
         artifact_kind="operator guide",
         authority_contexts=("requirements_surface", "python_design_surface", "standards_surface"),
-        suggested_output="release/USER_GUIDE.md",
+        suggested_output="build_tenants/abiogenesis/python/release/USER_GUIDE.md",
         guidance="Compile an operator guide from design and integrated evidence, covering install, first session, the operating loop, and recovery.",
         required_sections=USER_GUIDE_SECTIONS,
     ),
@@ -144,7 +144,7 @@ EDGE_TRANSFORM_CONTRACTS: dict[str, EdgeTransformContract] = {
         target_asset="bootloader",
         artifact_kind="compiled domain bootloader",
         authority_contexts=("requirements_surface", "python_design_surface", "standards_surface"),
-        suggested_output="release/SDLC_BOOTLOADER.md",
+        suggested_output="build_tenants/abiogenesis/python/release/SDLC_BOOTLOADER.md",
         guidance="Compile the domain bootloader from the active specification, standards, and design surfaces.",
         required_sections=BOOTLOADER_SECTIONS,
     ),

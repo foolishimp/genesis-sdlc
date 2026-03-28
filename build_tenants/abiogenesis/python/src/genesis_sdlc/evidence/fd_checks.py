@@ -22,13 +22,46 @@ REQ_TAG_PATTERN = re.compile(r"^# (Implements|Validates): REQ-[A-Z0-9-]+\b", re.
 WORKSPACE_REF_PATTERN = re.compile(r"workspace://([^\s)]+)")
 BOOTLOADER_SPEC_HASH_PATTERN = re.compile(r"^Spec-Hash:\s*(\S+)\s*$", re.MULTILINE)
 BOOTLOADER_VERSION_PATTERN = re.compile(r"^Version:\s*(\S+)\s*$", re.MULTILINE)
-VERSION_PATTERN = re.compile(r"version\s*[:=]\s*[\"']?([A-Za-z0-9._-]+)[\"']?", re.IGNORECASE)
+VERSION_PATTERN = re.compile(r"[\"']?version[\"']?\s*[:=]\s*[\"']?([A-Za-z0-9._-]+)[\"']?", re.IGNORECASE)
+REQ_HEADER_PATTERN = re.compile(r"^### (REQ-[A-Z0-9-]+)\b", re.MULTILINE)
 
 
 def _import_symbol(ref: str):
     module_name, symbol_name = ref.split(":", 1)
     module = import_module(module_name)
     return getattr(module, symbol_name)
+
+
+def _load_active_package(package_ref: str | None = None, active_workflow_path: Path | None = None):
+    if active_workflow_path is not None and active_workflow_path.exists():
+        data = json.loads(active_workflow_path.read_text(encoding="utf-8"))
+        package_symbol = data.get("package")
+        if isinstance(package_symbol, str) and ":" in package_symbol:
+            return _import_symbol(package_symbol)
+    if package_ref:
+        return _import_symbol(package_ref)
+    raise FileNotFoundError("no package reference available")
+
+
+def _workspace_root_from_active_workflow(active_workflow_path: Path) -> Path:
+    return active_workflow_path.resolve().parents[2]
+
+
+def _load_workspace_requirements(workspace_root: Path) -> list[str]:
+    requirements_root = workspace_root / "specification" / "requirements"
+    if not requirements_root.exists():
+        return []
+    requirements: list[str] = []
+    for path in sorted(p for p in requirements_root.rglob("*.md") if p.name != "README.md"):
+        requirements.extend(REQ_HEADER_PATTERN.findall(path.read_text(encoding="utf-8")))
+    return requirements
+
+
+def _active_requirement_keys(package_ref: str | None = None, active_workflow_path: Path | None = None) -> list[str]:
+    if active_workflow_path is not None and active_workflow_path.exists():
+        return _load_workspace_requirements(_workspace_root_from_active_workflow(active_workflow_path))
+    package = _load_active_package(package_ref, active_workflow_path)
+    return [req for req in package.metadata.get("requirements", []) if isinstance(req, str)]
 
 
 def _iter_python_files(root: Path) -> list[Path]:
@@ -53,11 +86,9 @@ def _exit(ok: bool, message: str) -> int:
     return 0
 
 
-def check_requirements_loaded(package_ref: str) -> int:
-    package = _import_symbol(package_ref)
-    requirements = package.metadata.get("requirements")
-    ok = isinstance(requirements, list)
-    return _exit(ok, f"requirements_loaded={len(requirements) if ok else 'invalid'}")
+def check_requirements_loaded(package_ref: str | None = None, active_workflow_path: Path | None = None) -> int:
+    requirements = _active_requirement_keys(package_ref, active_workflow_path)
+    return _exit(isinstance(requirements, list), f"requirements_loaded={len(requirements)}")
 
 
 def check_module_coverage(modules_root: Path) -> int:
@@ -179,19 +210,30 @@ def check_guide_version_current(guide_path: Path, version_path: Path) -> int:
     return _exit(ok, "guide_version_current=ok" if ok else "guide version does not match workflow version")
 
 
-def check_guide_req_coverage(guide_path: Path) -> int:
+def check_guide_req_coverage(
+    guide_path: Path,
+    package_ref: str | None = None,
+    active_workflow_path: Path | None = None,
+) -> int:
     if not guide_path.exists():
         return _exit(False, f"user guide missing: {guide_path}")
     text = _read_text(guide_path)
-    ok = "REQ-F-" in text
-    return _exit(ok, "guide_req_coverage=ok" if ok else "user guide missing REQ-F-* tags")
+    requirements = _active_requirement_keys(package_ref, active_workflow_path)
+    if not requirements:
+        ok = "REQ-" in text
+        return _exit(ok, "guide_req_coverage=ok" if ok else "user guide missing REQ-* tags")
+    missing = [req for req in requirements if req not in text]
+    return _exit(not missing, "guide_req_coverage=ok" if not missing else f"user guide missing tags: {missing}")
 
 
-def check_spec_hash_current(package_ref: str, bootloader_path: Path) -> int:
+def check_spec_hash_current(
+    bootloader_path: Path,
+    package_ref: str | None = None,
+    active_workflow_path: Path | None = None,
+) -> int:
     if not bootloader_path.exists():
         return _exit(False, f"bootloader missing: {bootloader_path}")
-    package = _import_symbol(package_ref)
-    requirements = package.metadata.get("requirements", [])
+    requirements = _active_requirement_keys(package_ref, active_workflow_path)
     expected = "sha256:" + hashlib.sha256("\n".join(requirements).encode("utf-8")).hexdigest()
     match = BOOTLOADER_SPEC_HASH_PATTERN.search(_read_text(bootloader_path))
     if not match:
@@ -243,7 +285,8 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("requirements_loaded")
-    p.add_argument("--package-ref", required=True)
+    p.add_argument("--package-ref")
+    p.add_argument("--active-workflow-path", type=Path)
 
     p = sub.add_parser("module_coverage")
     p.add_argument("--modules-root", type=Path, required=True)
@@ -266,9 +309,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("guide_req_coverage")
     p.add_argument("--guide-path", type=Path, required=True)
+    p.add_argument("--package-ref")
+    p.add_argument("--active-workflow-path", type=Path)
 
     p = sub.add_parser("spec_hash_current")
-    p.add_argument("--package-ref", required=True)
+    p.add_argument("--package-ref")
+    p.add_argument("--active-workflow-path", type=Path)
     p.add_argument("--bootloader-path", type=Path, required=True)
 
     p = sub.add_parser("version_current")
@@ -287,7 +333,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "requirements_loaded":
-        return check_requirements_loaded(args.package_ref)
+        return check_requirements_loaded(args.package_ref, args.active_workflow_path)
     if args.command == "module_coverage":
         return check_module_coverage(args.modules_root)
     if args.command == "implements_tags":
@@ -301,9 +347,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "guide_version_current":
         return check_guide_version_current(args.guide_path, args.version_path)
     if args.command == "guide_req_coverage":
-        return check_guide_req_coverage(args.guide_path)
+        return check_guide_req_coverage(args.guide_path, args.package_ref, args.active_workflow_path)
     if args.command == "spec_hash_current":
-        return check_spec_hash_current(args.package_ref, args.bootloader_path)
+        return check_spec_hash_current(args.bootloader_path, args.package_ref, args.active_workflow_path)
     if args.command == "version_current":
         return check_version_current(args.bootloader_path, args.version_path)
     if args.command == "section_coverage_complete":

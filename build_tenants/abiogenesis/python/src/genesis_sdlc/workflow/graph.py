@@ -56,7 +56,8 @@ eval_feature_fd = Evaluator(
     "The live requirement surface is readable and key discovery is deterministic.",
     binding=(
         "exec://python -m genesis_sdlc.evidence.fd_checks requirements_loaded "
-        "--package-ref genesis_sdlc.workflow:package"
+        "--package-ref genesis_sdlc.workflow:package "
+        "--active-workflow-path .gsdlc/release/active-workflow.json"
     ),
 )
 eval_feature_fp = Evaluator(
@@ -156,16 +157,18 @@ eval_guide_fd = Evaluator(
     binding=(
         "exec://python -m genesis_sdlc.evidence.fd_checks guide_version_current "
         "--guide-path build_tenants/abiogenesis/python/release/USER_GUIDE.md "
-        "--version-path build_tenants/abiogenesis/python/release/active-workflow.json"
+        "--version-path .gsdlc/release/active-workflow.json"
     ),
 )
 eval_guide_fd_coverage = Evaluator(
     "guide_req_coverage",
     F_D,
-    "The user guide carries REQ-F-* traceability tags.",
+    "The user guide carries the active requirement keys as traceability tags.",
     binding=(
         "exec://python -m genesis_sdlc.evidence.fd_checks guide_req_coverage "
-        "--guide-path build_tenants/abiogenesis/python/release/USER_GUIDE.md"
+        "--guide-path build_tenants/abiogenesis/python/release/USER_GUIDE.md "
+        "--package-ref genesis_sdlc.workflow:package "
+        "--active-workflow-path .gsdlc/release/active-workflow.json"
     ),
 )
 eval_guide_fp = Evaluator(
@@ -180,6 +183,7 @@ eval_bootloader_fd_1 = Evaluator(
     binding=(
         "exec://python -m genesis_sdlc.evidence.fd_checks spec_hash_current "
         "--package-ref genesis_sdlc.workflow:package "
+        "--active-workflow-path .gsdlc/release/active-workflow.json "
         "--bootloader-path build_tenants/abiogenesis/python/release/SDLC_BOOTLOADER.md"
     ),
 )
@@ -190,7 +194,7 @@ eval_bootloader_fd_2 = Evaluator(
     binding=(
         "exec://python -m genesis_sdlc.evidence.fd_checks version_current "
         "--bootloader-path build_tenants/abiogenesis/python/release/SDLC_BOOTLOADER.md "
-        "--version-path build_tenants/abiogenesis/python/release/active-workflow.json"
+        "--version-path .gsdlc/release/active-workflow.json"
     ),
 )
 eval_bootloader_fd_3 = Evaluator(
