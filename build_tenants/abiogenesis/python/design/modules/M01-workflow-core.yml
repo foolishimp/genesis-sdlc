@@ -14,6 +14,7 @@ interfaces:
   - worker
   - graph_manifest()
 source_files:
+  - src/genesis_sdlc/workflow/abg_patch.py
   - src/genesis_sdlc/workflow/assets.py
   - src/genesis_sdlc/workflow/graph.py
   - src/genesis_sdlc/workflow/package.py

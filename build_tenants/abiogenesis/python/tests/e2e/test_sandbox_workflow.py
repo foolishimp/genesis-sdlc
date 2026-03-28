@@ -22,6 +22,7 @@ from pathlib import Path
 
 import pytest
 
+from genesis_sdlc.evidence.coverage import assess_module_decomp_artifact
 from genesis_sdlc.runtime.backends import load_backend_registry
 from genesis_sdlc.runtime.doctor import doctor
 from genesis_sdlc.runtime.prompt_view import render_effective_prompt_from_manifest
@@ -136,6 +137,110 @@ def test_install_bootstraps_real_sandbox_and_gap_scan(run_archive) -> None:
 
 
 @pytest.mark.e2e
+@pytest.mark.usecase_id("sandbox_install_creates_target")
+def test_install_creates_missing_target_directory(run_archive) -> None:
+    target = run_archive.run_dir / "fresh_target"
+    assert not target.exists()
+
+    payload = install_real_sandbox(target, archive=run_archive)
+
+    assert payload["status"] == "installed"
+    assert target.is_dir()
+    assert (target / ".genesis" / "genesis.yml").is_file()
+    assert (target / ".gsdlc" / "release" / "active-workflow.json").is_file()
+
+
+@pytest.mark.e2e
+@pytest.mark.usecase_id("archive_router_provenance")
+def test_run_archive_treats_router_worker_as_consistent(run_archive) -> None:
+    events_dir = run_archive.workspace / ".ai-workspace" / "events"
+    events_dir.mkdir(parents=True, exist_ok=True)
+    events_path = events_dir / "events.jsonl"
+    events_path.write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "event_type": "run_bound",
+                        "data": {
+                            "edge": "module_decomp→code",
+                            "worker_id": "abiogenesis_python_router",
+                            "role_id": "implementer",
+                            "authority_ref": "runtime://role-dispatch",
+                        },
+                    }
+                ),
+                json.dumps(
+                    {
+                        "event_type": "edge_started",
+                        "data": {
+                            "edge": "module_decomp→code",
+                            "build": "claude_code",
+                            "target": "code",
+                        },
+                    }
+                ),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    run_archive.update_summary(
+        selected_assignments={
+            "constructor": {"worker_id": "codex", "backend": "codex"},
+            "implementer": {"worker_id": "claude_code", "backend": "claude"},
+        }
+    )
+
+    summary = run_archive._build_summary()
+
+    assert summary["worker_provenance_mode"] == "router_dispatch"
+    assert summary["worker_provenance_consistent"] is True
+    assert summary["engine_worker_ids"] == ["abiogenesis_python_router"]
+    assert summary["engine_build_ids"] == ["claude_code"]
+    assert summary["assignment_worker_ids"] == ["claude_code", "codex"]
+
+
+@pytest.mark.e2e
+@pytest.mark.usecase_id("module_decomp_assessment_terms")
+def test_module_decomp_assessment_accepts_singular_test_terms(run_archive) -> None:
+    artifact = run_archive.workspace / "output" / "module_decomp.md"
+    artifact.parent.mkdir(parents=True, exist_ok=True)
+    artifact.write_text(
+        """# Module Decomposition
+
+## Modules
+
+- `calculator`
+- `test_calculator`
+- `test_integration`
+
+## Dependencies
+
+- unit test module depends on calculator
+- integration test module depends on calculator
+
+## Build Order
+
+1. calculator
+2. test_calculator
+3. test_integration
+""",
+        encoding="utf-8",
+    )
+
+    assessments = assess_module_decomp_artifact(artifact)
+
+    assert assessments == [
+        {
+            "evaluator": "module_schedule",
+            "result": "pass",
+            "evidence": "module decomposition artifact defines modules, dependencies, and build order.",
+        }
+    ]
+
+
+@pytest.mark.e2e
 @pytest.mark.usecase_id("sandbox_iterate")
 def test_iterate_blocks_on_initial_human_gate(run_archive) -> None:
     workspace = run_archive.workspace
@@ -196,6 +301,20 @@ def test_workflow_advances_from_fh_gate_to_fp_dispatch(run_archive) -> None:
     run_archive.capture_json("fp_manifest_requirements_feature_decomp.json", manifest)
     assert manifest["edge"] == "requirements→feature_decomp"
     assert [item["name"] for item in manifest["failing_evaluators"]] == ["feature_decomp_complete"]
+
+    events_path = workspace / ".ai-workspace" / "events" / "events.jsonl"
+    events = [
+        json.loads(line)
+        for line in events_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    run_bound = next(
+        event
+        for event in events
+        if event["event_type"] == "run_bound" and event["data"].get("edge") == "requirements→feature_decomp"
+    )
+    assert run_bound["data"]["worker_id"] == "abiogenesis_python_router"
+    assert run_bound["data"]["authority_ref"] == "runtime://role-dispatch"
 
     artifact = build_fake_artifact(manifest["edge"], workspace, manifest)
     run_archive.copy_file(artifact, dest_name=artifact.name)
@@ -471,3 +590,70 @@ def test_effective_prompt_uses_artifact_override_consistently(run_archive) -> No
 
     assert "Write the target artifact to: output/override.md" in prompt
     assert "Suggested output: output/override.md" in prompt
+    assert "Context delivery: locator-first" in prompt
+    assert "Authoritative context locators:" in prompt
+    assert "workspace://specification/requirements/" in prompt
+    assert "The project shall provide an `add(a, b)` operation" not in prompt
+    assert "# .gsdlc/release/design/README.md" not in prompt
+
+
+@pytest.mark.e2e
+@pytest.mark.usecase_id("runtime_prompt_view_inline_fallback")
+def test_effective_prompt_falls_back_to_inline_snapshot_for_non_workspace_worker(monkeypatch, run_archive) -> None:
+    manifest = {
+        "edge": "requirements→feature_decomp",
+        "source_asset": "requirements",
+        "failing_evaluators": ["feature_decomp_complete"],
+        "delta_summary": "delta = 1 — feature decomposition missing",
+        "prompt": "INLINE SNAPSHOT CONTENT",
+        "contexts": [
+            {
+                "name": "requirements_surface",
+                "locator": "workspace://specification/requirements/",
+                "digest": "sha256:test",
+                "content": "INLINE SNAPSHOT CONTENT",
+            }
+        ],
+    }
+    monkeypatch.setattr(
+        "genesis_sdlc.runtime.prompt_view.load_resolved_runtime",
+        lambda _workspace: {
+            "role_assignments": {
+                "constructor": {
+                    "role_id": "constructor",
+                    "worker_id": "api_only",
+                    "backend": "api",
+                    "capabilities": {
+                        "interactive_cli": False,
+                        "workspace_write": False,
+                    },
+                }
+            },
+            "edges": {
+                "requirements→feature_decomp": {
+                    "profile": {
+                        "target_asset": "feature_decomp",
+                        "artifact_kind": "feature decomposition",
+                        "role_id": "constructor",
+                        "worker_id": "api_only",
+                        "backend": "api",
+                        "authority_contexts": ["requirements_surface"],
+                        "suggested_output": "output/feature_decomp.md",
+                        "guidance": "Use the inline snapshot.",
+                        "customization_intent": "",
+                        "requirement_refs": [],
+                        "design_refs": [],
+                        "required_sections": [],
+                    }
+                }
+            },
+        },
+    )
+
+    prompt = render_effective_prompt_from_manifest(
+        manifest,
+        workspace_root=run_archive.workspace,
+    )
+
+    assert "Context delivery: inline-snapshot" in prompt
+    assert "INLINE SNAPSHOT CONTENT" in prompt

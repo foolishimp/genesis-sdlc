@@ -193,6 +193,16 @@ class RunArchive:
                 and data.get("build")
             }
         )
+        summary["event_authority_refs"] = sorted(
+            {
+                str(data["authority_ref"])
+                for event in events
+                if isinstance(event, dict)
+                and isinstance((data := event.get("data")), dict)
+                and isinstance(data.get("authority_ref"), str)
+                and data.get("authority_ref")
+            }
+        )
 
         manifests_dir = self.workspace / ".ai-workspace" / "fp_manifests"
         results_dir = self.workspace / ".ai-workspace" / "fp_results"
@@ -225,20 +235,30 @@ class RunArchive:
             selected_backends.add(selected_backend)
         if selected_workers:
             summary["selected_workers"] = sorted(selected_workers)
+            summary["assignment_worker_ids"] = sorted(selected_workers)
         if selected_backends:
             summary["selected_backends"] = sorted(selected_backends)
         if selected_workers:
             event_worker_ids = [wid for wid in summary.get("event_worker_ids", []) if isinstance(wid, str)]
-            event_build_ids = [bid for bid in summary.get("event_build_ids", []) if isinstance(bid, str)]
+            event_authority_refs = [ref for ref in summary.get("event_authority_refs", []) if isinstance(ref, str)]
             provenance_warnings: list[str] = []
-            if set(event_worker_ids) != selected_workers:
-                provenance_warnings.append(
-                    "event worker_id values do not match the resolved selected_workers set; runtime worker attribution is split across archive surfaces"
-                )
-            if set(event_build_ids) != selected_workers:
-                provenance_warnings.append(
-                    "event build values do not match the resolved selected_workers set; installed engine build id differs from the resolved worker assignment"
-                )
+            router_dispatch = "runtime://role-dispatch" in event_authority_refs
+            if router_dispatch:
+                summary["worker_provenance_mode"] = "router_dispatch"
+                summary["engine_worker_ids"] = event_worker_ids
+                summary["engine_build_ids"] = [
+                    bid for bid in summary.get("event_build_ids", []) if isinstance(bid, str)
+                ]
+                if not event_worker_ids:
+                    provenance_warnings.append(
+                        "router-dispatch run emitted no event worker_id values; engine worker provenance is incomplete"
+                    )
+            else:
+                summary["worker_provenance_mode"] = "direct_worker"
+                if set(event_worker_ids) != selected_workers:
+                    provenance_warnings.append(
+                        "event worker_id values do not match the resolved assignment worker set"
+                    )
             if provenance_warnings:
                 summary["worker_provenance_consistent"] = False
                 summary["provenance_warnings"] = provenance_warnings

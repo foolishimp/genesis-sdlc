@@ -480,6 +480,7 @@ def install(
             "forbidden_present": present_forbidden,
         }
 
+    target_root.mkdir(parents=True, exist_ok=True)
     abg = _run_abiogenesis_install(source_root, target_root)
     install_project_templates(source_root, target_root)
     install_project_scaffold(source_root, target_root)

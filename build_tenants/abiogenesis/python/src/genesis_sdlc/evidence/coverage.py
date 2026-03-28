@@ -88,12 +88,32 @@ def assess_design_artifact(artifact: Path) -> list[Assessment]:
 
 
 def assess_module_decomp_artifact(artifact: Path) -> list[Assessment]:
-    return _check_headers_and_terms(
-        artifact,
-        evaluator="module_schedule",
-        headers=MODULE_DECOMP_SECTIONS,
-        required_terms=("calculator", "tests", "dependency"),
-        success="module decomposition artifact defines modules, dependencies, and build order.",
+    if not artifact.exists():
+        return _missing(artifact, "module_schedule")
+
+    text = artifact.read_text(encoding="utf-8")
+    missing_headers = [header for header in MODULE_DECOMP_SECTIONS if header not in text]
+    if missing_headers:
+        return _single("module_schedule", "fail", f"missing sections: {missing_headers}")
+
+    lowered = text.lower()
+    missing_terms: list[str] = []
+    if "calculator" not in lowered:
+        missing_terms.append("calculator")
+    if "depend" not in lowered:
+        missing_terms.append("dependency")
+
+    test_markers = ("tests", "test_", "unit test", "integration test")
+    if not any(marker in lowered for marker in test_markers):
+        missing_terms.append("tests")
+
+    if missing_terms:
+        return _single("module_schedule", "fail", f"missing expected terms: {missing_terms}")
+
+    return _single(
+        "module_schedule",
+        "pass",
+        "module decomposition artifact defines modules, dependencies, and build order.",
     )
 
 

@@ -10,6 +10,7 @@ from genesis.binding import Worker, module_to_executable_jobs
 from gtl.module_model import Module
 
 from .assets import BASE_NODES
+from .abg_patch import apply_abg_scope_worker_patch
 from .graph import (
     BASE_EVALUATORS,
     BASE_JOBS,
@@ -23,6 +24,9 @@ from .graph import (
 from .roles import workflow_role_manifest
 from .requirements import find_requirements_root, load_local_requirements, requirement_manifest
 from .transforms import transform_contract_manifest
+
+
+apply_abg_scope_worker_patch()
 
 
 def instantiate(
