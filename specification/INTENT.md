@@ -373,3 +373,57 @@ Persistent run archives preserve the evidence needed to answer the three operato
 2. Qualification archives can answer what was built, whether the frozen workflow fully converged, and what evidence certified correctness
 3. Fake-lane and live-lane qualification remain two realizations of one assurance contract, not unrelated test styles
 4. The bundled assurance surface is described in active design rather than implied only by the test tree
+
+---
+
+## INT-008 — Assurance Control Plane Makes The Product Operationally Configurable
+
+### Problem
+
+The framework now has enough working parts to prove the base lifecycle, but it still lacks one clear operational layer. Runtime declaration, edge tuning, backend choice, command behavior, audit, and live qualification exist as scattered surfaces. That makes the product harder to operate and harder to explain.
+
+The missing question is not "can the workflow run?" It is:
+
+- how is the runtime resolved?
+- why did this backend or profile win?
+- which surfaces are managed release state, which are project truth, and which are mutable runtime state?
+
+Without that clarity, the product remains a strong proof rather than a fully operational pre-1.0 release.
+
+### Value Proposition
+
+genesis_sdlc treats the next milestone as an assurance control plane over the existing workflow:
+
+- installed release defaults remain under `.gsdlc/release/`
+- project-truth edge tuning remains under `specification/design/fp/`
+- runtime, operator, and session state live under `.ai-workspace/runtime/`
+- one deterministic compile step produces a resolved runtime artifact
+- backend selection becomes an explicit adapter-based runtime decision rather than ad hoc transport branching
+- `doctor` becomes the runtime-readiness counterpart to install `audit`
+
+This makes the product operationally configurable and inspectable without yet introducing the second-order memory system.
+
+The control plane governs the execution envelope, not the substantive solution strategy. It constrains runtime legality and diagnosis while leaving constructive freedom to the active agent within declared edge boundaries.
+
+### Scope
+
+- Define the assurance control plane as a first-class product concept
+- Preserve the current narrow project-local customization seam at `specification/design/fp/`
+- Introduce deterministic runtime resolution into one machine-readable runtime artifact
+- Separate install-managed release declaration from mutable runtime/session policy
+- Define explicit backend adapter and doctor/readiness surfaces
+
+### Out of Scope
+
+- Second-order memory, compaction, and promotion logic
+- Replacing the current `specification/design/fp/` seam with a broader project runtime tree before the control plane is proven
+- Treating `.gsdlc/release/active-workflow.json` as a mutable session override surface
+- Turning runtime profiles, backend adapters, or backend preferences into constitutional project truth or prescribed solution method
+
+### Success Criteria
+
+1. The active specification distinguishes installed release declaration, project-truth edge tuning, and mutable runtime/session state
+2. The product can compile its runtime into one inspectable resolved artifact with provenance for winning values
+3. Backend execution is expressed through a product adapter contract rather than hardcoded transport branching
+4. `doctor` can explain runtime readiness as a separate concern from release-integrity audit
+5. The control plane is complete enough to serve as the foundation for a later second-order memory system rather than embedding that logic prematurely

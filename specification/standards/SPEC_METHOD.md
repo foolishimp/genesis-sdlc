@@ -39,6 +39,8 @@ We treat **repricing** as part of correctness: when reality exposes a constituti
 
 We keep **authority directional** even while iterating: intent governs requirements, requirements govern design, and requirements plus design govern code.
 
+We keep the **live operative surface** in the present tense only: once a new current reality is established, transitional paths are erased from the live product unless explicitly retained as compatibility features.
+
 We treat **derived artifacts** — indexes, trace matrices, reports, automation, generated views — as helpful read models, never as constitutional truth.
 
 If these claims do not hold, the work is not genuinely spec-driven.
@@ -254,8 +256,9 @@ The project may accumulate multiple live domain surfaces over time. A live surfa
 - If a live domain artifact is wrong, the valid actions are:
   - supersede it with a new version, or
   - withdraw/delete it from the live surface.
+- Transitional implementation paths, migration scaffolds, and fallback behaviors have no permanent authority in the live surface. Once superseded, they are deleted unless explicitly retained as compatibility features.
 
-The past is preserved by version control and superseded constitutional artifacts. Spec-driven development does not require shipping compatibility shims forever, but it also does not allow silent mutation of live constitutional history.
+The past is preserved by version control, operational event history where present, and superseded constitutional artifacts. Spec-driven development does not require shipping compatibility shims forever, but it also does not allow silent mutation of live constitutional history.
 
 ---
 
@@ -285,6 +288,36 @@ When performing a fundamental migration:
 5. Re-derive downstream design and code from the new constitutional surfaces, not from ambient precedent.
 
 This is a lawful form of supersession, not a violation of live-surface immutability, because the new line is creating a new constitutional surface rather than silently mutating the old one.
+
+---
+
+## Transformation Wave Rule
+
+Refactor and migration should be understood as a transformation wave over mutable implementation surfaces.
+
+While the wave is in flight:
+
+- temporary mixed-state implementation may exist
+- transitional adapters or scaffolds may exist
+- refactor state may still carry traces of the prior operative model
+
+When the wave lands:
+
+- only the new current operative surface remains live
+- prior operative paths are erased from the live product
+- the path taken to get there survives only in version control, event history, and superseded records
+- mixed old/new operative models are not a stable end state
+
+The only lawful exception is an explicit compatibility feature.
+
+If compatibility is retained, it must be:
+
+- named as current product behavior
+- justified in the specification
+- bounded in scope
+- tested as an intentional feature
+
+Otherwise the correct action is deletion, not passive preservation.
 
 ---
 

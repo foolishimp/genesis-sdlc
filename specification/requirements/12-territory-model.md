@@ -37,3 +37,13 @@ The product install boundary excludes authoring-source territory. If a release n
 - AC-3: Release snapshots required by runtime or audit live under `.gsdlc/release/`
 - AC-4: Default install does not create `specification/standards/` in the target root
 - AC-5: Any source-snapshot or self-hosting install mode is explicit and non-default
+
+### REQ-F-TERRITORY-004 — Runtime control state lives under .ai-workspace/runtime/
+
+The mutable runtime control plane is a separate territory from both install-managed release surfaces and project-truth specification surfaces.
+
+**Acceptance Criteria**:
+- AC-1: Resolved runtime state, backend availability state, doctor state, and session-local overrides live under `.ai-workspace/runtime/`
+- AC-2: `.ai-workspace/runtime/` is not treated as install-managed release territory
+- AC-3: `.ai-workspace/runtime/` is not treated as project customization territory
+- AC-4: Rebuilding runtime state after reset or re-resolution does not require mutating `.gsdlc/release/active-workflow.json`
