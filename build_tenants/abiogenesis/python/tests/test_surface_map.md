@@ -51,7 +51,7 @@ They remain governed by `M04-evidence_acceptance` and the shared qualification s
 
 ### test_sandbox_workflow.py
 
-- Requirements: `REQ-F-BOOT-001`, `REQ-F-BOOT-002`, `REQ-F-BOOT-003`, `REQ-F-BOOT-004`, `REQ-F-BOOT-007`, `REQ-F-BOOT-008`, `REQ-F-BOOT-009`, `REQ-F-TERRITORY-003`, `REQ-F-CUSTODY-002`, `REQ-F-CMD-001`, `REQ-F-GATE-001`, `REQ-F-TEST-001`, `REQ-F-UAT-001`, `REQ-F-ASSURE-002`, `REQ-F-CMD-004`
+- Requirements: `REQ-F-BOOT-001`, `REQ-F-BOOT-002`, `REQ-F-BOOT-003`, `REQ-F-BOOT-004`, `REQ-F-BOOT-005`, `REQ-F-BOOT-006`, `REQ-F-BOOT-007`, `REQ-F-BOOT-008`, `REQ-F-BOOT-009`, `REQ-F-TERRITORY-003`, `REQ-F-CUSTODY-002`, `REQ-F-CMD-001`, `REQ-F-CMD-002`, `REQ-F-CMD-003`, `REQ-F-GATE-001`, `REQ-F-TEST-001`, `REQ-F-UAT-001`, `REQ-F-ASSURE-002`, `REQ-F-CMD-004`, `REQ-F-CTRL-007`, `REQ-F-CTRL-008`, `REQ-F-WORKER-005`
 - Design: [module_decomp.md](/Users/jim/src/apps/genesis_sdlc/build_tenants/abiogenesis/python/design/module_decomp.md), [M02-release-bootstrap.yml](/Users/jim/src/apps/genesis_sdlc/build_tenants/abiogenesis/python/design/modules/M02-release-bootstrap.yml), [M04-evidence-acceptance.yml](/Users/jim/src/apps/genesis_sdlc/build_tenants/abiogenesis/python/design/modules/M04-evidence-acceptance.yml), [qualification_surface_map.md](/Users/jim/src/apps/genesis_sdlc/build_tenants/common/qualification/qualification_surface_map.md)
 
 ### test_spec_method_trace.py

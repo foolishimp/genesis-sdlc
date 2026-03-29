@@ -2,17 +2,24 @@
 # Validates: REQ-F-BOOT-002
 # Validates: REQ-F-BOOT-003
 # Validates: REQ-F-BOOT-004
+# Validates: REQ-F-BOOT-005
+# Validates: REQ-F-BOOT-006
 # Validates: REQ-F-BOOT-007
 # Validates: REQ-F-BOOT-008
 # Validates: REQ-F-BOOT-009
 # Validates: REQ-F-TERRITORY-003
 # Validates: REQ-F-CUSTODY-002
 # Validates: REQ-F-CMD-001
+# Validates: REQ-F-CMD-002
+# Validates: REQ-F-CMD-003
 # Validates: REQ-F-GATE-001
 # Validates: REQ-F-TEST-001
 # Validates: REQ-F-UAT-001
 # Validates: REQ-F-ASSURE-002
 # Validates: REQ-F-CMD-004
+# Validates: REQ-F-CTRL-007
+# Validates: REQ-F-CTRL-008
+# Validates: REQ-F-WORKER-005
 """Sandbox tests for the installed Abiogenesis/Python genesis_sdlc workflow."""
 
 from __future__ import annotations
@@ -180,6 +187,27 @@ def test_install_creates_missing_target_directory(run_archive) -> None:
 
 
 @pytest.mark.e2e
+@pytest.mark.usecase_id("sandbox_reinstall")
+def test_reinstall_preserves_project_authored_spec_surfaces(run_archive) -> None:
+    workspace = run_archive.workspace
+    install_real_sandbox(workspace, archive=run_archive)
+
+    custom_requirement = workspace / "specification" / "requirements" / "99-local.md"
+    custom_requirement.write_text("# Local Requirement\n", encoding="utf-8")
+    intent_path = workspace / "specification" / "INTENT.md"
+    original_intent = intent_path.read_text(encoding="utf-8")
+    intent_path.write_text(original_intent + "\nLOCAL-MARKER\n", encoding="utf-8")
+
+    payload = install_real_sandbox(workspace, archive=run_archive)
+    assert payload["status"] == "installed"
+    assert custom_requirement.read_text(encoding="utf-8") == "# Local Requirement\n"
+    assert "LOCAL-MARKER" in intent_path.read_text(encoding="utf-8")
+
+    audit = audit_real_sandbox(workspace, archive=run_archive)
+    assert audit["status"] == "ok"
+
+
+@pytest.mark.e2e
 @pytest.mark.usecase_id("sandbox_self_host_install")
 def test_self_host_install_preserves_standards_and_skips_starter_scaffold(run_archive) -> None:
     workspace = run_archive.workspace
@@ -317,6 +345,39 @@ def test_iterate_blocks_on_initial_human_gate(run_archive) -> None:
     assert data["status"] == "iterated"
     assert data["blocking_reason"] == "fh_gate"
     assert data["edge"] == "intent→requirements"
+    assert data["fh_gate"]["evaluators"] == ["intent_approved"]
+
+
+@pytest.mark.e2e
+@pytest.mark.usecase_id("sandbox_start_auto")
+def test_start_auto_stops_on_first_blocking_human_gate(run_archive) -> None:
+    workspace = run_archive.workspace
+    install_real_sandbox(workspace, archive=run_archive)
+    seed_minimal_project_spec(workspace, archive=run_archive)
+    run_archive.note("scenario", lane="start_auto", edge="intent→requirements")
+
+    raised = run_genesis(
+        workspace,
+        "emit-event",
+        "--type",
+        "intent_raised",
+        "--data",
+        json.dumps({"feature": "START-001", "summary": "start auto stop behavior"}),
+        archive=run_archive,
+        label="emit intent_raised for start auto",
+    )
+    assert raised.returncode == 0, raised.stderr
+
+    result = run_genesis(workspace, "start", "--auto", archive=run_archive, label="genesis start --auto")
+    assert result.returncode == 3, result.stderr
+    data = json.loads(result.stdout)
+    run_archive.capture_json("start_auto_initial.json", data)
+
+    assert data["status"] == "iterated"
+    assert data["edge"] == "intent→requirements"
+    assert data["blocking_reason"] == "fh_gate"
+    assert data["auto"] is True
+    assert data["stopped_by"] == "fh_gate"
     assert data["fh_gate"]["evaluators"] == ["intent_approved"]
 
 

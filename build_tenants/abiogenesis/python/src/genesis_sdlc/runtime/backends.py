@@ -1,5 +1,7 @@
 # Implements: REQ-F-CTRL-003
 # Implements: REQ-F-CTRL-006
+# Implements: REQ-F-CTRL-007
+# Implements: REQ-F-WORKER-005
 """Backend registry and adapter execution for the runtime control plane."""
 
 from __future__ import annotations

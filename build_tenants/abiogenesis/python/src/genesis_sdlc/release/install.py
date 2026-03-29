@@ -2,6 +2,8 @@
 # Implements: REQ-F-BOOT-002
 # Implements: REQ-F-BOOT-003
 # Implements: REQ-F-BOOT-004
+# Implements: REQ-F-BOOT-005
+# Implements: REQ-F-BOOT-006
 # Implements: REQ-F-BOOT-011
 # Implements: REQ-F-CUSTODY-003
 # Implements: REQ-F-TERRITORY-001

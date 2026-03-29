@@ -2,6 +2,7 @@
 # Validates: REQ-F-BOOT-002
 # Validates: REQ-F-BOOT-003
 # Validates: REQ-F-BOOT-004
+# Validates: REQ-F-BOOT-006
 # Validates: REQ-F-CUSTODY-002
 # Validates: REQ-F-TERRITORY-001
 # Validates: REQ-F-TERRITORY-002

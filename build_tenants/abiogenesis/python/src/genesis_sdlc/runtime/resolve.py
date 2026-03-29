@@ -1,8 +1,11 @@
 # Implements: REQ-F-CTRL-001
 # Implements: REQ-F-CTRL-004
+# Implements: REQ-F-CTRL-007
+# Implements: REQ-F-CTRL-008
 # Implements: REQ-F-WORKER-001
 # Implements: REQ-F-WORKER-002
 # Implements: REQ-F-WORKER-003
+# Implements: REQ-F-WORKER-005
 """Resolved-runtime compilation and worker assignment for the assurance control plane."""
 
 from __future__ import annotations

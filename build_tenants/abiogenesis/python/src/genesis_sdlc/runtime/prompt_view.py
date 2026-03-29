@@ -1,5 +1,6 @@
 # Implements: REQ-F-CMD-004
 # Implements: REQ-F-CTRL-006
+# Implements: REQ-F-CTRL-008
 """Read-model prompt rendering from the resolved runtime."""
 
 from __future__ import annotations
