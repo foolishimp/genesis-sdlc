@@ -57,7 +57,7 @@ else:
     from .wrapper import load_project_requirements, render_wrapper
 
 
-VERSION = "1.0rc1"
+VERSION = "1.1.0.dev0"
 TENANT_FAMILY = "abiogenesis"
 TENANT_VARIANT = "python"
 TENANT_LABEL = f"{TENANT_FAMILY}/{TENANT_VARIANT}"

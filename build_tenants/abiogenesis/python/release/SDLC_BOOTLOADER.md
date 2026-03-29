@@ -1,6 +1,6 @@
 # SDLC Bootloader
 
-Version: 1.0rc1
+Version: 1.1.0.dev0
 Spec-Hash: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 
 ## Authority
