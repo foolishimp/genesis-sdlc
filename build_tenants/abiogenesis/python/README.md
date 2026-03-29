@@ -15,6 +15,8 @@ Its design surfaces are:
 - [design/README.md](/Users/jim/src/apps/genesis_sdlc/build_tenants/abiogenesis/python/design/README.md)
 - [design/module_decomp.md](/Users/jim/src/apps/genesis_sdlc/build_tenants/abiogenesis/python/design/module_decomp.md)
 - `design/modules/*.yml`
+- [tests/README.md](/Users/jim/src/apps/genesis_sdlc/build_tenants/abiogenesis/python/tests/README.md)
+- [tests/test_surface_map.md](/Users/jim/src/apps/genesis_sdlc/build_tenants/abiogenesis/python/tests/test_surface_map.md)
 
 Concrete source, test, and release directories live under this variant.
 

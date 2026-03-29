@@ -12,5 +12,6 @@
 It contains:
 
 - [design/README.md](/Users/jim/src/apps/genesis_sdlc/build_tenants/common/design/README.md) — shared realization design law
+- [qualification/README.md](/Users/jim/src/apps/genesis_sdlc/build_tenants/common/qualification/README.md) — shared qualification law and classification surfaces
 
 Nothing belongs here merely because it exists in one family or variant. Promotion into `common/` is explicit.

@@ -1,4 +1,4 @@
-# Validates: REQ-F-BOOT-001 REQ-F-BOOT-010 REQ-F-BOOT-011 REQ-F-GRAPH-001 REQ-F-GRAPH-004
+# Validates: REQ-F-BOOT-001 REQ-F-BOOT-010 REQ-F-BOOT-011 REQ-F-GRAPH-001
 from __future__ import annotations
 
 import re
@@ -24,9 +24,12 @@ SPEC_ROOT = REPO_ROOT / "specification"
 REQUIREMENTS_ROOT = SPEC_ROOT / "requirements"
 TENANT_REGISTRY = REPO_ROOT / "build_tenants" / "TENANT_REGISTRY.md"
 COMMON_DESIGN_ROOT = REPO_ROOT / "build_tenants" / "common" / "design"
+COMMON_QUALIFICATION_ROOT = REPO_ROOT / "build_tenants" / "common" / "qualification"
 VARIANT_ROOT = REPO_ROOT / "build_tenants" / "abiogenesis" / "python"
 VARIANT_DESIGN_ROOT = VARIANT_ROOT / "design"
 MODULE_ROOT = VARIANT_DESIGN_ROOT / "modules"
+VARIANT_TEST_ROOT = VARIANT_ROOT / "tests"
+VARIANT_TEST_SURFACE_MAP = VARIANT_TEST_ROOT / "test_surface_map.md"
 
 
 def _read(path: Path) -> str:
@@ -110,6 +113,14 @@ def _top_level_scalar(module_path: Path, key: str) -> str | None:
     if match:
         return match.group(1).strip()
     return None
+
+
+def _test_surface_map_sections() -> dict[str, str]:
+    parts = re.split(r"^### (test_[^\n]+\.py)\s*$", _read(VARIANT_TEST_SURFACE_MAP), flags=re.MULTILINE)
+    sections: dict[str, str] = {}
+    for i in range(1, len(parts), 2):
+        sections[parts[i].strip()] = parts[i + 1]
+    return sections
 
 
 def test_self_host_repo_has_installed_system_surfaces() -> None:
@@ -205,3 +216,43 @@ def test_tenant_registry_declares_shared_and_active_variant_entries() -> None:
     assert "build_tenants/abiogenesis/python/" in text, (
         "tenant registry does not declare the active abiogenesis/python variant"
     )
+
+
+def test_common_qualification_surfaces_trace_to_live_requirement_authority() -> None:
+    requirement_ids = _requirement_ids()
+    qualification_docs = [
+        COMMON_QUALIFICATION_ROOT / "README.md",
+        COMMON_QUALIFICATION_ROOT / "qualification_surface_map.md",
+    ]
+
+    for path in qualification_docs:
+        assert path.exists(), f"missing shared qualification surface {path}"
+
+    map_text = _read(COMMON_QUALIFICATION_ROOT / "qualification_surface_map.md")
+    for ref in _requirement_refs(map_text):
+        assert _pattern_matches_requirement(ref, requirement_ids), (
+            f"qualification_surface_map.md references unknown requirement ref {ref}"
+        )
+    for link in _resolve_links(map_text, COMMON_QUALIFICATION_ROOT / "qualification_surface_map.md"):
+        assert link.exists(), f"qualification_surface_map.md links to missing authority surface {link}"
+
+
+def test_python_test_surface_map_covers_current_executable_tests() -> None:
+    requirement_ids = _requirement_ids()
+    sections = _test_surface_map_sections()
+    current_tests = sorted(path.name for path in (VARIANT_TEST_ROOT / "e2e").glob("test_*.py"))
+
+    assert VARIANT_TEST_SURFACE_MAP.exists(), "missing tenant test surface map"
+    assert sorted(sections) == current_tests, "test surface map does not cover the current executable test corpus"
+
+    for filename, section in sections.items():
+        req_refs = _requirement_refs(section)
+        assert req_refs, f"{filename} has no requirement refs in test_surface_map.md"
+        for ref in req_refs:
+            assert _pattern_matches_requirement(ref, requirement_ids), (
+                f"{filename} references unknown requirement ref {ref} in test_surface_map.md"
+            )
+        links = _resolve_links(section, VARIANT_TEST_SURFACE_MAP)
+        assert links, f"{filename} has no resolvable design links in test_surface_map.md"
+        for link in links:
+            assert link.exists(), f"{filename} links to missing authority surface {link}"
