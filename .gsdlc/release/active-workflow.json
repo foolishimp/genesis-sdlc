@@ -1,0 +1,68 @@
+{
+  "workflow": "genesis_sdlc.standard",
+  "version": "1.0rc1",
+  "install_mode": "self_host",
+  "slug": "genesis_sdlc",
+  "package": "gtl_spec.packages.genesis_sdlc:package",
+  "worker": "gtl_spec.packages.genesis_sdlc:worker",
+  "managed_surfaces": [
+    ".genesis/",
+    ".gsdlc/release/",
+    ".claude/commands/",
+    "CLAUDE.md[SDLC_BOOTLOADER]",
+    "AGENTS.md[SDLC_BOOTLOADER]"
+  ],
+  "territory_boundary": {
+    "authoring_forbidden_on_default_install": [
+      "specification/standards/"
+    ],
+    "authoring_allowed_in_self_host_install": [
+      "specification/standards/"
+    ],
+    "release_managed": [
+      ".genesis/",
+      ".gsdlc/release/",
+      ".claude/commands/"
+    ],
+    "customization": [
+      "specification/",
+      "build_tenants/",
+      "docs/",
+      ".gsdlc/release/active-workflow.json[customization]"
+    ],
+    "runtime_state": [
+      ".ai-workspace/runtime/"
+    ]
+  },
+  "customization": {
+    "requirements_root": "specification/requirements",
+    "tenant_design_root": "build_tenants/abiogenesis/python/design",
+    "fp_customization_root": "build_tenants/abiogenesis/python/design/fp/edge-overrides",
+    "default_worker_assignments": {
+      "constructor": "claude_code",
+      "implementer": "claude_code"
+    }
+  },
+  "reset": {
+    "runtime": {
+      "mode": "reset-runtime",
+      "clears": [
+        ".ai-workspace/events",
+        ".ai-workspace/features",
+        ".ai-workspace/fp_manifests",
+        ".ai-workspace/fp_results",
+        ".ai-workspace/runtime",
+        ".ai-workspace/reviews",
+        ".ai-workspace/uat"
+      ]
+    },
+    "managed": {
+      "mode": "reinstall",
+      "preserves": [
+        "specification/",
+        ".ai-workspace/comments/"
+      ]
+    }
+  },
+  "updated_at": "2026-03-29T12:36:39.414205+00:00"
+}

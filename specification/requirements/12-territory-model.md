@@ -38,6 +38,8 @@ The product install boundary excludes copied framework authoring-source territor
 - AC-4: Default install does not create `specification/standards/` in the target root
 - AC-5: Any framework source-snapshot or self-hosting install mode is explicit and non-default
 - AC-6: Project-owned roots such as `build_tenants/` and `docs/` may be scaffolded in the target root without being treated as copied framework authoring territory
+- AC-7: In an explicit self-host install mode, project-owned methodology authoring surfaces such as `specification/standards/` may remain in the target root without being classified as default-install drift
+- AC-8: Audit interprets forbidden-vs-allowed authoring territory according to the explicit install mode recorded in the active workflow declaration
 
 ### REQ-F-TERRITORY-004 — Runtime control state lives under .ai-workspace/runtime/
 

@@ -1,0 +1,36 @@
+id: MOD-004
+name: evidence_acceptance
+description: Owns traceability, REQ coverage, documentation certification, integration evidence, UAT support, bootloader currency validation, runtime provenance archiving, and the bundled fake/live qualification harness over the resolved runtime path.
+implements_features:
+  - evidence.traceability
+  - evidence.documentation
+  - evidence.integration_uat
+  - evidence.bootloader_validation
+  - evidence.assurance
+  - evidence.runtime_provenance
+dependencies:
+  - workflow_core
+  - release_bootstrap
+  - assurance_control_plane
+rank: 4
+interfaces:
+  - check_tags()
+  - check_req_coverage()
+  - sandbox_e2e_passed()
+  - uat_accepted()
+  - create_run_archive()
+source_files:
+  - tests/conftest.py
+  - tests/run_archive.py
+  - tests/e2e/minimal_project.py
+  - tests/e2e/sandbox_runtime.py
+  - tests/e2e/live_transport.py
+  - tests/e2e/test_sandbox_workflow.py
+  - tests/e2e/test_sandbox_steel_thread.py
+  - tests/e2e/test_sandbox_usecases_live.py
+  - tests/e2e/test_full_cycle.py
+  - src/genesis_sdlc/evidence/fd_checks.py
+  - src/genesis_sdlc/evidence/tags.py
+  - src/genesis_sdlc/evidence/coverage.py
+  - src/genesis_sdlc/evidence/docs.py
+  - src/genesis_sdlc/evidence/uat.py

@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "required_methods": [
+    "probe",
+    "invoke",
+    "normalize",
+    "failure_model",
+    "capabilities"
+  ],
+  "result_shape": {
+    "backend": "string",
+    "content": "string",
+    "capabilities": "object"
+  }
+}

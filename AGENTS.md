@@ -10,3 +10,23 @@
 ## Scope Priority
 - This policy applies to the whole repository.
 - More specific `AGENTS.md` files (for example under `./build_tenants/abiogenesis/python`) may further restrict behavior.
+
+<!-- SDLC_BOOTLOADER_START -->
+The installed genesis_sdlc release is active.
+Read workspace://.gsdlc/release/SDLC_BOOTLOADER.md first, then follow its referenced docs.
+
+Installed axioms:
+- Specification defines project truth; design surfaces define realization.
+- `workspace://build_tenants/TENANT_REGISTRY.md` is the canonical registry of tenant families, variants, and activity state.
+- The only lawful operative path is the resolved runtime at workspace://.ai-workspace/runtime/resolved-runtime.json.
+- One edge traversal binds one role and one worker assignment.
+- Backend identity is derived from worker assignment, not selected independently.
+- Managed methodology surfaces live under workspace://.gsdlc/release/; project-owned surfaces live under workspace://specification/, workspace://build_tenants/, and workspace://docs/.
+- Runtime/session state lives under workspace://.ai-workspace/runtime/; when it differs from release defaults, the resolved runtime wins.
+
+Default role assignments for this install:
+- `constructor` -> `claude_code`
+- `implementer` -> `claude_code`
+<!-- SDLC_BOOTLOADER_END -->
+
+

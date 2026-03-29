@@ -22,6 +22,7 @@ The installer performs a product install, not a source snapshot. It establishes 
 - AC-9: Emits `genesis_sdlc_installed` event on completion with version, spec_hash, and install outcome
 - AC-10: Default install excludes copied framework authoring-source territories; project-owned roots such as `build_tenants/` and `docs/` are scaffolded rather than treated as forbidden by default
 - AC-11: When the project uses build tenants, install scaffolds `build_tenants/TENANT_REGISTRY.md` as the canonical tenant-registry surface rather than relying on a generic root `README.md` as system authority
+- AC-12: An explicit self-host install mode may preserve project-owned methodology authoring surfaces such as `specification/standards/`, but that mode is non-default and machine-readable in the installed release declaration
 
 ### REQ-F-BOOT-002 — .genesis/genesis.yml config resolves Package/Worker
 
@@ -115,6 +116,7 @@ The installed workflow declares the difference between forbidden framework-autho
 - AC-3: The installed active workflow declaration contains a machine-readable list of project-owned surfaces, including `specification/`, `build_tenants/`, and `docs/`
 - AC-4: The installed active workflow declaration contains a machine-readable list of runtime-state surfaces under `.ai-workspace/`
 - AC-5: `--audit` reports drift when forbidden authoring surfaces are present in a default install
+- AC-6: In an explicit self-host install, `--audit` permits the authoring surfaces declared as self-hosting exceptions in the active workflow declaration
 
 ### REQ-F-BOOT-011 — Product install scaffolds project structure from installed master templates
 
@@ -127,3 +129,4 @@ The installed project-facing specification surface is scaffolded from immutable 
 - AC-4: Existing project-authored scaffold files are never overwritten on reinstall
 - AC-5: The scaffold includes a tenant-local `build_tenants/<techlabel>/design/fp/` surface for F_P customization intent and per-edge overrides
 - AC-6: The scaffold includes `build_tenants/common/` as the shared realization root for project-local common tenant surfaces
+- AC-7: If `specification/requirements/` already contains live project requirement families, install does not scaffold `00-starter.md` into that mature requirements root
