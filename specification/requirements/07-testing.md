@@ -20,14 +20,14 @@ Testing requirements define the primary evidence surface for proving workflow be
 - AC-2: Pure unit tests mocking internals do not satisfy coverage for workflow features
 - AC-3: Assessment is against REQ key traceability, not line coverage metrics
 
-### REQ-F-TEST-003 — Test evaluator commands pin PYTHONPATH
+### REQ-F-TEST-003 — Installed command carriers and qualification harnesses pin PYTHONPATH
 
-Version sandboxing ensures tests run against the release candidate source, not stale installed copies.
+Version sandboxing ensures command and qualification execution runs against the active operative roots, not stale installed copies or unrelated system packages.
 
 **Acceptance Criteria**:
-- AC-1: All F_D evaluator `command:` fields that invoke pytest pin `PYTHONPATH` to the active build-tenant source root plus `.genesis`
-- AC-2: This ensures tests import from the active authoring source tree, not from any system-installed package
-- AC-3: F_D evaluator acyclicity is preserved — test commands never invoke genesis subcommands
+- AC-1: Installed command carriers that invoke `python -m genesis` pin `PYTHONPATH` to `.gsdlc/release` plus `.genesis`
+- AC-2: Qualification harness helpers that execute installed sandbox commands compose subprocess environment from those same operative roots rather than relying on ambient system packages
+- AC-3: The version-sandboxing boundary remains explicit and acyclic; qualification environment setup does not require pytest-based F_D evaluators to invoke genesis subcommands
 
 ### REQ-F-TEST-004 — Sandbox-backed e2e scenarios preserve persistent run archives
 

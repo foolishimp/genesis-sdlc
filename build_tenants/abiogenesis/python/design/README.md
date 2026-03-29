@@ -114,7 +114,7 @@ The target variant interface set is:
 - `doctor()`
 - `render_effective_prompt(manifest_path)`
 - `check_tags()`
-- `check_req_coverage()`
+- `check_req_coverage()` (deferred in the current `1.0` line)
 - `sandbox_e2e_passed()`
 - `uat_accepted()`
 - `backlog_list()`

@@ -1,6 +1,6 @@
 id: MOD-004
 name: evidence_acceptance
-description: Owns traceability, REQ coverage, documentation certification, integration evidence, UAT support, bootloader currency validation, runtime provenance archiving, and the bundled fake/live qualification harness over the resolved runtime path.
+description: Owns traceability, the deferred REQ-coverage interface, documentation certification, integration evidence, UAT support, bootloader currency validation, runtime provenance archiving, and the bundled fake/live qualification harness over the resolved runtime path.
 implements_features:
   - evidence.traceability
   - evidence.documentation

@@ -116,7 +116,7 @@ Responsibilities:
 | `doctor()` | `assurance_control_plane` | Report runtime readiness distinct from release audit |
 | `render_effective_prompt(manifest_path)` | `assurance_control_plane` | Render an effective F_P prompt as a read model from the resolved runtime |
 | `check_tags()` | `evidence_acceptance` | Validate source and test traceability tags |
-| `check_req_coverage()` | `evidence_acceptance` | Prove REQ coverage against the active package |
+| `check_req_coverage()` | `evidence_acceptance` | Deferred proof of REQ coverage against the active package and feature vectors |
 | `sandbox_e2e_passed()` | `evidence_acceptance` | Produce integration/UAT sandbox evidence |
 | `uat_accepted()` | `evidence_acceptance` | Surface the final F_H release gate |
 | `backlog_list()` | `backlog_homeostasis` | List pre-intent backlog items |

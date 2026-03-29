@@ -25,6 +25,10 @@ Every test file must trace to at least one REQ key.
 
 ### REQ-F-COV-001 — REQ key coverage enforced by check-req-coverage
 
+**Status**: Deferred
+
+This requirement is deferred in the current `1.0` line. Trace tags are active, but feature-vector REQ coverage is not yet an operative runtime check in the self-host product path.
+
 Every REQ key in the Package must appear in at least one feature vector.
 
 **Acceptance Criteria**:

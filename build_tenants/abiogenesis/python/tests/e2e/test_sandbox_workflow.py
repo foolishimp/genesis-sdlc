@@ -14,6 +14,7 @@
 # Validates: REQ-F-CMD-003
 # Validates: REQ-F-GATE-001
 # Validates: REQ-F-TEST-001
+# Validates: REQ-F-TEST-003
 # Validates: REQ-F-UAT-001
 # Validates: REQ-F-ASSURE-002
 # Validates: REQ-F-CMD-004
@@ -25,6 +26,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -43,7 +45,7 @@ from .minimal_project import (
     seed_minimal_project_spec,
     write_result_file,
 )
-from .sandbox_runtime import audit_real_sandbox, install_real_sandbox, reset_runtime_sandbox, run_genesis
+from .sandbox_runtime import audit_real_sandbox, install_real_sandbox, installed_env, reset_runtime_sandbox, run_genesis
 
 
 @pytest.mark.e2e
@@ -184,6 +186,19 @@ def test_install_creates_missing_target_directory(run_archive) -> None:
     assert target.is_dir()
     assert (target / ".genesis" / "genesis.yml").is_file()
     assert (target / ".gsdlc" / "release" / "active-workflow.json").is_file()
+
+
+@pytest.mark.e2e
+@pytest.mark.usecase_id("sandbox_pythonpath")
+def test_installed_env_pins_operational_pythonpath_roots(run_archive) -> None:
+    workspace = run_archive.workspace
+    install_real_sandbox(workspace, archive=run_archive)
+
+    env = installed_env(workspace)
+    pythonpath = env["PYTHONPATH"].split(os.pathsep)
+
+    assert pythonpath[0] == str(workspace / ".gsdlc" / "release")
+    assert pythonpath[1] == str(workspace / ".genesis")
 
 
 @pytest.mark.e2e
