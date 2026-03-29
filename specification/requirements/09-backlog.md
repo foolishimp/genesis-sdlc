@@ -1,10 +1,11 @@
 # Backlog Requirements
 
 **Family**: REQ-F-BACKLOG-*
-**Status**: Active
+**Status**: Deferred
 **Category**: Capability
 
 Backlog requirements define the pre-intent holding area for signals that are not yet formalized as intent.
+This family is deferred by design: backlog items are not active work until they are promoted into intent and enter the normal constitutional flow.
 
 ### REQ-F-BACKLOG-001 — Backlog schema and directory convention
 

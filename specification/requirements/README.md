@@ -17,7 +17,7 @@ The live requirement surface is stored as requirement families under this folder
 | `06-documentation.md` | REQ-F-DOCS-* | Capability | Active |
 | `07-testing.md` | REQ-F-TEST-* | Verification | Active |
 | `08-uat.md` | REQ-F-UAT-* | Verification | Active |
-| `09-backlog.md` | REQ-F-BACKLOG-* | Capability | Active |
+| `09-backlog.md` | REQ-F-BACKLOG-* | Capability | Deferred |
 | `10-module-decomposition.md` | REQ-F-MDECOMP-* | Capability | Active |
 | `11-requirements-custody.md` | REQ-F-CUSTODY-* | Governance | Active |
 | `12-territory-model.md` | REQ-F-TERRITORY-* | Constraint / Guarantee | Active |
