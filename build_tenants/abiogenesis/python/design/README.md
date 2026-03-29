@@ -72,7 +72,7 @@ The Python variant encodes the requirement surface as follows:
 - the exported `worker` surface is a runtime dispatch/router boundary rather than a hidden singleton vendor worker
 - evaluator programs run as Python-bound F_D, F_P, or F_H surfaces depending on regime
 - optional zoom, profile, consensus, and harvest behavior use `deferred_refinement`, `fan_out`, `fan_in`, and `gate` where the active requirements justify them
-- the assurance control plane compiles release defaults, project-local `specification/design/fp/` tuning, and runtime state into one resolved runtime artifact
+- the assurance control plane compiles release defaults, tenant-local `build_tenants/<techlabel>/design/fp/` tuning, and runtime state into one resolved runtime artifact
 - `release_bootstrap` publishes the install-managed runtime carrier under `.gsdlc/release/runtime/`, including backend and worker registry defaults, while `assurance_control_plane` owns the schemas, worker-assignment rules, adapter contract, and operative consumers inside that carrier
 - backend adapters belong to the control plane, not to graph law
 - backend identity is derived from the winning worker assignment rather than resolved as a co-equal selector

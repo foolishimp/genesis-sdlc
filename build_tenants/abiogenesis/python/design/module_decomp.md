@@ -29,7 +29,7 @@ Owns installation, release wrapping, requirements custody, and compiled bootload
 Responsibilities:
 
 - install released methodology into a target project
-- scaffold `specification/requirements/`
+- scaffold `specification/requirements/`, project-owned `build_tenants/`, and `docs/`
 - scaffold the editable project structure from installed master templates
 - compose the installed command carrier from gsdlc-owned and engine-owned command surfaces
 - publish the install-managed runtime carrier under `.gsdlc/release/runtime/`
@@ -45,7 +45,7 @@ Owns runtime compilation, backend adapters, doctor, and the exclusive operative 
 
 Responsibilities:
 
-- compile `.gsdlc/release/` defaults, project-local `specification/design/fp/` tuning, and `.ai-workspace/runtime/` state into one resolved runtime artifact
+- compile `.gsdlc/release/` defaults, tenant-local `build_tenants/<techlabel>/design/fp/` tuning, and `.ai-workspace/runtime/` state into one resolved runtime artifact
 - resolve the winning `role -> worker -> backend` mapping from constitutional role coverage, shipped worker defaults, and runtime overrides
 - own the backend schema and adapter contract published under `.gsdlc/release/runtime/`
 - define each backend adapter in terms of `probe`, `invoke`, `normalize`, `failure_model`, and `capabilities`

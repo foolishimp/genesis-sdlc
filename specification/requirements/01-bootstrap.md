@@ -20,7 +20,8 @@ The installer performs a product install, not a source snapshot. It establishes 
 - AC-7: Delivered bootstrap/control surfaces carry bare operating axioms and route the agent to the canonical released process documents rather than replacing the compiled bootloader as a source of truth
 - AC-8: Idempotent — re-running updates engine files and standards, preserves workspace state and local specs
 - AC-9: Emits `genesis_sdlc_installed` event on completion with version, spec_hash, and install outcome
-- AC-10: Default install excludes authoring-source territories such as `build_tenants/`; source snapshots require an explicit non-default mode
+- AC-10: Default install excludes copied framework authoring-source territories; project-owned roots such as `build_tenants/` and `docs/` are scaffolded rather than treated as forbidden by default
+- AC-11: When the project uses build tenants, install scaffolds `build_tenants/TENANT_REGISTRY.md` as the canonical tenant-registry surface rather than relying on a generic root `README.md` as system authority
 
 ### REQ-F-BOOT-002 — .genesis/genesis.yml config resolves Package/Worker
 
@@ -89,7 +90,7 @@ The installed release does not invite arbitrary edits to managed artifacts. It e
 **Acceptance Criteria**:
 - AC-1: The installed active workflow declaration identifies the project requirement surface as the primary customization boundary
 - AC-2: The installed active workflow declaration exposes the installed default worker-assignment hint without claiming to be the final per-run worker or backend selection
-- AC-3: The installed active workflow declaration exposes the project-local F_P customization root used for edge-specific tuning
+- AC-3: The installed active workflow declaration exposes the tenant-local F_P customization root used for edge-specific tuning
 - AC-4: The installed active workflow declaration lists the managed install surfaces that should not be edited directly
 - AC-5: The customization surface is machine-readable and shipped with the installed release
 
@@ -106,12 +107,12 @@ Resetting workflow state is a supported operator action. It clears runtime evide
 
 ### REQ-F-BOOT-010 — Product install carries a declared territory boundary
 
-The installed workflow declares the difference between forbidden authoring territory, managed release territory, project customization territory, and mutable runtime-state territory.
+The installed workflow declares the difference between forbidden framework-authoring territory, managed release territory, project-owned territories, and mutable runtime-state territory.
 
 **Acceptance Criteria**:
 - AC-1: The installed active workflow declaration contains a machine-readable list of authoring surfaces forbidden in the default install
 - AC-2: The installed active workflow declaration contains a machine-readable list of managed release surfaces
-- AC-3: The installed active workflow declaration contains a machine-readable list of project customization surfaces
+- AC-3: The installed active workflow declaration contains a machine-readable list of project-owned surfaces, including `specification/`, `build_tenants/`, and `docs/`
 - AC-4: The installed active workflow declaration contains a machine-readable list of runtime-state surfaces under `.ai-workspace/`
 - AC-5: `--audit` reports drift when forbidden authoring surfaces are present in a default install
 
@@ -120,8 +121,9 @@ The installed workflow declares the difference between forbidden authoring terri
 The installed project-facing specification surface is scaffolded from immutable installed template documents, not copied from the framework's own working specification tree.
 
 **Acceptance Criteria**:
-- AC-1: Default install creates the standard project structure needed for first use, including `specification/INTENT.md` and `specification/requirements/`
+- AC-1: Default install creates the standard project structure needed for first use, including `specification/INTENT.md`, `specification/requirements/`, `build_tenants/TENANT_REGISTRY.md`, and `docs/`
 - AC-2: Immutable template documents are installed under `.gsdlc/release/` and used to scaffold the editable project-facing copies
 - AC-3: Default install does not copy `specification/standards/` into the target root
 - AC-4: Existing project-authored scaffold files are never overwritten on reinstall
-- AC-5: The scaffold includes a project-local `specification/design/fp/` surface for F_P customization intent and per-edge overrides
+- AC-5: The scaffold includes a tenant-local `build_tenants/<techlabel>/design/fp/` surface for F_P customization intent and per-edge overrides
+- AC-6: The scaffold includes `build_tenants/common/` as the shared realization root for project-local common tenant surfaces

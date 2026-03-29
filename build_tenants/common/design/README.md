@@ -1,7 +1,7 @@
 # Common Design
 
 **Status**: Ratified
-**Authority**: `build_tenants/README.md`
+**Authority**: `build_tenants/TENANT_REGISTRY.md`
 **Purpose**: Shared design surface for genesis_sdlc realization law
 
 ---

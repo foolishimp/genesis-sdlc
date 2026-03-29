@@ -1,6 +1,6 @@
 # SDLC Bootloader
 
-Version: 1.0.0rc1
+Version: 1.0rc1
 Spec-Hash: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 
 ## Authority
@@ -17,6 +17,7 @@ Spec-Hash: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b8
 ## Active Docs
 
 - workspace://specification/INTENT.md
+- workspace://build_tenants/TENANT_REGISTRY.md
 - workspace://specification/requirements/02-graph.md
 - workspace://build_tenants/common/design/README.md
 - workspace://build_tenants/abiogenesis/python/design/module_decomp.md

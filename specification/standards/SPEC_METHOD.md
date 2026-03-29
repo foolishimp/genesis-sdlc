@@ -81,6 +81,7 @@ The important boundary is:
 - `INTENT.md` defines domain direction
 - `specification/requirements/` is the live requirement surface
 - a shared design surface plus any tenant-local design surfaces choose the concrete mechanism
+- when a project realization model uses build tenants, `build_tenants/` is the project-owned realization root beneath one shared specification
 
 Structurally, `requirements/` is a folder under `specification/`. Requirements may be stored as individual files or grouped into requirement families. The purpose of this shape is to avoid collapsing the constitutional surface into one monolithic requirements document.
 
@@ -381,6 +382,13 @@ The target constitutional shape for a project is:
 - `specification/requirements/` as the live requirement surface
 - a live shared design surface
 - any tenant-local design surfaces required by the realization model
+
+If the realization model is tenanted, the target project topology also includes:
+
+- `build_tenants/` as the project-owned realization root for one-to-many independent implementations of the shared specification
+- `build_tenants/TENANT_REGISTRY.md` as the canonical registry of tenant families, variants, and activity state
+- `build_tenants/common/` as the shared realization root for cross-tenant law
+- `docs/` as project-owned supporting documentation
 
 The corresponding folder shape is:
 

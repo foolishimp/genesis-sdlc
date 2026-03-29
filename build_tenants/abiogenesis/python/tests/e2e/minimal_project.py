@@ -139,7 +139,7 @@ Keep each constructive turn tightly bounded to the minimal calculator project.
 
 ## Design Mapping
 
-- specification/design/README.md
+- build_tenants/abiogenesis/python/design/README.md
 
 ## Boundaries
 
@@ -151,12 +151,14 @@ Keep each constructive turn tightly bounded to the minimal calculator project.
 def seed_minimal_project_spec(workspace: Path, *, archive=None) -> None:
     spec_root = workspace / "specification"
     requirements_root = spec_root / "requirements"
-    design_root = spec_root / "design"
+    design_root = workspace / "build_tenants" / "abiogenesis" / "python" / "design"
     fp_root = design_root / "fp"
     overrides_root = fp_root / "edge-overrides"
 
     if requirements_root.exists():
         shutil.rmtree(requirements_root)
+    if (spec_root / "design").exists():
+        shutil.rmtree(spec_root / "design")
     if design_root.exists():
         shutil.rmtree(design_root)
     requirements_root.mkdir(parents=True, exist_ok=True)
@@ -328,7 +330,7 @@ def fd_repair_prompt(edge: str, workspace: Path) -> str:
 
 
 def _write_fp_overrides(overrides_root: Path) -> None:
-    design_ref = "specification/design/README.md"
+    design_ref = "build_tenants/abiogenesis/python/design/README.md"
     edge_refs = {
         "requirements→feature_decomp": ["REQ-PROJ-001", "REQ-PROJ-002", "REQ-PROJ-003", "REQ-PROJ-004"],
         "feature_decomp→design": ["REQ-PROJ-001", "REQ-PROJ-002", "REQ-PROJ-004"],

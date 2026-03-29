@@ -21,7 +21,7 @@ PYTHONPATH=.gsdlc/release:.genesis python -m genesis iterate --workspace .
 3. If the engine reports `fp_dispatch`:
    - read the manifest path from the engine output
    - treat `.gsdlc/release/active-workflow.json` as the install-managed default hint only
-   - treat `specification/design/fp/` as the project-local F_P tuning surface
+   - treat `build_tenants/<techlabel>/design/fp/` as the tenant-local F_P tuning surface
    - treat `.ai-workspace/runtime/` as the mutable runtime/session state surface
    - render the effective bounded prompt from the manifest with:
 

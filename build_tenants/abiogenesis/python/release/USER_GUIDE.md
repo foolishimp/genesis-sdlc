@@ -1,6 +1,6 @@
 # Genesis SDLC User Guide
 
-Version: 1.0.0rc1
+Version: 1.0rc1
 
 ## Install
 

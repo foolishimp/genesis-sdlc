@@ -24,7 +24,7 @@ That produced three design risks:
 The new `0.9.9` requirements make the intended boundary explicit:
 
 - `.gsdlc/release/active-workflow.json` is install-managed release declaration
-- `specification/design/fp/` remains the project-truth edge-tuning seam
+- `build_tenants/<techlabel>/design/fp/` remains the tenant-local edge-tuning seam
 - `.ai-workspace/runtime/` owns mutable runtime state
 - the control-plane path is the only lawful operative runtime path
 
@@ -102,7 +102,7 @@ The variant uses four runtime layers:
 
 1. constitutional law in `specification/INTENT.md` and `specification/requirements/`
 2. install-managed release defaults in `.gsdlc/release/`
-3. project-truth edge tuning in `specification/design/fp/`
+3. tenant-local edge tuning in `build_tenants/<techlabel>/design/fp/`
 4. mutable runtime/session state in `.ai-workspace/runtime/`
 
 These compile into one resolved runtime artifact consumed by product commands and qualification.

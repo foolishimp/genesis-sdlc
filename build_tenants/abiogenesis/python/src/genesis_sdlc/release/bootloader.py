@@ -23,6 +23,7 @@ def _active_docs(workspace_root: Path) -> list[str]:
     docs: list[str] = []
     preferred = [
         workspace_root / "specification" / "INTENT.md",
+        workspace_root / "build_tenants" / "TENANT_REGISTRY.md",
         workspace_root / ".gsdlc" / "release" / "operating-standards" / "SPEC_METHOD.md",
         workspace_root / ".gsdlc" / "release" / "operating-standards" / "GSDLC_METHOD.md",
         workspace_root / ".gsdlc" / "release" / "design" / "README.md",

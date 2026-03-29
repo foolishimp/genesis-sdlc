@@ -395,7 +395,7 @@ Without that clarity, the product remains a strong proof rather than a fully ope
 genesis_sdlc treats the next milestone as an assurance control plane over the existing workflow:
 
 - installed release defaults remain under `.gsdlc/release/`
-- project-truth edge tuning remains under `specification/design/fp/`
+- tenant-local edge tuning remains under `build_tenants/<techlabel>/design/fp/`
 - runtime, operator, and session state live under `.ai-workspace/runtime/`
 - one deterministic compile step produces a resolved runtime artifact
 - backend selection becomes an explicit adapter-based runtime decision rather than ad hoc transport branching
@@ -408,7 +408,7 @@ The control plane governs the execution envelope, not the substantive solution s
 ### Scope
 
 - Define the assurance control plane as a first-class product concept
-- Preserve the current narrow project-local customization seam at `specification/design/fp/`
+- Preserve the current narrow tenant-local customization seam at `build_tenants/<techlabel>/design/fp/`
 - Introduce deterministic runtime resolution into one machine-readable runtime artifact
 - Separate install-managed release declaration from mutable runtime/session policy
 - Define explicit backend adapter and doctor/readiness surfaces
@@ -416,13 +416,13 @@ The control plane governs the execution envelope, not the substantive solution s
 ### Out of Scope
 
 - Second-order memory, compaction, and promotion logic
-- Replacing the current `specification/design/fp/` seam with a broader project runtime tree before the control plane is proven
+- Replacing the current `build_tenants/<techlabel>/design/fp/` seam with a broader runtime tree before the control plane is proven
 - Treating `.gsdlc/release/active-workflow.json` as a mutable session override surface
 - Turning runtime profiles, backend adapters, or backend preferences into constitutional project truth or prescribed solution method
 
 ### Success Criteria
 
-1. The active specification distinguishes installed release declaration, project-truth edge tuning, and mutable runtime/session state
+1. The active specification distinguishes installed release declaration, tenant-local edge tuning, and mutable runtime/session state
 2. The product can compile its runtime into one inspectable resolved artifact with provenance for winning values
 3. Backend execution is expressed through a product adapter contract rather than hardcoded transport branching
 4. `doctor` can explain runtime readiness as a separate concern from release-integrity audit

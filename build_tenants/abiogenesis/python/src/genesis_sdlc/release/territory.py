@@ -7,6 +7,9 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
+TENANT_FAMILY = "abiogenesis"
+TENANT_VARIANT = "python"
+
 
 def _copy_tree(src: Path, dst: Path, *, exclude_subtree: Path | None = None) -> None:
     if dst.exists():
@@ -116,16 +119,28 @@ def _copy_template_if_absent(src: Path, dst: Path) -> None:
 
 def install_project_scaffold(_source_root: Path, target_root: Path) -> None:
     templates_root = target_root / ".gsdlc" / "release" / "project-templates"
+    tenant_root = target_root / "build_tenants" / TENANT_FAMILY / TENANT_VARIANT
     template_map = {
         templates_root / "INTENT_TEMPLATE.md": target_root / "specification" / "INTENT.md",
+        templates_root / "build_tenants" / "TENANT_REGISTRY_TEMPLATE.md": target_root / "build_tenants" / "TENANT_REGISTRY.md",
+        templates_root / "build_tenants" / "common" / "README_TEMPLATE.md": target_root / "build_tenants" / "common" / "README.md",
+        templates_root / "build_tenants" / "common" / "design" / "README_TEMPLATE.md": (
+            target_root / "build_tenants" / "common" / "design" / "README.md"
+        ),
+        templates_root / "build_tenants" / "variant" / "README_TEMPLATE.md": tenant_root / "README.md",
+        templates_root / "build_tenants" / "variant" / "design" / "README_TEMPLATE.md": tenant_root / "design" / "README.md",
+        templates_root / "build_tenants" / "variant" / "design" / "fp" / "README_TEMPLATE.md": (
+            tenant_root / "design" / "fp" / "README.md"
+        ),
+        templates_root / "build_tenants" / "variant" / "design" / "fp" / "INTENT_TEMPLATE.md": (
+            tenant_root / "design" / "fp" / "INTENT.md"
+        ),
+        templates_root / "build_tenants" / "variant" / "design" / "fp" / "edge-overrides" / "README_TEMPLATE.md": (
+            tenant_root / "design" / "fp" / "edge-overrides" / "README.md"
+        ),
+        templates_root / "docs" / "README_TEMPLATE.md": target_root / "docs" / "README.md",
         templates_root / "requirements" / "README_TEMPLATE.md": target_root / "specification" / "requirements" / "README.md",
         templates_root / "requirements" / "STARTER_REQUIREMENTS_TEMPLATE.md": target_root / "specification" / "requirements" / "00-starter.md",
-        templates_root / "design" / "README_TEMPLATE.md": target_root / "specification" / "design" / "README.md",
-        templates_root / "design" / "fp" / "README_TEMPLATE.md": target_root / "specification" / "design" / "fp" / "README.md",
-        templates_root / "design" / "fp" / "INTENT_TEMPLATE.md": target_root / "specification" / "design" / "fp" / "INTENT.md",
-        templates_root / "design" / "fp" / "edge-overrides" / "README_TEMPLATE.md": (
-            target_root / "specification" / "design" / "fp" / "edge-overrides" / "README.md"
-        ),
     }
     for src, dst in template_map.items():
         if not src.exists():

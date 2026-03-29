@@ -55,7 +55,13 @@ else:
     from .wrapper import load_project_requirements, render_wrapper
 
 
-VERSION = "1.0.0rc1"
+VERSION = "1.0rc1"
+TENANT_FAMILY = "abiogenesis"
+TENANT_VARIANT = "python"
+TENANT_LABEL = f"{TENANT_FAMILY}/{TENANT_VARIANT}"
+TENANT_ROOT = f"build_tenants/{TENANT_LABEL}"
+TENANT_DESIGN_ROOT = f"{TENANT_ROOT}/design"
+FP_CUSTOMIZATION_ROOT = f"{TENANT_DESIGN_ROOT}/fp/edge-overrides"
 _BOOTLOADER_START = "<!-- SDLC_BOOTLOADER_START -->"
 _BOOTLOADER_END = "<!-- SDLC_BOOTLOADER_END -->"
 _ENGINE_COMMANDS = ("gen-start", "gen-gaps", "gen-status")
@@ -189,7 +195,6 @@ def _write_active_workflow(target_root: Path, slug: str) -> Path:
         ],
         "territory_boundary": {
             "authoring_forbidden_on_default_install": [
-                "build_tenants/",
                 "specification/standards/",
             ],
             "release_managed": [
@@ -199,6 +204,8 @@ def _write_active_workflow(target_root: Path, slug: str) -> Path:
             ],
             "customization": [
                 "specification/",
+                "build_tenants/",
+                "docs/",
                 ".gsdlc/release/active-workflow.json[customization]",
             ],
             "runtime_state": [
@@ -207,7 +214,8 @@ def _write_active_workflow(target_root: Path, slug: str) -> Path:
         },
         "customization": {
             "requirements_root": "specification/requirements",
-            "fp_customization_root": "specification/design/fp/edge-overrides",
+            "tenant_design_root": TENANT_DESIGN_ROOT,
+            "fp_customization_root": FP_CUSTOMIZATION_ROOT,
             "default_worker_assignments": {
                 "constructor": "claude_code",
                 "implementer": "claude_code",
@@ -307,10 +315,11 @@ def _control_surface_section(target_root: Path) -> str:
         "\n"
         "Installed axioms:\n"
         "- Specification defines project truth; design surfaces define realization.\n"
+        "- `workspace://build_tenants/TENANT_REGISTRY.md` is the canonical registry of tenant families, variants, and activity state.\n"
         "- The only lawful operative path is the resolved runtime at workspace://.ai-workspace/runtime/resolved-runtime.json.\n"
         "- One edge traversal binds one role and one worker assignment.\n"
         "- Backend identity is derived from worker assignment, not selected independently.\n"
-        "- Managed methodology surfaces live under workspace://.gsdlc/release/; project customization lives under workspace://specification/.\n"
+        "- Managed methodology surfaces live under workspace://.gsdlc/release/; project-owned surfaces live under workspace://specification/, workspace://build_tenants/, and workspace://docs/.\n"
         "- Runtime/session state lives under workspace://.ai-workspace/runtime/; when it differs from release defaults, the resolved runtime wins.\n"
         "\n"
         "Default role assignments for this install:\n"
@@ -446,18 +455,28 @@ def install(
             target_root / ".gsdlc" / "release" / "runtime" / "role-assignments.json",
             target_root / ".gsdlc" / "release" / "SDLC_BOOTLOADER.md",
             target_root / ".gsdlc" / "release" / "project-templates" / "INTENT_TEMPLATE.md",
-            target_root / ".gsdlc" / "release" / "project-templates" / "design" / "README_TEMPLATE.md",
-            target_root / ".gsdlc" / "release" / "project-templates" / "design" / "fp" / "README_TEMPLATE.md",
-            target_root / ".gsdlc" / "release" / "project-templates" / "design" / "fp" / "INTENT_TEMPLATE.md",
-            target_root / ".gsdlc" / "release" / "project-templates" / "design" / "fp" / "edge-overrides" / "README_TEMPLATE.md",
-            target_root / ".gsdlc" / "release" / "project-templates" / "design" / "fp" / "edge-overrides" / "EDGE_OVERRIDE_TEMPLATE.json",
+            target_root / ".gsdlc" / "release" / "project-templates" / "build_tenants" / "TENANT_REGISTRY_TEMPLATE.md",
+            target_root / ".gsdlc" / "release" / "project-templates" / "build_tenants" / "common" / "README_TEMPLATE.md",
+            target_root / ".gsdlc" / "release" / "project-templates" / "build_tenants" / "common" / "design" / "README_TEMPLATE.md",
+            target_root / ".gsdlc" / "release" / "project-templates" / "build_tenants" / "variant" / "README_TEMPLATE.md",
+            target_root / ".gsdlc" / "release" / "project-templates" / "build_tenants" / "variant" / "design" / "README_TEMPLATE.md",
+            target_root / ".gsdlc" / "release" / "project-templates" / "build_tenants" / "variant" / "design" / "fp" / "README_TEMPLATE.md",
+            target_root / ".gsdlc" / "release" / "project-templates" / "build_tenants" / "variant" / "design" / "fp" / "INTENT_TEMPLATE.md",
+            target_root / ".gsdlc" / "release" / "project-templates" / "build_tenants" / "variant" / "design" / "fp" / "edge-overrides" / "README_TEMPLATE.md",
+            target_root / ".gsdlc" / "release" / "project-templates" / "build_tenants" / "variant" / "design" / "fp" / "edge-overrides" / "EDGE_OVERRIDE_TEMPLATE.json",
+            target_root / ".gsdlc" / "release" / "project-templates" / "docs" / "README_TEMPLATE.md",
             target_root / ".gsdlc" / "release" / "project-templates" / "requirements" / "README_TEMPLATE.md",
             target_root / ".gsdlc" / "release" / "project-templates" / "requirements" / "STARTER_REQUIREMENTS_TEMPLATE.md",
             target_root / "specification" / "INTENT.md",
-            target_root / "specification" / "design" / "README.md",
-            target_root / "specification" / "design" / "fp" / "README.md",
-            target_root / "specification" / "design" / "fp" / "INTENT.md",
-            target_root / "specification" / "design" / "fp" / "edge-overrides" / "README.md",
+            target_root / "build_tenants" / "TENANT_REGISTRY.md",
+            target_root / "build_tenants" / "common" / "README.md",
+            target_root / "build_tenants" / "common" / "design" / "README.md",
+            target_root / "build_tenants" / TENANT_FAMILY / TENANT_VARIANT / "README.md",
+            target_root / "build_tenants" / TENANT_FAMILY / TENANT_VARIANT / "design" / "README.md",
+            target_root / "build_tenants" / TENANT_FAMILY / TENANT_VARIANT / "design" / "fp" / "README.md",
+            target_root / "build_tenants" / TENANT_FAMILY / TENANT_VARIANT / "design" / "fp" / "INTENT.md",
+            target_root / "build_tenants" / TENANT_FAMILY / TENANT_VARIANT / "design" / "fp" / "edge-overrides" / "README.md",
+            target_root / "docs" / "README.md",
             target_root / "specification" / "requirements" / "README.md",
             target_root / "AGENTS.md",
             target_root / ".claude" / "commands" / "gen-start.md",
@@ -469,7 +488,6 @@ def install(
         ]
         missing = [str(path.relative_to(target_root)) for path in required if not path.exists()]
         forbidden = [
-            target_root / "build_tenants",
             target_root / "specification" / "standards",
         ]
         present_forbidden = [str(path.relative_to(target_root)) for path in forbidden if path.exists()]

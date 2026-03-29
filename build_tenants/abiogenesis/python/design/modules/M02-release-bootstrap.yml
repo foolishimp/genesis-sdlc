@@ -36,4 +36,13 @@ consumes_surfaces:
   - repo://specification/standards/templates/INTENT_TEMPLATE.md
   - repo://specification/standards/templates/requirements/README_TEMPLATE.md
   - repo://specification/standards/templates/requirements/STARTER_REQUIREMENTS_TEMPLATE.md
-  - repo://specification/standards/templates/design/README_TEMPLATE.md
+  - repo://specification/standards/templates/build_tenants/TENANT_REGISTRY_TEMPLATE.md
+  - repo://specification/standards/templates/build_tenants/common/README_TEMPLATE.md
+  - repo://specification/standards/templates/build_tenants/common/design/README_TEMPLATE.md
+  - repo://specification/standards/templates/build_tenants/variant/README_TEMPLATE.md
+  - repo://specification/standards/templates/build_tenants/variant/design/README_TEMPLATE.md
+  - repo://specification/standards/templates/build_tenants/variant/design/fp/README_TEMPLATE.md
+  - repo://specification/standards/templates/build_tenants/variant/design/fp/INTENT_TEMPLATE.md
+  - repo://specification/standards/templates/build_tenants/variant/design/fp/edge-overrides/README_TEMPLATE.md
+  - repo://specification/standards/templates/build_tenants/variant/design/fp/edge-overrides/EDGE_OVERRIDE_TEMPLATE.json
+  - repo://specification/standards/templates/docs/README_TEMPLATE.md

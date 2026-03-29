@@ -18,13 +18,13 @@ The assurance control plane must compile the active runtime from the installed r
 
 ### REQ-F-CTRL-002 — Release declaration, project truth, and runtime state remain in separate territories
 
-The control plane must preserve the narrow customization boundary by keeping install-managed release declaration, project-truth tuning, and mutable runtime state in distinct territories.
+The control plane must preserve the narrow customization boundary by keeping install-managed release declaration, tenant-local tuning, and mutable runtime state in distinct territories.
 
 **Acceptance Criteria**:
 - AC-1: `.gsdlc/release/active-workflow.json` remains an install-managed release declaration rather than a per-run override file
-- AC-2: The active project-local edge-tuning seam for `0.9.9` remains `specification/design/fp/`
+- AC-2: The active tenant-local edge-tuning seam for `0.9.9` remains `build_tenants/<techlabel>/design/fp/`
 - AC-3: Backend selection, doctor state, resolved runtime, and session-local overrides live under `.ai-workspace/runtime/`
-- AC-4: The control plane does not require a broader `specification/design/runtime/` scaffold to satisfy `0.9.9`
+- AC-4: The control plane does not require a broader `build_tenants/<techlabel>/design/runtime/` scaffold to satisfy `0.9.9`
 
 ### REQ-F-CTRL-003 — Backend execution uses an explicit adapter contract
 

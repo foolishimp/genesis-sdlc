@@ -58,25 +58,52 @@ def test_install_bootstraps_real_sandbox_and_gap_scan(run_archive) -> None:
     assert (workspace / ".gsdlc" / "release" / "runtime" / "workers.json").is_file()
     assert (workspace / ".gsdlc" / "release" / "runtime" / "role-assignments.json").is_file()
     assert (workspace / ".gsdlc" / "release" / "project-templates" / "INTENT_TEMPLATE.md").is_file()
-    assert (workspace / ".gsdlc" / "release" / "project-templates" / "design" / "README_TEMPLATE.md").is_file()
-    assert (workspace / ".gsdlc" / "release" / "project-templates" / "design" / "fp" / "README_TEMPLATE.md").is_file()
-    assert (workspace / ".gsdlc" / "release" / "project-templates" / "design" / "fp" / "INTENT_TEMPLATE.md").is_file()
+    assert (workspace / ".gsdlc" / "release" / "project-templates" / "build_tenants" / "TENANT_REGISTRY_TEMPLATE.md").is_file()
+    assert (workspace / ".gsdlc" / "release" / "project-templates" / "build_tenants" / "common" / "README_TEMPLATE.md").is_file()
     assert (
-        workspace / ".gsdlc" / "release" / "project-templates" / "design" / "fp" / "edge-overrides" / "README_TEMPLATE.md"
+        workspace / ".gsdlc" / "release" / "project-templates" / "build_tenants" / "common" / "design" / "README_TEMPLATE.md"
     ).is_file()
+    assert (workspace / ".gsdlc" / "release" / "project-templates" / "build_tenants" / "variant" / "README_TEMPLATE.md").is_file()
+    assert (
+        workspace / ".gsdlc" / "release" / "project-templates" / "build_tenants" / "variant" / "design" / "README_TEMPLATE.md"
+    ).is_file()
+    assert (
+        workspace / ".gsdlc" / "release" / "project-templates" / "build_tenants" / "variant" / "design" / "fp" / "README_TEMPLATE.md"
+    ).is_file()
+    assert (
+        workspace / ".gsdlc" / "release" / "project-templates" / "build_tenants" / "variant" / "design" / "fp" / "INTENT_TEMPLATE.md"
+    ).is_file()
+    assert (
+        workspace
+        / ".gsdlc"
+        / "release"
+        / "project-templates"
+        / "build_tenants"
+        / "variant"
+        / "design"
+        / "fp"
+        / "edge-overrides"
+        / "README_TEMPLATE.md"
+    ).is_file()
+    assert (workspace / ".gsdlc" / "release" / "project-templates" / "docs" / "README_TEMPLATE.md").is_file()
     assert (workspace / ".gsdlc" / "release" / "project-templates" / "requirements" / "README_TEMPLATE.md").is_file()
     assert (
         workspace / ".gsdlc" / "release" / "project-templates" / "requirements" / "STARTER_REQUIREMENTS_TEMPLATE.md"
     ).is_file()
     assert (workspace / "specification" / "INTENT.md").is_file()
-    assert (workspace / "specification" / "design" / "README.md").is_file()
-    assert (workspace / "specification" / "design" / "fp" / "README.md").is_file()
-    assert (workspace / "specification" / "design" / "fp" / "INTENT.md").is_file()
-    assert (workspace / "specification" / "design" / "fp" / "edge-overrides" / "README.md").is_file()
     assert (workspace / "specification" / "requirements" / "README.md").is_file()
     assert (workspace / "specification" / "requirements" / "00-starter.md").is_file()
+    assert (workspace / "build_tenants" / "TENANT_REGISTRY.md").is_file()
+    assert (workspace / "build_tenants" / "common" / "README.md").is_file()
+    assert (workspace / "build_tenants" / "common" / "design" / "README.md").is_file()
+    assert (workspace / "build_tenants" / "abiogenesis" / "python" / "README.md").is_file()
+    assert (workspace / "build_tenants" / "abiogenesis" / "python" / "design" / "README.md").is_file()
+    assert (workspace / "build_tenants" / "abiogenesis" / "python" / "design" / "fp" / "README.md").is_file()
+    assert (workspace / "build_tenants" / "abiogenesis" / "python" / "design" / "fp" / "INTENT.md").is_file()
+    assert (workspace / "build_tenants" / "abiogenesis" / "python" / "design" / "fp" / "edge-overrides" / "README.md").is_file()
+    assert (workspace / "docs" / "README.md").is_file()
     assert (workspace / ".ai-workspace" / "runtime" / "resolved-runtime.json").is_file()
-    assert not (workspace / "build_tenants").exists()
+    assert not (workspace / "specification" / "design").exists()
     assert not (workspace / "specification" / "standards").exists()
     assert (workspace / ".claude" / "commands" / "gen-start.md").is_file()
     assert (workspace / ".claude" / "commands" / "gen-gaps.md").is_file()
@@ -89,14 +116,16 @@ def test_install_bootstraps_real_sandbox_and_gap_scan(run_archive) -> None:
         (workspace / ".gsdlc" / "release" / "active-workflow.json").read_text(encoding="utf-8")
     )
     assert active_workflow["customization"]["requirements_root"] == "specification/requirements"
-    assert active_workflow["customization"]["fp_customization_root"] == "specification/design/fp/edge-overrides"
+    assert active_workflow["customization"]["tenant_design_root"] == "build_tenants/abiogenesis/python/design"
+    assert active_workflow["customization"]["fp_customization_root"] == "build_tenants/abiogenesis/python/design/fp/edge-overrides"
     assert active_workflow["customization"]["default_worker_assignments"]["constructor"] == "claude_code"
     assert active_workflow["customization"]["default_worker_assignments"]["implementer"] == "claude_code"
     assert ".claude/commands/" in active_workflow["managed_surfaces"]
     assert ".genesis/" in active_workflow["managed_surfaces"]
     assert ".gsdlc/release/" in active_workflow["managed_surfaces"]
-    assert "build_tenants/" in active_workflow["territory_boundary"]["authoring_forbidden_on_default_install"]
     assert "specification/standards/" in active_workflow["territory_boundary"]["authoring_forbidden_on_default_install"]
+    assert "build_tenants/" in active_workflow["territory_boundary"]["customization"]
+    assert "docs/" in active_workflow["territory_boundary"]["customization"]
     assert ".ai-workspace/runtime/" in active_workflow["territory_boundary"]["runtime_state"]
 
     resolved_runtime = json.loads(
@@ -392,7 +421,7 @@ def test_installed_fp_prompt_uses_project_local_design_customization(run_archive
     assert "Project requirement refs:" in prompt
     assert "REQ-PROJ-001" in prompt
     assert "Project design refs:" in prompt
-    assert "specification/design/README.md" in prompt
+    assert "build_tenants/abiogenesis/python/design/README.md" in prompt
     assert "output/feature_decomp.md" in prompt
 
 

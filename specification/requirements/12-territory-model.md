@@ -27,16 +27,17 @@ The deployed runtime path must not include authoring-source roots.
 - AC-3: No import in the runtime chain requires authoring-source roots on sys.path
 - AC-4: Evaluator commands MAY reference build-tenant source roots — they test source, not deploy it
 
-### REQ-F-TERRITORY-003 — Default install excludes authoring territory from the target root
+### REQ-F-TERRITORY-003 — Default install excludes copied framework authoring territory from the target root
 
-The product install boundary excludes authoring-source territory. If a release needs design, tests, or related methodology artifacts at runtime, they are staged under `.gsdlc/release/`, not copied into the target as source working trees.
+The product install boundary excludes copied framework authoring-source territory. If a release needs design, tests, or related methodology artifacts at runtime, they are staged under `.gsdlc/release/`, not copied into the target as source working trees. Project-owned roots such as `build_tenants/` and `docs/` remain lawful parts of the installed target structure.
 
 **Acceptance Criteria**:
-- AC-1: Default install does not create `build_tenants/` in the target root
+- AC-1: Default install does not copy the framework's own `build_tenants/` working tree into the target root
 - AC-2: Default install does not create copied source design or source test trees in the target root
 - AC-3: Release snapshots required by runtime or audit live under `.gsdlc/release/`
 - AC-4: Default install does not create `specification/standards/` in the target root
-- AC-5: Any source-snapshot or self-hosting install mode is explicit and non-default
+- AC-5: Any framework source-snapshot or self-hosting install mode is explicit and non-default
+- AC-6: Project-owned roots such as `build_tenants/` and `docs/` may be scaffolded in the target root without being treated as copied framework authoring territory
 
 ### REQ-F-TERRITORY-004 — Runtime control state lives under .ai-workspace/runtime/
 

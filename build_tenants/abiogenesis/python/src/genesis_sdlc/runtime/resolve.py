@@ -16,6 +16,7 @@ from genesis_sdlc.workflow.roles import workflow_job_roles, workflow_role_manife
 from genesis_sdlc.workflow.transforms import (
     EDGE_TRANSFORM_CONTRACTS,
     edge_override_filename,
+    _fp_override_root,
     load_project_edge_override,
     resolve_edge_transform_contract,
 )
@@ -312,7 +313,8 @@ def _edge_profile(
     }
 
     override_payload = load_project_edge_override(edge, workspace_root)
-    override_path = Path("specification/design/fp/edge-overrides") / edge_override_filename(edge)
+    override_root = _fp_override_root(workspace_root)
+    override_path = Path(override_root.relative_to(workspace_root)) / edge_override_filename(edge) if override_root else Path(edge_override_filename(edge))
     override_source = {
         "source_layer": "project_tuning",
         "source_path": override_path.as_posix(),
@@ -385,13 +387,17 @@ def compile_resolved_runtime(workspace_root: Path | None = None) -> dict[str, An
             "provenance": provenance,
         }
 
+    customization = active_workflow.get("customization", {})
+    if not isinstance(customization, dict):
+        customization = {}
+
     payload = {
         "schema_version": 2,
         "compiled_at": datetime.now(timezone.utc).isoformat(),
         "workspace_root": str(workspace),
         "release_declaration": ".gsdlc/release/active-workflow.json",
         "release_runtime": ".gsdlc/release/runtime/",
-        "project_tuning_root": "specification/design/fp/edge-overrides",
+        "project_tuning_root": customization.get("fp_customization_root"),
         "runtime_state_root": ".ai-workspace/runtime/",
         "version": active_workflow.get("version"),
         "worker_registry": {

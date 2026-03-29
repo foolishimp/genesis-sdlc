@@ -7,6 +7,8 @@ import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+DEFAULT_FP_OVERRIDE_ROOT = Path("build_tenants") / "abiogenesis" / "python" / "design" / "fp" / "edge-overrides"
+
 
 LIVE_MODE_PREAMBLE = "[LIVE QUALIFICATION MODE]\n"
 CONSTRUCTIVE_TURN_RULES = (
@@ -184,7 +186,18 @@ def _infer_workspace_root(start: Path | None = None) -> Path | None:
 def _fp_override_root(workspace_root: Path | None) -> Path | None:
     if workspace_root is None:
         return None
-    return workspace_root / "specification" / "design" / "fp" / "edge-overrides"
+    active_workflow = workspace_root / ".gsdlc" / "release" / "active-workflow.json"
+    if active_workflow.exists():
+        try:
+            payload = json.loads(active_workflow.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            payload = {}
+        customization = payload.get("customization", {})
+        if isinstance(customization, dict):
+            configured = customization.get("fp_customization_root")
+            if isinstance(configured, str) and configured:
+                return workspace_root / configured
+    return workspace_root / DEFAULT_FP_OVERRIDE_ROOT
 
 
 def load_project_edge_override(edge: str, workspace_root: Path | None = None) -> dict[str, object] | None:
