@@ -95,7 +95,15 @@ def resolve_source(explicit: str | None) -> Path:
 
 
 def _abiogenesis_installer(source_root: Path) -> Path:
-    installer = source_root.parent / "abiogenesis" / "builds" / "claude_code" / "code" / "gen-install.py"
+    installer = (
+        source_root.parent
+        / "abiogenesis"
+        / "build_tenants"
+        / "abiogenesis"
+        / "python"
+        / "code"
+        / "gen-install.py"
+    )
     if not installer.exists():
         raise FileNotFoundError(f"abiogenesis installer not found: {installer}")
     return installer
@@ -105,8 +113,9 @@ def _abiogenesis_command_dir(source_root: Path) -> Path:
     command_dir = (
         source_root.parent
         / "abiogenesis"
-        / "builds"
-        / "claude_code"
+        / "build_tenants"
+        / "abiogenesis"
+        / "python"
         / ".claude-plugin"
         / "plugins"
         / "genesis"

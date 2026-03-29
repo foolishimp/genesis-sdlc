@@ -147,7 +147,14 @@ def _transport_bindings() -> tuple[Callable[..., str], Callable[[str], bool]] | 
         repo_root = _repo_root_from_file()
         if repo_root is None:
             return None
-        abg_code = repo_root.parent / "abiogenesis" / "builds" / "claude_code" / "code"
+        abg_code = (
+            repo_root.parent
+            / "abiogenesis"
+            / "build_tenants"
+            / "abiogenesis"
+            / "python"
+            / "code"
+        )
         if not abg_code.exists():
             return None
         if str(abg_code) not in sys.path:
